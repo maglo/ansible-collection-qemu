@@ -1,0 +1,3 @@
+---
+# Internal variables — not intended to be overridden
+qemu_host_novnc_repo: https://github.com/novnc/noVNC.git

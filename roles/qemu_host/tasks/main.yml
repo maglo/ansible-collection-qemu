@@ -1,0 +1,10 @@
+---
+- name: Install QEMU/KVM packages
+  ansible.builtin.import_tasks: install.yml
+
+- name: Configure systemd service for QEMU VMs
+  ansible.builtin.import_tasks: systemd.yml
+
+- name: Configure noVNC
+  ansible.builtin.import_tasks: novnc.yml
+  when: qemu_host_novnc_enabled

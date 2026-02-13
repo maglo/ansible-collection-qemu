@@ -1,0 +1,24 @@
+---
+namespace: basalt
+name: qemu
+version: 0.1.0
+readme: README.md
+authors:
+  - Basalt
+description: Ansible collection for managing QEMU/KVM hosts on Enterprise Linux
+license_file: LICENSE
+tags:
+  - qemu
+  - kvm
+  - virtualization
+  - systemd
+  - novnc
+repository: https://github.com/maglo/ansible-collection-qemu
+dependencies: {}
+build_ignore:
+  - .github
+  - .ansible-lint
+  - CLAUDE.md
+  - AGENTS.md
+  - molecule
+  - tests

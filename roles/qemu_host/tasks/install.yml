@@ -1,0 +1,27 @@
+---
+- name: Install QEMU/KVM and related packages
+  ansible.builtin.dnf:
+    name: "{{ qemu_host_packages }}"
+    state: present
+
+- name: Enable and start libvirtd
+  ansible.builtin.systemd_service:
+    name: libvirtd
+    enabled: "{{ qemu_host_libvirtd_enabled }}"
+    state: "{{ 'started' if qemu_host_libvirtd_enabled else 'stopped' }}"
+
+- name: Create VM config directory
+  ansible.builtin.file:
+    path: "{{ qemu_host_vm_config_dir }}"
+    state: directory
+    owner: "{{ qemu_host_service_user }}"
+    group: "{{ qemu_host_service_group }}"
+    mode: "0755"
+
+- name: Create VM image directory
+  ansible.builtin.file:
+    path: "{{ qemu_host_vm_image_dir }}"
+    state: directory
+    owner: "{{ qemu_host_service_user }}"
+    group: "{{ qemu_host_service_group }}"
+    mode: "0755"

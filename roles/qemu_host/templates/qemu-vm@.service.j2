@@ -1,0 +1,18 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=QEMU VM %i
+After=network.target
+
+[Service]
+Type=simple
+User={{ qemu_host_service_user }}
+Group={{ qemu_host_service_group }}
+EnvironmentFile={{ qemu_host_vm_config_dir }}/%i.conf
+ExecStart=/usr/libexec/qemu-kvm $QEMU_ARGS
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

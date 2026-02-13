@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: Basalt
+  description: Install and configure a QEMU/KVM host on Enterprise Linux
+  license: GPL-3.0-only
+  min_ansible_version: "2.15"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+  galaxy_tags:
+    - qemu
+    - kvm
+    - virtualization
+    - systemd
+    - novnc
+dependencies: []
