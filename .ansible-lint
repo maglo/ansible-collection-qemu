@@ -1,2 +1,4 @@
 ---
 profile: production
+exclude_paths:
+  - roles/*/molecule/

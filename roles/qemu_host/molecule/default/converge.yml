@@ -1,0 +1,6 @@
+---
+- name: Converge
+  hosts: all
+  roles:
+    - role: qemu_host
+      qemu_host_libvirtd_enabled: false

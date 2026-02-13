@@ -1,0 +1,19 @@
+---
+driver:
+  name: docker
+platforms:
+  - name: qemu-host-novnc
+    image: geerlingguy/docker-rockylinux9-ansible:latest
+    command: ""
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    tmpfs:
+      - /run
+      - /tmp
+provisioner:
+  name: ansible
+verifier:
+  name: ansible
