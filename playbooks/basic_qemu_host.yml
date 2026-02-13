@@ -1,0 +1,9 @@
+---
+# Minimal playbook that sets up a QEMU/KVM host with default settings.
+# Usage:
+#   ansible-playbook -i inventory.yml basic_qemu_host.yml
+- name: Configure basic QEMU/KVM hosts
+  hosts: qemu_hosts
+  become: true
+  roles:
+    - basalt.qemu.qemu_host

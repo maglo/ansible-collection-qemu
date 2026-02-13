@@ -1,0 +1,13 @@
+---
+# Example inventory for the basalt.qemu collection.
+# Copy this file, adjust hostnames/IPs, and pass it to ansible-playbook
+# with -i inventory.yml.
+all:
+  children:
+    qemu_hosts:
+      hosts:
+        kvm1.example.com:
+        kvm2.example.com:
+    qemu_hosts_novnc:
+      hosts:
+        kvm-novnc1.example.com:
