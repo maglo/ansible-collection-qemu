@@ -1,0 +1,125 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    # ── Packages ──────────────────────────────────────────────
+    - name: Check QEMU/KVM packages are installed
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      check_mode: true
+      register: pkg_check
+      failed_when: pkg_check.changed
+      loop:
+        - qemu-kvm
+        - qemu-img
+        - libvirt
+        - swtpm
+        - swtpm-tools
+
+    # ── User and group ────────────────────────────────────────
+    - name: Check qemu group exists
+      ansible.builtin.group:
+        name: qemu
+        state: present
+      check_mode: true
+      register: group_check
+      failed_when: group_check.changed
+
+    - name: Check qemu user exists
+      ansible.builtin.user:
+        name: qemu
+        state: present
+      check_mode: true
+      register: user_check
+      failed_when: user_check.changed
+
+    # ── Directories ───────────────────────────────────────────
+    - name: Stat VM config directory
+      ansible.builtin.stat:
+        path: /etc/qemu/vms
+      register: vm_config_dir
+
+    - name: Assert VM config directory
+      ansible.builtin.assert:
+        that:
+          - vm_config_dir.stat.exists
+          - vm_config_dir.stat.isdir
+          - vm_config_dir.stat.pw_name == 'qemu'
+          - vm_config_dir.stat.gr_name == 'qemu'
+          - vm_config_dir.stat.mode == '0755'
+
+    - name: Stat VM image directory
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images
+      register: vm_image_dir
+
+    - name: Assert VM image directory
+      ansible.builtin.assert:
+        that:
+          - vm_image_dir.stat.exists
+          - vm_image_dir.stat.isdir
+          - vm_image_dir.stat.pw_name == 'qemu'
+          - vm_image_dir.stat.gr_name == 'qemu'
+          - vm_image_dir.stat.mode == '0755'
+
+    # ── Systemd unit ──────────────────────────────────────────
+    - name: Stat qemu-vm@ service unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/qemu-vm@.service
+      register: qemu_vm_unit
+
+    - name: Assert qemu-vm@ service unit file
+      ansible.builtin.assert:
+        that:
+          - qemu_vm_unit.stat.exists
+          - qemu_vm_unit.stat.pw_name == 'root'
+          - qemu_vm_unit.stat.gr_name == 'root'
+          - qemu_vm_unit.stat.mode == '0644'
+
+    - name: Read qemu-vm@ service unit content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/qemu-vm@.service
+      register: qemu_vm_unit_content
+
+    - name: Assert qemu-vm@ service unit content
+      vars:
+        content: "{{ qemu_vm_unit_content.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'Ansible managed' in content"
+          - "'User=qemu' in content"
+          - "'Group=qemu' in content"
+          - "'EnvironmentFile=/etc/qemu/vms/%i.conf' in content"
+          - "'ExecStart=/usr/libexec/qemu-kvm $QEMU_ARGS' in content"
+
+    # ── libvirtd is disabled ──────────────────────────────────
+    - name: Check libvirtd is not enabled
+      ansible.builtin.systemd_service:
+        name: libvirtd
+        enabled: false
+      check_mode: true
+      register: libvirtd_check
+      failed_when: libvirtd_check.changed
+
+    # ── noVNC should not exist (negative test) ────────────────
+    - name: Stat noVNC directory
+      ansible.builtin.stat:
+        path: /opt/noVNC
+      register: novnc_dir
+
+    - name: Assert noVNC directory does not exist
+      ansible.builtin.assert:
+        that:
+          - not novnc_dir.stat.exists
+
+    - name: Stat noVNC service unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/novnc.service
+      register: novnc_unit
+
+    - name: Assert noVNC service unit does not exist
+      ansible.builtin.assert:
+        that:
+          - not novnc_unit.stat.exists
