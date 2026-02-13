@@ -2,3 +2,4 @@
 profile: production
 exclude_paths:
   - roles/*/molecule/
+  - playbooks/inventory.example.yml
