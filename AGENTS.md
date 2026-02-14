@@ -32,6 +32,13 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 - Direct pushes to `main` are not allowed; all changes must go through a pull request.
 - Do not bypass or disable required status checks.
 
+## Documentation
+
+- Every new role **must** include a `README.md` covering its purpose, variables, dependencies, and an example playbook.
+- When a new role is added, update the root `README.md` roles table, Quick Start section, and add an example playbook under `playbooks/`.
+- When an existing role gains new features (variables, behaviour), update **both** the role `README.md` and the root `README.md` in the same PR.
+- `CONTRIBUTING.md` must be kept in sync — new roles should appear in the Molecule tests section.
+
 ## Roles
 
 - Every role variable used in tasks **must** be declared in `meta/argument_specs.yml` with correct type, description, and default.
