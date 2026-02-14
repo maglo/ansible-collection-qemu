@@ -15,19 +15,45 @@
     dest: "{{ qemu_host_novnc_install_dir }}"
     version: "{{ qemu_host_novnc_version }}"
 
-- name: Install noVNC systemd service
+- name: Remove legacy single-instance noVNC service
+  ansible.builtin.file:
+    path: /etc/systemd/system/novnc.service
+    state: absent
+  notify:
+    - Reload systemd
+
+- name: Install noVNC systemd template unit
   ansible.builtin.template:
-    src: novnc.service.j2
-    dest: /etc/systemd/system/novnc.service
+    src: novnc@.service.j2
+    dest: /etc/systemd/system/novnc@.service
     owner: root
     group: root
     mode: "0644"
   notify:
     - Reload systemd
-    - Restart novnc
+    - Restart novnc instances
 
-- name: Enable and start noVNC service
+- name: Deploy per-VM noVNC environment files
+  ansible.builtin.copy:
+    dest: "{{ qemu_host_vm_config_dir }}/novnc-{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      NOVNC_PORT={{ item.novnc_port }}
+      VNC_TARGET={{ item.vnc_target }}
+  loop: "{{ qemu_host_novnc_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify:
+    - Restart novnc instances
+
+- name: Enable and start per-VM noVNC services
   ansible.builtin.systemd_service:
-    name: novnc
+    name: "novnc@{{ item.name }}"
     enabled: true
     state: started
+    daemon_reload: true
+  loop: "{{ qemu_host_novnc_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
