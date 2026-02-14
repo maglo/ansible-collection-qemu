@@ -9,3 +9,16 @@
 
 - Pipeline failures are **critical** and must be resolved before any other work proceeds.
 - All tests must pass before a PR can be merged.
+- The `CI` gate job in `.github/workflows/ci.yml` **must pass** before merging any PR to `main`. This job aggregates all other CI jobs (lint, sanity, docs, molecule).
+
+## Branch protection
+
+- The `main` branch requires the **CI** status check to pass before merging.
+- Direct pushes to `main` are not allowed; all changes must go through a pull request.
+- Do not bypass or disable required status checks.
+
+## Roles
+
+- Every role variable used in tasks **must** be declared in `meta/argument_specs.yml` with correct type, description, and default.
+- Per-VM dictionary keys (e.g. inside `create_vm_vms` items) must also be declared in the `options` block of the list variable's argument spec.
+- Role `defaults/main.yml` and `meta/argument_specs.yml` must stay in sync — adding a default without a matching argument spec (or vice versa) will cause validation failures in CI.

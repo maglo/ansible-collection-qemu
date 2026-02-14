@@ -23,6 +23,9 @@ The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vm
 | `create_vm_image_dir` | `/var/lib/qemu/images` | Directory for disk images (should match `qemu_host_vm_image_dir`) |
 | `create_vm_service_user` | `qemu` | Owner of the created disk images |
 | `create_vm_service_group` | `qemu` | Group of the created disk images |
+| `create_vm_default_uefi` | `true` | Whether VMs default to UEFI boot when not specified per VM |
+| `create_vm_ovmf_code` | `/usr/share/edk2/ovmf/OVMF_CODE.fd` | Path to OVMF firmware code file |
+| `create_vm_ovmf_vars_template` | `/usr/share/edk2/ovmf/OVMF_VARS.fd` | Path to OVMF vars template (copied per VM) |
 
 ### VM definition
 
@@ -33,6 +36,7 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `name` | yes | — | VM name, used as the disk image filename |
 | `disk_size` | no | `create_vm_default_disk_size` | Disk image size (e.g. `20G`, `100G`) |
 | `disk_format` | no | `create_vm_default_disk_format` | Disk format (`qcow2` or `raw`) |
+| `uefi` | no | `create_vm_default_uefi` | Whether to enable UEFI boot for this VM |
 
 ## Example Playbook
 
@@ -49,6 +53,7 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
             disk_size: 100G
             disk_format: raw
           - name: worker01
+            uefi: false
 ```
 
 ## License

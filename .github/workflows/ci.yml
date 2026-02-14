@@ -121,3 +121,17 @@ jobs:
       - name: Run Molecule
         run: molecule test -s ${{ matrix.scenario }}
         working-directory: roles/${{ matrix.role }}
+
+  gate:
+    name: CI
+    if: always()
+    needs: [lint, sanity, docs, molecule]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |-
+          results='${{ toJSON(needs.*.result) }}'
+          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
+            echo "One or more required jobs did not succeed."
+            exit 1
+          fi
