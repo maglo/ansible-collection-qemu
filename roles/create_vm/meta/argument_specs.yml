@@ -13,7 +13,8 @@ argument_specs:
           - List of VMs to create. Each entry is a dictionary with at least a C(name) key.
           - "Optional per-VM keys: C(disk_size) (overrides C(create_vm_default_disk_size)),
             C(disk_format) (overrides C(create_vm_default_disk_format)),
-            C(uefi) (overrides C(create_vm_default_uefi))."
+            C(uefi) (overrides C(create_vm_default_uefi)),
+            C(tpm) (overrides C(create_vm_default_tpm))."
         type: list
         elements: dict
         default: []
@@ -33,6 +34,9 @@ argument_specs:
               - raw
           uefi:
             description: Whether to enable UEFI boot for this VM. Overrides C(create_vm_default_uefi).
+            type: bool
+          tpm:
+            description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(create_vm_default_tpm).
             type: bool
       create_vm_default_disk_size:
         description: Default disk size for VMs that do not specify C(disk_size).
@@ -69,3 +73,11 @@ argument_specs:
         description: Path to the OVMF vars template file (copied per-VM for writable NVRAM).
         type: path
         default: /usr/share/edk2/ovmf/OVMF_VARS.fd
+      create_vm_default_tpm:
+        description: Whether VMs default to TPM 2.0 emulation. Can be overridden per VM with C(tpm) key.
+        type: bool
+        default: false
+      create_vm_swtpm_state_dir:
+        description: Base directory for per-VM swtpm state directories.
+        type: path
+        default: /var/lib/swtpm
