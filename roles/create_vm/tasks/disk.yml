@@ -1,0 +1,21 @@
+---
+- name: Create qcow2 disk image for {{ item.name }}
+  ansible.builtin.command:
+    cmd: >-
+      qemu-img create -f {{ item.disk_format | default(create_vm_default_disk_format) }}
+      {{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}
+      {{ item.disk_size | default(create_vm_default_disk_size) }}
+    creates: "{{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}"
+  loop: "{{ create_vm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Set ownership and permissions on disk images
+  ansible.builtin.file:
+    path: "{{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}"
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0644"
+  loop: "{{ create_vm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"

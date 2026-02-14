@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: Basalt
+  description: Create QEMU/KVM virtual machines
+  license: GPL-3.0-only
+  min_ansible_version: "2.15"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+  galaxy_tags:
+    - qemu
+    - kvm
+    - virtualization
+dependencies:
+  - role: qemu_host
