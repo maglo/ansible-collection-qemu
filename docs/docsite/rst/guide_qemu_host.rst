@@ -1,4 +1,4 @@
-.. _basalt.qemu.guide_qemu_host:
+.. _ansible_collections.basalt.qemu.docsite.guide_qemu_host:
 
 Getting started with qemu_host
 ==============================
@@ -71,5 +71,4 @@ The VM configuration and image directories can be changed:
 Next steps
 ----------
 
-- :ref:`basalt.qemu.guide_vm_management` — create and manage VMs
-- :ref:`basalt.qemu.guide_novnc` — enable browser-based VNC access
+- :ref:`ansible_collections.basalt.qemu.docsite.guide_vm_management` — create and manage VMs
