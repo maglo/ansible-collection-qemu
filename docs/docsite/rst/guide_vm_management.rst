@@ -1,4 +1,4 @@
-.. _basalt.qemu.guide_vm_management:
+.. _ansible_collections.basalt.qemu.docsite.guide_vm_management:
 
 VM management
 =============
