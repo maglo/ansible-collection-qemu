@@ -32,6 +32,39 @@ Each VM entry requires a ``name`` key. Optional keys:
 
 The role is idempotent — existing images are not recreated.
 
+TPM 2.0 emulation
+------------------
+
+VMs that need a Trusted Platform Module can use software TPM emulation via
+`swtpm <https://github.com/stefanberger/swtpm>`_. Set ``tpm: true`` on a VM
+entry to start a dedicated ``swtpm`` process:
+
+.. code-block:: yaml
+
+   - hosts: hypervisors
+     roles:
+       - basalt.qemu.qemu_host
+       - role: basalt.qemu.create_vm
+         vars:
+           create_vm_vms:
+             - name: secure-vm
+               disk_size: 40G
+               tpm: true
+
+The role deploys an ``swtpm@.service`` systemd template unit. For each
+TPM-enabled VM, it:
+
+1. Creates a per-VM state directory under ``create_vm_swtpm_state_dir``
+   (default ``/var/lib/swtpm``).
+2. Enables and starts ``swtpm@<vmname>.service``, which listens on a Unix
+   socket at ``/var/lib/swtpm/<vmname>/swtpm.sock``.
+
+The ``swtpm@.service`` unit is ordered ``Before=qemu-vm@%i.service``, so the
+TPM is ready before the VM starts.
+
+To enable TPM for all VMs by default, set ``create_vm_default_tpm: true``.
+Individual VMs can still opt out with ``tpm: false``.
+
 Starting a VM
 -------------
 

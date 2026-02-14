@@ -26,6 +26,8 @@ The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vm
 | `create_vm_default_uefi` | `true` | Whether VMs default to UEFI boot when not specified per VM |
 | `create_vm_ovmf_code` | `/usr/share/edk2/ovmf/OVMF_CODE.fd` | Path to OVMF firmware code file |
 | `create_vm_ovmf_vars_template` | `/usr/share/edk2/ovmf/OVMF_VARS.fd` | Path to OVMF vars template (copied per VM) |
+| `create_vm_default_tpm` | `false` | Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key) |
+| `create_vm_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state |
 
 ### VM definition
 
@@ -37,6 +39,7 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `disk_size` | no | `create_vm_default_disk_size` | Disk image size (e.g. `20G`, `100G`) |
 | `disk_format` | no | `create_vm_default_disk_format` | Disk format (`qcow2` or `raw`) |
 | `uefi` | no | `create_vm_default_uefi` | Whether to enable UEFI boot for this VM |
+| `tpm` | no | `create_vm_default_tpm` | Enable TPM 2.0 emulation via swtpm |
 
 ## Example Playbook
 
@@ -55,6 +58,24 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
           - name: worker01
             uefi: false
 ```
+
+### TPM 2.0 emulation
+
+To start a per-VM `swtpm` instance, set `tpm: true` on the VM entry:
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - basalt.qemu.qemu_host
+    - role: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          - name: secure-vm
+            disk_size: 40G
+            tpm: true
+```
+
+This deploys an `swtpm@.service` systemd template and starts `swtpm@secure-vm.service`, creating a per-VM state directory under `create_vm_swtpm_state_dir`.
 
 ## License
 

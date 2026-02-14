@@ -52,6 +52,11 @@ cd roles/qemu_host
 molecule test
 ```
 
+```bash
+cd roles/create_vm
+molecule test
+```
+
 Run a specific scenario:
 
 ```bash
