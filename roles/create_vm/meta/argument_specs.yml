@@ -12,7 +12,8 @@ argument_specs:
         description:
           - List of VMs to create. Each entry is a dictionary with at least a C(name) key.
           - "Optional per-VM keys: C(disk_size) (overrides C(create_vm_default_disk_size)),
-            C(disk_format) (overrides C(create_vm_default_disk_format))."
+            C(disk_format) (overrides C(create_vm_default_disk_format)),
+            C(uefi) (overrides C(create_vm_default_uefi))."
         type: list
         elements: dict
         default: []
@@ -30,6 +31,9 @@ argument_specs:
             choices:
               - qcow2
               - raw
+          uefi:
+            description: Whether to enable UEFI boot for this VM. Overrides C(create_vm_default_uefi).
+            type: bool
       create_vm_default_disk_size:
         description: Default disk size for VMs that do not specify C(disk_size).
         type: str
@@ -53,3 +57,15 @@ argument_specs:
         description: Group of the created disk image files.
         type: str
         default: qemu
+      create_vm_default_uefi:
+        description: Whether VMs default to UEFI boot when not specified per-VM.
+        type: bool
+        default: true
+      create_vm_ovmf_code:
+        description: Path to the OVMF firmware code file (read-only, shared across VMs).
+        type: path
+        default: /usr/share/edk2/ovmf/OVMF_CODE.fd
+      create_vm_ovmf_vars_template:
+        description: Path to the OVMF vars template file (copied per-VM for writable NVRAM).
+        type: path
+        default: /usr/share/edk2/ovmf/OVMF_VARS.fd

@@ -5,3 +5,10 @@
     - role: qemu_host
       qemu_host_libvirtd_enabled: false
       qemu_host_novnc_enabled: true
+      qemu_host_novnc_vms:
+        - name: web01
+          novnc_port: 6080
+          vnc_target: localhost:5900
+        - name: db01
+          novnc_port: 6081
+          vnc_target: localhost:5901

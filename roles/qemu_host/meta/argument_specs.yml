@@ -48,7 +48,23 @@ argument_specs:
         description: noVNC Git release tag to install.
         type: str
         default: "v1.5.0"
-      qemu_host_novnc_listen_port:
-        description: Port the noVNC websocket proxy listens on.
-        type: int
-        default: 6080
+      qemu_host_novnc_vms:
+        description: >-
+          List of VMs to create noVNC websocket proxy instances for.
+          Each entry creates a C(novnc@<name>.service) systemd instance.
+        type: list
+        elements: dict
+        default: []
+        options:
+          name:
+            description: VM name (matches C(qemu-vm@<name>.service)).
+            type: str
+            required: true
+          novnc_port:
+            description: Port the noVNC websocket proxy listens on for this VM.
+            type: int
+            required: true
+          vnc_target:
+            description: VNC backend address (e.g. C(localhost:5900)).
+            type: str
+            required: true
