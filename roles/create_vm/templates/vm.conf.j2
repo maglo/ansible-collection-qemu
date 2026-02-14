@@ -1,0 +1,9 @@
+{{ ansible_managed | comment }}
+{% set _net_mode = item.net_mode | default(create_vm_default_net_mode) %}
+{% set _mac = item.mac_address | default('52:54:00:' ~ (item.name | hash('md5'))[0:2] ~ ':' ~ (item.name | hash('md5'))[2:4] ~ ':' ~ (item.name | hash('md5'))[4:6]) %}
+{% if _net_mode == 'user' %}
+QEMU_ARGS="-nic user,model=virtio-net-pci,mac={{ _mac }}"
+{% elif _net_mode == 'bridge' %}
+{% set _bridge = item.net_bridge | default(create_vm_default_net_bridge) %}
+QEMU_ARGS="-netdev bridge,id=net0,br={{ _bridge }} -device virtio-net-pci,netdev=net0,mac={{ _mac }}"
+{% endif %}

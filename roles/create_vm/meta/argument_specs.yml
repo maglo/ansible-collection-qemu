@@ -14,7 +14,10 @@ argument_specs:
           - "Optional per-VM keys: C(disk_size) (overrides C(create_vm_default_disk_size)),
             C(disk_format) (overrides C(create_vm_default_disk_format)),
             C(uefi) (overrides C(create_vm_default_uefi)),
-            C(tpm) (overrides C(create_vm_default_tpm))."
+            C(tpm) (overrides C(create_vm_default_tpm)),
+            C(net_mode) (overrides C(create_vm_default_net_mode)),
+            C(net_bridge) (overrides C(create_vm_default_net_bridge)),
+            C(mac_address) (overrides the auto-generated MAC)."
         type: list
         elements: dict
         default: []
@@ -38,6 +41,18 @@ argument_specs:
           tpm:
             description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(create_vm_default_tpm).
             type: bool
+          net_mode:
+            description: Networking mode for this VM. Overrides C(create_vm_default_net_mode).
+            type: str
+            choices:
+              - user
+              - bridge
+          net_bridge:
+            description: Bridge device for this VM. Overrides C(create_vm_default_net_bridge).
+            type: str
+          mac_address:
+            description: MAC address for this VM. Overrides the auto-generated deterministic MAC.
+            type: str
       create_vm_default_disk_size:
         description: Default disk size for VMs that do not specify C(disk_size).
         type: str
@@ -81,3 +96,22 @@ argument_specs:
         description: Base directory for per-VM swtpm state directories.
         type: path
         default: /var/lib/swtpm
+      create_vm_default_net_mode:
+        description: Default networking mode for VMs that do not specify C(net_mode).
+        type: str
+        default: user
+        choices:
+          - user
+          - bridge
+      create_vm_default_net_bridge:
+        description: Default bridge device for bridge-mode VMs that do not specify C(net_bridge).
+        type: str
+        default: br0
+      create_vm_bridge_conf:
+        description: Path to the QEMU bridge helper ACL file.
+        type: path
+        default: /etc/qemu/bridge.conf
+      create_vm_vm_config_dir:
+        description: Directory for per-VM QEMU configuration files.
+        type: path
+        default: /etc/qemu/vms

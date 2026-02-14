@@ -2,7 +2,7 @@
 
 Create QEMU/KVM virtual machine disk images on an Enterprise Linux host.
 
-The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vms`, sets the correct ownership and permissions, and is idempotent (existing images are not recreated).
+The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vms`, sets the correct ownership and permissions, and is idempotent (existing images are not recreated). It also configures per-VM networking (user-mode or bridge/tap) and writes a per-VM `.conf` file with the appropriate QEMU arguments.
 
 ## Requirements
 
@@ -28,6 +28,10 @@ The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vm
 | `create_vm_ovmf_vars_template` | `/usr/share/edk2/ovmf/OVMF_VARS.fd` | Path to OVMF vars template (copied per VM) |
 | `create_vm_default_tpm` | `false` | Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key) |
 | `create_vm_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state |
+| `create_vm_default_net_mode` | `user` | Default networking mode (`user` or `bridge`) |
+| `create_vm_default_net_bridge` | `br0` | Default bridge device for bridge-mode VMs |
+| `create_vm_bridge_conf` | `/etc/qemu/bridge.conf` | Path to the QEMU bridge helper ACL file |
+| `create_vm_vm_config_dir` | `/etc/qemu/vms` | Directory for per-VM QEMU configuration files |
 
 ### VM definition
 
@@ -40,6 +44,24 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `disk_format` | no | `create_vm_default_disk_format` | Disk format (`qcow2` or `raw`) |
 | `uefi` | no | `create_vm_default_uefi` | Whether to enable UEFI boot for this VM |
 | `tpm` | no | `create_vm_default_tpm` | Enable TPM 2.0 emulation via swtpm |
+| `net_mode` | no | `create_vm_default_net_mode` | Networking mode: `user` or `bridge` |
+| `net_bridge` | no | `create_vm_default_net_bridge` | Bridge device (only used when `net_mode` is `bridge`) |
+| `mac_address` | no | auto-generated | MAC address (overrides the deterministic auto-generated MAC) |
+
+## Networking
+
+The role supports two networking modes:
+
+- **`user`** (default) — QEMU user-mode networking (SLIRP). No host configuration needed. The VM gets outbound connectivity via NAT but is not reachable from the host network.
+- **`bridge`** — Bridge/tap networking via `qemu-bridge-helper`. The VM is attached to a host bridge and appears as a device on the bridged network.
+
+### Bridge mode prerequisites
+
+Bridge mode uses QEMU's `qemu-bridge-helper` to attach VMs to a host bridge. The bridge device itself must already exist on the host (this role does not create it). The role writes `/etc/qemu/bridge.conf` to authorize the helper to use the specified bridges.
+
+### MAC address generation
+
+Each VM is assigned a deterministic MAC address derived from its name using the QEMU OUI prefix `52:54:00`. The last three octets are taken from the MD5 hash of the VM name. You can override this with the `mac_address` per-VM key.
 
 ## Example Playbook
 
@@ -55,8 +77,11 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
           - name: db01
             disk_size: 100G
             disk_format: raw
+            net_mode: bridge
+            net_bridge: br-lan
           - name: worker01
             uefi: false
+            mac_address: "52:54:00:aa:bb:cc"
 ```
 
 ### TPM 2.0 emulation

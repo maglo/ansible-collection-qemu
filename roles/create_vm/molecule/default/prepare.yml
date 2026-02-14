@@ -1,0 +1,15 @@
+---
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Install iproute
+      ansible.builtin.dnf:
+        name: iproute
+        state: present
+
+    - name: Create dummy bridge for testing
+      ansible.builtin.command:
+        cmd: ip link add br-test type bridge
+      register: _bridge_add
+      changed_when: _bridge_add.rc == 0
+      failed_when: _bridge_add.rc != 0 and 'File exists' not in _bridge_add.stderr

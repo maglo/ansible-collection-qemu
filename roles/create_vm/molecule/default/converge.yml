@@ -10,3 +10,13 @@
         - name: testvm-tpm
           disk_size: 1G
           tpm: true
+        - name: testvm-bridge
+          disk_size: 1G
+          uefi: false
+          net_mode: bridge
+          net_bridge: br-test
+        - name: testvm-mac
+          disk_size: 1G
+          uefi: false
+          net_mode: user
+          mac_address: "52:54:00:aa:bb:cc"

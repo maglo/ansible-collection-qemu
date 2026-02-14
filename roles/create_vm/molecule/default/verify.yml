@@ -119,6 +119,68 @@
         that:
           - not swtpm_no_tpm_dir.stat.exists
 
+    # ── Networking — testvm (user mode, auto MAC) ────────────
+    - name: Read testvm config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm.conf
+      register: testvm_conf
+
+    - name: Assert testvm config has user-mode networking
+      ansible.builtin.assert:
+        that:
+          - "'-nic user' in testvm_conf.content | b64decode"
+          - "'model=virtio-net-pci' in testvm_conf.content | b64decode"
+          - "'mac=52:54:00' in testvm_conf.content | b64decode"
+
+    # ── Networking — testvm-bridge (bridge mode) ─────────────
+    - name: Read testvm-bridge config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-bridge.conf
+      register: testvm_bridge_conf
+
+    - name: Assert testvm-bridge config has bridge-mode networking
+      ansible.builtin.assert:
+        that:
+          - "'-netdev bridge' in testvm_bridge_conf.content | b64decode"
+          - "'br=br-test' in testvm_bridge_conf.content | b64decode"
+          - "'-device virtio-net-pci' in testvm_bridge_conf.content | b64decode"
+          - "'mac=52:54:00' in testvm_bridge_conf.content | b64decode"
+
+    # ── Networking — testvm-mac (user mode, custom MAC) ──────
+    - name: Read testvm-mac config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-mac.conf
+      register: testvm_mac_conf
+
+    - name: Assert testvm-mac config has custom MAC
+      ansible.builtin.assert:
+        that:
+          - "'mac=52:54:00:aa:bb:cc' in testvm_mac_conf.content | b64decode"
+
+    # ── bridge.conf ──────────────────────────────────────────
+    - name: Stat bridge.conf
+      ansible.builtin.stat:
+        path: /etc/qemu/bridge.conf
+      register: bridge_conf_stat
+
+    - name: Assert bridge.conf properties
+      ansible.builtin.assert:
+        that:
+          - bridge_conf_stat.stat.exists
+          - bridge_conf_stat.stat.pw_name == 'root'
+          - bridge_conf_stat.stat.gr_name == 'root'
+          - bridge_conf_stat.stat.mode == '0644'
+
+    - name: Read bridge.conf
+      ansible.builtin.slurp:
+        src: /etc/qemu/bridge.conf
+      register: bridge_conf_content
+
+    - name: Assert bridge.conf contains allowed bridge
+      ansible.builtin.assert:
+        that:
+          - "'allow br-test' in bridge_conf_content.content | b64decode"
+
     # ── Idempotency ──────────────────────────────────────────
     - name: Record image modification time
       ansible.builtin.stat:
@@ -135,6 +197,11 @@
         path: /var/lib/swtpm/testvm-tpm
       register: swtpm_before_rerun
 
+    - name: Record testvm config modification time
+      ansible.builtin.stat:
+        path: /etc/qemu/vms/testvm.conf
+      register: conf_before_rerun
+
     - name: Re-run create_vm role
       ansible.builtin.include_role:
         name: create_vm
@@ -146,6 +213,16 @@
           - name: testvm-tpm
             disk_size: 1G
             tpm: true
+          - name: testvm-bridge
+            disk_size: 1G
+            uefi: false
+            net_mode: bridge
+            net_bridge: br-test
+          - name: testvm-mac
+            disk_size: 1G
+            uefi: false
+            net_mode: user
+            mac_address: "52:54:00:aa:bb:cc"
 
     - name: Record image modification time after re-run
       ansible.builtin.stat:
@@ -162,6 +239,11 @@
         path: /var/lib/swtpm/testvm-tpm
       register: swtpm_after_rerun
 
+    - name: Record testvm config modification time after re-run
+      ansible.builtin.stat:
+        path: /etc/qemu/vms/testvm.conf
+      register: conf_after_rerun
+
     - name: Assert image was not recreated
       ansible.builtin.assert:
         that:
@@ -176,3 +258,8 @@
       ansible.builtin.assert:
         that:
           - swtpm_before_rerun.stat.mtime == swtpm_after_rerun.stat.mtime
+
+    - name: Assert config was not rewritten
+      ansible.builtin.assert:
+        that:
+          - conf_before_rerun.stat.mtime == conf_after_rerun.stat.mtime

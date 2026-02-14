@@ -34,3 +34,15 @@ create_vm_default_tpm: false
 
 # Base directory for per-VM swtpm state
 create_vm_swtpm_state_dir: /var/lib/swtpm
+
+# Default networking mode for VMs (user or bridge)
+create_vm_default_net_mode: user
+
+# Default bridge device for bridge-mode networking
+create_vm_default_net_bridge: br0
+
+# Path to QEMU bridge helper ACL file
+create_vm_bridge_conf: /etc/qemu/bridge.conf
+
+# Directory for per-VM QEMU configuration files
+create_vm_vm_config_dir: /etc/qemu/vms
