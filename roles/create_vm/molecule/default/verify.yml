@@ -64,6 +64,61 @@
           - nvram_file.stat.gr_name == 'qemu'
           - nvram_file.stat.mode == '0644'
 
+    # ── TPM emulation ────────────────────────────────────────
+    - name: Stat swtpm@.service unit file
+      ansible.builtin.stat:
+        path: /etc/systemd/system/swtpm@.service
+      register: swtpm_unit
+
+    - name: Assert swtpm@.service exists
+      ansible.builtin.assert:
+        that:
+          - swtpm_unit.stat.exists
+
+    - name: Stat per-VM swtpm state directory
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm
+      register: swtpm_state_dir
+
+    - name: Assert swtpm state directory properties
+      ansible.builtin.assert:
+        that:
+          - swtpm_state_dir.stat.exists
+          - swtpm_state_dir.stat.isdir
+          - swtpm_state_dir.stat.pw_name == 'qemu'
+          - swtpm_state_dir.stat.gr_name == 'qemu'
+          - swtpm_state_dir.stat.mode == '0755'
+
+    - name: Check swtpm@testvm-tpm.service is active
+      ansible.builtin.systemd_service:
+        name: swtpm@testvm-tpm.service
+      register: swtpm_service
+
+    - name: Assert swtpm service is running
+      ansible.builtin.assert:
+        that:
+          - swtpm_service.status.ActiveState == 'active'
+
+    - name: Stat swtpm socket
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm/swtpm.sock
+      register: swtpm_socket
+
+    - name: Assert swtpm socket exists
+      ansible.builtin.assert:
+        that:
+          - swtpm_socket.stat.exists
+
+    - name: Verify no swtpm state directory for non-TPM VM
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm
+      register: swtpm_no_tpm_dir
+
+    - name: Assert non-TPM VM has no swtpm state
+      ansible.builtin.assert:
+        that:
+          - not swtpm_no_tpm_dir.stat.exists
+
     # ── Idempotency ──────────────────────────────────────────
     - name: Record image modification time
       ansible.builtin.stat:
@@ -75,6 +130,11 @@
         path: /var/lib/qemu/images/testvm_VARS.fd
       register: nvram_before_rerun
 
+    - name: Record swtpm state directory modification time
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm
+      register: swtpm_before_rerun
+
     - name: Re-run create_vm role
       ansible.builtin.include_role:
         name: create_vm
@@ -83,6 +143,9 @@
           - name: testvm
             disk_size: 1G
             uefi: true
+          - name: testvm-tpm
+            disk_size: 1G
+            tpm: true
 
     - name: Record image modification time after re-run
       ansible.builtin.stat:
@@ -94,6 +157,11 @@
         path: /var/lib/qemu/images/testvm_VARS.fd
       register: nvram_after_rerun
 
+    - name: Record swtpm state directory modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm
+      register: swtpm_after_rerun
+
     - name: Assert image was not recreated
       ansible.builtin.assert:
         that:
@@ -103,3 +171,8 @@
       ansible.builtin.assert:
         that:
           - nvram_before_rerun.stat.mtime == nvram_after_rerun.stat.mtime
+
+    - name: Assert swtpm state directory was not recreated
+      ansible.builtin.assert:
+        that:
+          - swtpm_before_rerun.stat.mtime == swtpm_after_rerun.stat.mtime

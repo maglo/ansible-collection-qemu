@@ -4,3 +4,6 @@
 
 - name: Create VM disk images
   ansible.builtin.import_tasks: disk.yml
+
+- name: Configure per-VM TPM emulation
+  ansible.builtin.import_tasks: tpm.yml

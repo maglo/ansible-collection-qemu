@@ -1,0 +1,48 @@
+---
+- name: Determine TPM-enabled VMs
+  ansible.builtin.set_fact:
+    _create_vm_tpm_vms: >-
+      {{ create_vm_vms | selectattr('tpm', 'defined') | selectattr('tpm') | list
+         + (create_vm_vms | rejectattr('tpm', 'defined') | list if create_vm_default_tpm else []) }}
+
+- name: Create swtpm base state directory
+  ansible.builtin.file:
+    path: "{{ create_vm_swtpm_state_dir }}"
+    state: directory
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0755"
+  when: _create_vm_tpm_vms | length > 0
+
+- name: Create per-VM swtpm state directories
+  ansible.builtin.file:
+    path: "{{ create_vm_swtpm_state_dir }}/{{ item.name }}"
+    state: directory
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0755"
+  loop: "{{ _create_vm_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy swtpm@.service systemd template
+  ansible.builtin.template:
+    src: swtpm@.service.j2
+    dest: /etc/systemd/system/swtpm@.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: _create_vm_tpm_vms | length > 0
+  notify: Reload systemd
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start swtpm for TPM-enabled VMs
+  ansible.builtin.systemd_service:
+    name: "swtpm@{{ item.name }}.service"
+    state: started
+    enabled: true
+  loop: "{{ _create_vm_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"

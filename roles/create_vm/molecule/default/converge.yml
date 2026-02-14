@@ -7,3 +7,6 @@
         - name: testvm
           disk_size: 1G
           uefi: true
+        - name: testvm-tpm
+          disk_size: 1G
+          tpm: true
