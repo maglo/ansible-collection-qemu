@@ -91,9 +91,7 @@ jobs:
           ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
 
       - name: Lint collection docs
-        run: antsibull-docs lint-collection-docs --plugin-docs basalt.qemu
-        env:
-          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
+        run: antsibull-docs lint-collection-docs --plugin-docs ansible_collections/basalt/qemu
 
   molecule:
     name: Molecule - ${{ matrix.role }} (${{ matrix.scenario }})
