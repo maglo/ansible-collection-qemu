@@ -1,0 +1,3 @@
+---
+- name: Create VM disk images
+  ansible.builtin.import_tasks: disk.yml

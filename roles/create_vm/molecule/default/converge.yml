@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  roles:
+    - role: create_vm
+      create_vm_vms:
+        - name: testvm
+          disk_size: 1G

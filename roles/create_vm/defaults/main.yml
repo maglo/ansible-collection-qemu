@@ -1,0 +1,21 @@
+---
+# List of VMs to create. Each entry is a dict with at least a `name` key.
+# Example:
+#   create_vm_vms:
+#     - name: myvm
+#       disk_size: 20G
+#       disk_format: qcow2
+create_vm_vms: []
+
+# Default disk size for VMs (used when a VM does not specify disk_size)
+create_vm_default_disk_size: "20G"
+
+# Default disk format
+create_vm_default_disk_format: qcow2
+
+# Directory for VM disk images (must match qemu_host_vm_image_dir)
+create_vm_image_dir: /var/lib/qemu/images
+
+# Owner/group for created images
+create_vm_service_user: qemu
+create_vm_service_group: qemu

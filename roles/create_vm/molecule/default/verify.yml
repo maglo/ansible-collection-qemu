@@ -1,0 +1,53 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    # ── Disk image exists with correct properties ────────────
+    - name: Stat disk image
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm.qcow2
+      register: disk_image
+
+    - name: Assert disk image properties
+      ansible.builtin.assert:
+        that:
+          - disk_image.stat.exists
+          - disk_image.stat.pw_name == 'qemu'
+          - disk_image.stat.gr_name == 'qemu'
+          - disk_image.stat.mode == '0644'
+
+    - name: Check disk image is valid qcow2
+      ansible.builtin.command:
+        cmd: qemu-img info /var/lib/qemu/images/testvm.qcow2
+      register: qemu_img_info
+      changed_when: false
+
+    - name: Assert qcow2 format
+      ansible.builtin.assert:
+        that:
+          - "'file format: qcow2' in qemu_img_info.stdout"
+
+    # ── Idempotency ──────────────────────────────────────────
+    - name: Record image modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm.qcow2
+      register: before_rerun
+
+    - name: Re-run create_vm role
+      ansible.builtin.include_role:
+        name: create_vm
+      vars:
+        create_vm_vms:
+          - name: testvm
+            disk_size: 1G
+
+    - name: Record image modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm.qcow2
+      register: after_rerun
+
+    - name: Assert image was not recreated
+      ansible.builtin.assert:
+        that:
+          - before_rerun.stat.mtime == after_rerun.stat.mtime
