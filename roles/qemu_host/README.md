@@ -22,7 +22,15 @@ The role installs QEMU/KVM packages, deploys a systemd template unit for managin
 | `qemu_host_novnc_enabled` | `false` | Enable noVNC deployment |
 | `qemu_host_novnc_install_dir` | `/opt/noVNC` | noVNC installation directory |
 | `qemu_host_novnc_version` | `v1.5.0` | noVNC release tag to install |
-| `qemu_host_novnc_listen_port` | `6080` | Port the noVNC service listens on |
+| `qemu_host_novnc_vms` | `[]` | List of VMs to create noVNC proxy instances for (see below) |
+
+Each entry in `qemu_host_novnc_vms` creates a `novnc@<name>.service` systemd instance:
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `name` | yes | VM name (matches `qemu-vm@<name>.service`) |
+| `novnc_port` | yes | Port the noVNC websocket proxy listens on |
+| `vnc_target` | yes | VNC backend address (e.g. `localhost:5900`) |
 
 ## Dependencies
 
@@ -38,7 +46,7 @@ Basic usage:
     - basalt.qemu.qemu_host
 ```
 
-With noVNC enabled:
+With noVNC enabled for two VMs:
 
 ```yaml
 - hosts: hypervisors
@@ -46,6 +54,13 @@ With noVNC enabled:
     - role: basalt.qemu.qemu_host
       vars:
         qemu_host_novnc_enabled: true
+        qemu_host_novnc_vms:
+          - name: web01
+            novnc_port: 6080
+            vnc_target: localhost:5900
+          - name: db01
+            novnc_port: 6081
+            vnc_target: localhost:5901
 ```
 
 ## Managing VMs
