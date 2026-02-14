@@ -52,6 +52,49 @@ jobs:
         run: ansible-test sanity --color yes -v
         working-directory: ansible_collections/basalt/qemu
 
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: ansible_collections/basalt/qemu
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ansible-core antsibull-docs
+
+      - name: Verify role READMEs exist
+        run: |
+          for role in ansible_collections/basalt/qemu/roles/*/; do
+            role_name=$(basename "$role")
+            if [ ! -f "$role/README.md" ]; then
+              echo "ERROR: Missing README.md for role $role_name"
+              exit 1
+            fi
+          done
+          echo "All roles have README.md"
+
+      - name: Verify argument_specs with ansible-doc
+        run: |
+          for role in ansible_collections/basalt/qemu/roles/*/; do
+            role_name=$(basename "$role")
+            echo "Checking basalt.qemu.$role_name..."
+            ansible-doc -t role "basalt.qemu.$role_name"
+          done
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
+
+      - name: Lint collection docs
+        run: antsibull-docs lint-collection-docs --plugin-docs basalt.qemu
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
+
   molecule:
     name: Molecule - ${{ matrix.role }} (${{ matrix.scenario }})
     runs-on: ubuntu-latest
