@@ -1,0 +1,21 @@
+---
+- name: Install edk2-ovmf
+  ansible.builtin.dnf:
+    name: edk2-ovmf
+    state: present
+  when: create_vm_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list | length > 0
+        or (create_vm_vms | rejectattr('uefi', 'defined') | list | length > 0 and create_vm_default_uefi)
+
+- name: Copy OVMF_VARS per-VM
+  ansible.builtin.copy:
+    src: "{{ create_vm_ovmf_vars_template }}"
+    dest: "{{ create_vm_image_dir }}/{{ item.name }}_VARS.fd"
+    remote_src: true
+    force: false
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0644"
+  loop: "{{ create_vm_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list
+            + (create_vm_vms | rejectattr('uefi', 'defined') | list if create_vm_default_uefi else []) }}"
+  loop_control:
+    label: "{{ item.name }}"

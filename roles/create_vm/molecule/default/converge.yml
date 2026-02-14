@@ -6,3 +6,4 @@
       create_vm_vms:
         - name: testvm
           disk_size: 1G
+          uefi: true

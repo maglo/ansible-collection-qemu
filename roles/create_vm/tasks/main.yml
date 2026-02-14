@@ -1,3 +1,6 @@
 ---
+- name: Ensure UEFI firmware is available
+  ansible.builtin.import_tasks: firmware.yml
+
 - name: Create VM disk images
   ansible.builtin.import_tasks: disk.yml
