@@ -1,0 +1,54 @@
+---
+argument_specs:
+  main:
+    short_description: Install and configure a QEMU/KVM host on Enterprise Linux.
+    description:
+      - Installs QEMU/KVM packages, deploys a systemd template unit for managing VMs,
+        and optionally sets up noVNC for browser-based console access.
+    options:
+      qemu_host_packages:
+        description: Packages to install for QEMU/KVM host.
+        type: list
+        elements: str
+        default:
+          - qemu-kvm
+          - qemu-img
+          - libvirt
+          - swtpm
+          - swtpm-tools
+      qemu_host_libvirtd_enabled:
+        description: Whether to enable and start libvirtd.
+        type: bool
+        default: true
+      qemu_host_vm_config_dir:
+        description: Directory containing QEMU VM configuration files (one C(.conf) per VM).
+        type: path
+        default: /etc/qemu/vms
+      qemu_host_vm_image_dir:
+        description: Directory containing QEMU VM disk images.
+        type: path
+        default: /var/lib/qemu/images
+      qemu_host_service_user:
+        description: User for the QEMU systemd service.
+        type: str
+        default: qemu
+      qemu_host_service_group:
+        description: Group for the QEMU systemd service.
+        type: str
+        default: qemu
+      qemu_host_novnc_enabled:
+        description: Whether to deploy noVNC for browser-based VNC console access.
+        type: bool
+        default: false
+      qemu_host_novnc_install_dir:
+        description: Directory where noVNC will be installed.
+        type: path
+        default: /opt/noVNC
+      qemu_host_novnc_version:
+        description: noVNC Git release tag to install.
+        type: str
+        default: "v1.5.0"
+      qemu_host_novnc_listen_port:
+        description: Port the noVNC websocket proxy listens on.
+        type: int
+        default: 6080

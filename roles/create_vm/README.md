@@ -1,0 +1,56 @@
+# basalt.qemu.create_vm
+
+Create QEMU/KVM virtual machine disk images on an Enterprise Linux host.
+
+The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vms`, sets the correct ownership and permissions, and is idempotent (existing images are not recreated).
+
+## Requirements
+
+- Ansible >= 2.15
+- Target hosts running Enterprise Linux 8 or 9
+
+## Dependencies
+
+- `basalt.qemu.qemu_host` — must be applied first to install QEMU and create the image directory.
+
+## Role Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `create_vm_vms` | `[]` | List of VMs to create (see below) |
+| `create_vm_default_disk_size` | `20G` | Default disk size when not specified per VM |
+| `create_vm_default_disk_format` | `qcow2` | Default disk format (`qcow2` or `raw`) |
+| `create_vm_image_dir` | `/var/lib/qemu/images` | Directory for disk images (should match `qemu_host_vm_image_dir`) |
+| `create_vm_service_user` | `qemu` | Owner of the created disk images |
+| `create_vm_service_group` | `qemu` | Group of the created disk images |
+
+### VM definition
+
+Each entry in `create_vm_vms` is a dictionary with the following keys:
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `name` | yes | — | VM name, used as the disk image filename |
+| `disk_size` | no | `create_vm_default_disk_size` | Disk image size (e.g. `20G`, `100G`) |
+| `disk_format` | no | `create_vm_default_disk_format` | Disk format (`qcow2` or `raw`) |
+
+## Example Playbook
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - basalt.qemu.qemu_host
+    - role: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          - name: web01
+            disk_size: 40G
+          - name: db01
+            disk_size: 100G
+            disk_format: raw
+          - name: worker01
+```
+
+## License
+
+GPL-3.0-only

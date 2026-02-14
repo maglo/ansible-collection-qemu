@@ -1,0 +1,55 @@
+---
+argument_specs:
+  main:
+    short_description: Create QEMU/KVM virtual machine disk images.
+    description:
+      - Creates qcow2 (or raw) disk images for QEMU/KVM virtual machines
+        and sets the correct ownership and permissions.
+      - This role depends on C(basalt.qemu.qemu_host) to provide the host-level
+        QEMU installation and directory structure.
+    options:
+      create_vm_vms:
+        description:
+          - List of VMs to create. Each entry is a dictionary with at least a C(name) key.
+          - "Optional per-VM keys: C(disk_size) (overrides C(create_vm_default_disk_size)),
+            C(disk_format) (overrides C(create_vm_default_disk_format))."
+        type: list
+        elements: dict
+        default: []
+        options:
+          name:
+            description: Name of the VM. Used as the disk image filename.
+            type: str
+            required: true
+          disk_size:
+            description: Disk image size (e.g. C(20G), C(100G)). Overrides C(create_vm_default_disk_size).
+            type: str
+          disk_format:
+            description: Disk image format. Overrides C(create_vm_default_disk_format).
+            type: str
+            choices:
+              - qcow2
+              - raw
+      create_vm_default_disk_size:
+        description: Default disk size for VMs that do not specify C(disk_size).
+        type: str
+        default: "20G"
+      create_vm_default_disk_format:
+        description: Default disk image format.
+        type: str
+        default: qcow2
+        choices:
+          - qcow2
+          - raw
+      create_vm_image_dir:
+        description: Directory for VM disk images. Should match C(qemu_host_vm_image_dir).
+        type: path
+        default: /var/lib/qemu/images
+      create_vm_service_user:
+        description: Owner of the created disk image files.
+        type: str
+        default: qemu
+      create_vm_service_group:
+        description: Group of the created disk image files.
+        type: str
+        default: qemu
