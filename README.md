@@ -34,12 +34,13 @@ collections:
 
 ## Quick Start
 
+### Set up the host and create VM disk images
+
 ```yaml
 - hosts: hypervisors
+  become: true
   roles:
-    - role: basalt.qemu.qemu_host
-      vars:
-        qemu_host_novnc_enabled: true
+    - basalt.qemu.qemu_host
     - role: basalt.qemu.create_vm
       vars:
         create_vm_vms:
@@ -47,17 +48,24 @@ collections:
             disk_size: 40G
           - name: db01
             disk_size: 100G
+            disk_format: raw
+            uefi: false
 ```
 
-After the role runs, manage individual VMs with the systemd template unit:
+`qemu_host` installs QEMU/KVM packages and deploys the `qemu-vm@.service` systemd
+template unit. `create_vm` then creates a disk image (qcow2 by default) for each
+VM and, when UEFI is enabled (the default), copies per-VM OVMF NVRAM files.
+
+### Manage VMs with systemd
+
+After both roles have run, write a configuration file for each VM and start it
+through the systemd template unit:
 
 ```bash
-# Create a VM config file
 cat > /etc/qemu/vms/myvm.conf <<'EOF'
 QEMU_ARGS="-m 2048 -smp 2 -drive file=/var/lib/qemu/images/myvm.qcow2,format=qcow2 -vnc :1"
 EOF
 
-# Start the VM
 systemctl start qemu-vm@myvm
 systemctl enable qemu-vm@myvm
 ```
