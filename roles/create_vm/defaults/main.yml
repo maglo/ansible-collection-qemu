@@ -19,3 +19,12 @@ create_vm_image_dir: /var/lib/qemu/images
 # Owner/group for created images
 create_vm_service_user: qemu
 create_vm_service_group: qemu
+
+# Whether VMs default to UEFI boot (can be overridden per VM with `uefi` key)
+create_vm_default_uefi: true
+
+# Path to OVMF firmware code (read-only, shared across VMs)
+create_vm_ovmf_code: /usr/share/edk2/ovmf/OVMF_CODE.fd
+
+# Path to OVMF vars template (copied per-VM for writable NVRAM)
+create_vm_ovmf_vars_template: /usr/share/edk2/ovmf/OVMF_VARS.fd

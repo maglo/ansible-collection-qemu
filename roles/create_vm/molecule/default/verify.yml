@@ -28,11 +28,52 @@
         that:
           - "'file format: qcow2' in qemu_img_info.stdout"
 
+    # ── UEFI firmware ──────────────────────────────────────────
+    - name: Check edk2-ovmf is installed
+      ansible.builtin.dnf:
+        name: edk2-ovmf
+        state: present
+      register: ovmf_pkg
+      check_mode: true
+
+    - name: Assert edk2-ovmf is installed
+      ansible.builtin.assert:
+        that:
+          - not ovmf_pkg.changed
+
+    - name: Stat OVMF_CODE.fd
+      ansible.builtin.stat:
+        path: /usr/share/edk2/ovmf/OVMF_CODE.fd
+      register: ovmf_code
+
+    - name: Assert OVMF_CODE.fd exists
+      ansible.builtin.assert:
+        that:
+          - ovmf_code.stat.exists
+
+    - name: Stat per-VM NVRAM file
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm_VARS.fd
+      register: nvram_file
+
+    - name: Assert NVRAM file properties
+      ansible.builtin.assert:
+        that:
+          - nvram_file.stat.exists
+          - nvram_file.stat.pw_name == 'qemu'
+          - nvram_file.stat.gr_name == 'qemu'
+          - nvram_file.stat.mode == '0644'
+
     # ── Idempotency ──────────────────────────────────────────
     - name: Record image modification time
       ansible.builtin.stat:
         path: /var/lib/qemu/images/testvm.qcow2
       register: before_rerun
+
+    - name: Record NVRAM modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm_VARS.fd
+      register: nvram_before_rerun
 
     - name: Re-run create_vm role
       ansible.builtin.include_role:
@@ -41,13 +82,24 @@
         create_vm_vms:
           - name: testvm
             disk_size: 1G
+            uefi: true
 
     - name: Record image modification time after re-run
       ansible.builtin.stat:
         path: /var/lib/qemu/images/testvm.qcow2
       register: after_rerun
 
+    - name: Record NVRAM modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm_VARS.fd
+      register: nvram_after_rerun
+
     - name: Assert image was not recreated
       ansible.builtin.assert:
         that:
           - before_rerun.stat.mtime == after_rerun.stat.mtime
+
+    - name: Assert NVRAM was not overwritten
+      ansible.builtin.assert:
+        that:
+          - nvram_before_rerun.stat.mtime == nvram_after_rerun.stat.mtime
