@@ -6,7 +6,7 @@
       {{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}
       {{ item.disk_size | default(create_vm_default_disk_size) }}
     creates: "{{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}"
-  loop: "{{ create_vm_vms }}"
+  loop: "{{ _create_vm_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -16,6 +16,6 @@
     owner: "{{ create_vm_service_user }}"
     group: "{{ create_vm_service_group }}"
     mode: "0644"
-  loop: "{{ create_vm_vms }}"
+  loop: "{{ _create_vm_active_vms }}"
   loop_control:
     label: "{{ item.name }}"

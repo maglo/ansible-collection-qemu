@@ -1,0 +1,47 @@
+---
+# Gracefully shut down a VM using QEMU monitor ACPI powerdown
+# Falls back to systemctl stop if timeout exceeded
+- name: Determine shutdown timeout
+  ansible.builtin.set_fact:
+    create_vm_shutdown_timeout: "{{ item.shutdown_timeout | default(create_vm_default_shutdown_timeout) }}"
+
+- name: Check if VM is running
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
+  register: create_vm_vm_service_status
+
+- name: Send ACPI shutdown via QEMU monitor
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      echo "system_powerdown" | socat - UNIX-CONNECT:/var/lib/qemu/{{ item.name }}/monitor.sock
+    executable: /bin/bash
+  when:
+    - create_vm_vm_service_status.status.ActiveState == 'active'
+    - create_vm_vm_service_status.status.SubState == 'running'
+  failed_when: false
+  changed_when: true
+  register: create_vm_acpi_shutdown
+
+- name: Wait for graceful shutdown
+  ansible.builtin.wait_for:
+    path: /var/lib/qemu/{{ item.name }}/monitor.sock
+    state: absent
+    timeout: "{{ create_vm_shutdown_timeout }}"
+  when: create_vm_acpi_shutdown is not skipped
+  failed_when: false
+  register: create_vm_graceful_shutdown_wait
+
+- name: Force stop VM if graceful shutdown timed out
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
+    state: stopped
+  when:
+    - create_vm_vm_service_status.status.ActiveState == 'active'
+    - (create_vm_graceful_shutdown_wait is failed or create_vm_acpi_shutdown is failed or create_vm_acpi_shutdown is skipped)
+
+- name: Verify VM is stopped
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
+  register: create_vm_final_status
+  failed_when: create_vm_final_status.status.ActiveState not in ['inactive', 'failed']

@@ -59,3 +59,6 @@ create_vm_default_novnc_enabled: false
 
 # Default noVNC port (null means auto-assign: 6080 + VNC display number)
 create_vm_default_novnc_port: null
+
+# Default shutdown timeout for graceful ACPI powerdown (seconds)
+create_vm_default_shutdown_timeout: 120

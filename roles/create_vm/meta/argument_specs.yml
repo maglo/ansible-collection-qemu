@@ -83,12 +83,27 @@ argument_specs:
           state:
             description: >-
               Desired state of the VM service. C(started) enables and starts the service,
-              C(stopped) enables but stops the service, C(present) only writes config without managing the service.
+              C(stopped) enables but stops the service, C(present) only writes config without managing the service,
+              C(restarted) performs a graceful stop and start, C(absent) destroys the VM and all artifacts.
             type: str
             choices:
               - started
               - stopped
               - present
+              - restarted
+              - absent
+          force_destroy:
+            description: >-
+              Safety flag required to destroy a VM with C(state: absent).
+              Must be explicitly set to C(true) to prevent accidental data loss.
+            type: bool
+            default: false
+          shutdown_timeout:
+            description: >-
+              Timeout in seconds to wait for graceful ACPI shutdown before forcing stop.
+              Used by C(state: restarted) and C(state: absent).
+            type: int
+            default: 120
       create_vm_default_disk_size:
         description: Default disk size for VMs that do not specify C(disk_size).
         type: str
@@ -170,3 +185,9 @@ argument_specs:
           Default noVNC port for VMs that do not specify C(novnc_port).
           If null, ports are auto-assigned as 6080 + VNC display number.
         type: int
+      create_vm_default_shutdown_timeout:
+        description: >-
+          Default timeout in seconds for graceful ACPI shutdown before forcing stop.
+          Used when VMs do not specify C(shutdown_timeout).
+        type: int
+        default: 120

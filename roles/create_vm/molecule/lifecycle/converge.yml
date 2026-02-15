@@ -1,0 +1,53 @@
+---
+- name: Converge - Lifecycle operations
+  hosts: all
+  vars:
+    # Use qcow2 format for Docker testing (KVM not available)
+    qemu_host_libvirtd_enabled: false
+  tasks:
+    # Include qemu_host role first
+    - name: Include qemu_host role
+      ansible.builtin.include_role:
+        name: basalt.qemu.qemu_host
+
+    # Phase 1: Create VMs in various states
+    - name: Create test VMs
+      ansible.builtin.include_role:
+        name: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          - name: lifecycle-test-present
+            disk_size: 1G
+            state: present
+          - name: lifecycle-test-tpm
+            disk_size: 1G
+            tpm: true
+            state: present
+
+    # Phase 2: Test destroy safety check (should fail without force_destroy)
+    - name: Attempt destroy without force_destroy (should fail)
+      ansible.builtin.include_role:
+        name: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          - name: lifecycle-test-present
+            state: absent
+      ignore_errors: true
+      register: create_vm_destroy_without_force
+
+    - name: Verify destroy without force_destroy failed
+      ansible.builtin.assert:
+        that:
+          - create_vm_destroy_without_force is failed
+        fail_msg: "Destroy without force_destroy should have failed but didn't"
+        success_msg: "Destroy safety check working correctly"
+
+    # Phase 3: Destroy VM with force_destroy
+    - name: Destroy lifecycle-test-tpm
+      ansible.builtin.include_role:
+        name: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          - name: lifecycle-test-tpm
+            state: absent
+            force_destroy: true

@@ -14,7 +14,7 @@
     owner: "{{ create_vm_service_user }}"
     group: "{{ create_vm_service_group }}"
     mode: "0644"
-  loop: "{{ create_vm_vms }}"
+  loop: "{{ _create_vm_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -24,7 +24,23 @@
     state: "{{ item.state }}"
     enabled: true
     daemon_reload: true
-  loop: "{{ create_vm_vms }}"
+  loop: "{{ _create_vm_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
   when: (item.state | default('present')) in ['started', 'stopped']
+
+# ── Handle restart state ──────────────────────────────────
+- name: Restart VMs with state=restarted
+  ansible.builtin.include_tasks: restart.yml
+  loop: "{{ create_vm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) == 'restarted'
+
+# ── Handle destroy state ────────────────────────────────
+- name: Destroy VMs with state=absent
+  ansible.builtin.include_tasks: destroy.yml
+  loop: "{{ create_vm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) == 'absent'
