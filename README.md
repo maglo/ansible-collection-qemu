@@ -15,7 +15,7 @@ Ansible collection for managing QEMU/KVM hosts on Enterprise Linux (RHEL, Rocky,
 
 | Platform | Versions |
 |----------|----------|
-| Enterprise Linux (RHEL, Rocky, Alma, CentOS) | 8, 9 |
+| Enterprise Linux (RHEL, Rocky, Alma, CentOS) | 9, 10 |
 
 **Ansible compatibility:** >= 2.15
 

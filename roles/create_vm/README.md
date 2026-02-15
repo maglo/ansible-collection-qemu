@@ -7,7 +7,7 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 ## Requirements
 
 - Ansible >= 2.15
-- Target hosts running Enterprise Linux 8 or 9
+- Target hosts running Enterprise Linux 9 or 10
 
 ## Dependencies
 

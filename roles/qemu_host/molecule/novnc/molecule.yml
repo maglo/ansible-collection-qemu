@@ -3,7 +3,7 @@ driver:
   name: docker
 platforms:
   - name: qemu-host-novnc
-    image: geerlingguy/docker-rockylinux9-ansible:latest
+    image: "geerlingguy/docker-rockylinux${EL_VERSION:-9}-ansible:latest"
     command: ""
     privileged: true
     pre_build_image: true

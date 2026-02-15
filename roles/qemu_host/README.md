@@ -7,7 +7,7 @@ The role installs QEMU/KVM packages, deploys a systemd template unit for managin
 ## Requirements
 
 - Ansible >= 2.15
-- Target hosts running Enterprise Linux 8 or 9
+- Target hosts running Enterprise Linux 9 or 10
 
 ## Role Variables
 
