@@ -6,6 +6,7 @@ qemu_host_packages:
   - libvirt
   - swtpm
   - swtpm-tools
+  - socat
 
 # Whether to enable and start libvirtd
 qemu_host_libvirtd_enabled: true

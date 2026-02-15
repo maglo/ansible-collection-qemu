@@ -3,7 +3,7 @@
   ansible.builtin.set_fact:
     _create_vm_novnc_vms: >-
       {{
-        create_vm_vms
+        _create_vm_active_vms
         | selectattr('novnc_enabled', 'defined')
         | selectattr('novnc_enabled')
         | list

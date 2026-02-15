@@ -36,6 +36,7 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `create_vm_default_cpus` | `2` | Default number of virtual CPUs |
 | `create_vm_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
 | `create_vm_default_novnc_port` | `null` | Default noVNC port (null = auto-assign as 6080 + VNC display number) |
+| `create_vm_default_shutdown_timeout` | `120` | Default timeout in seconds for graceful ACPI shutdown |
 
 ### VM definition
 
@@ -56,15 +57,44 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `vnc` | no | hash-based | VNC display number (port = 5900+N) |
 | `novnc_enabled` | no | `create_vm_default_novnc_enabled` | Enable noVNC web console for this VM |
 | `novnc_port` | no | `6080 + vnc` | Port for noVNC web console (auto-assigned if not specified) |
-| `state` | no | `present` | Desired service state: `started`, `stopped`, or `present` |
+| `state` | no | `present` | Desired service state: `started`, `stopped`, `present`, `restarted`, or `absent` |
+| `force_destroy` | no | `false` | Safety flag required to destroy VM with `state: absent` (must be `true`) |
+| `shutdown_timeout` | no | `120` | Timeout in seconds for graceful ACPI shutdown (used by `restarted` and `absent`) |
 
 ## Service management
 
-The role manages each VM as a `qemu-vm@<name>.service` systemd unit. The per-VM `state` parameter controls the service:
+The role manages each VM as a `qemu-vm@<name>.service` systemd unit. The per-VM `state` parameter controls the service lifecycle:
 
 - **`present`** (default) — the config file is written but the service is not managed at all (useful for testing or environments without KVM).
 - **`started`** — the service is enabled and started.
 - **`stopped`** — the service is enabled but stopped (useful for pre-provisioning).
+- **`restarted`** — performs a graceful restart (stop + start). The VM is sent an ACPI shutdown signal and given time to shut down gracefully before being restarted.
+- **`absent`** — **DESTRUCTIVE**: stops and removes the VM along with all artifacts (disk image, NVRAM, TPM state, configs). Requires `force_destroy: true` to execute.
+
+### Graceful shutdown
+
+When stopping or restarting VMs, the role uses QEMU's monitor socket to send an ACPI shutdown signal (`system_powerdown`). This allows the guest OS to shut down cleanly. The role waits up to `shutdown_timeout` seconds (default: 120) for the guest to stop. If the timeout is exceeded, the VM is forcefully stopped via `systemctl stop`.
+
+### Destroying VMs
+
+To prevent accidental data loss, destroying a VM requires setting `force_destroy: true` on the VM definition:
+
+```yaml
+create_vm_vms:
+  - name: testvm
+    state: absent
+    force_destroy: true  # Required!
+```
+
+When destroyed, the following artifacts are removed:
+- Disk image (`/var/lib/qemu/images/{name}.{qcow2|raw}`)
+- UEFI NVRAM file (`/var/lib/qemu/images/{name}_VARS.fd`)
+- Config files (`/etc/qemu/vms/{name}.conf`, `/etc/qemu/vms/novnc-{name}.conf`)
+- Runtime directory (`/var/lib/qemu/{name}/`)
+- TPM state directory (`/var/lib/swtpm/{name}/`)
+- Systemd service instances
+
+**Note:** Shared resources like `/etc/qemu/bridge.conf` are not removed.
 
 ## Networking
 
@@ -223,6 +253,43 @@ To enable browser-based console access with noVNC:
 ```
 
 Access the web console at `http://<host>:6080/vnc.html` (for web01) and `http://<host>:6081/vnc.html` (for db01).
+
+### VM lifecycle operations
+
+Manage VM lifecycle states with the `state` parameter:
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - basalt.qemu.qemu_host
+    - role: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          # Create but don't start
+          - name: vm01
+            disk_size: 20G
+            state: present
+
+          # Create and start
+          - name: vm02
+            disk_size: 20G
+            state: started
+
+          # Graceful restart (ACPI shutdown + start)
+          - name: vm03
+            disk_size: 20G
+            state: restarted
+            shutdown_timeout: 180  # Wait up to 3 minutes for graceful shutdown
+
+          # Destroy VM and remove all artifacts
+          - name: old-vm
+            state: absent
+            force_destroy: true  # Required safety flag
+```
+
+The `restarted` state performs a graceful stop followed by a start. The VM receives an ACPI shutdown signal and is given `shutdown_timeout` seconds to shut down cleanly before being forcefully stopped.
+
+The `absent` state completely removes the VM including disk images, NVRAM, TPM state, and configuration files. This operation requires `force_destroy: true` to prevent accidental data loss.
 
 ## License
 

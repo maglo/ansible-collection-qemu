@@ -1,0 +1,113 @@
+---
+- name: Verify lifecycle operations
+  hosts: all
+  gather_facts: false
+  tasks:
+    # Verify lifecycle-test-present still exists (destroy failed)
+    - name: Check lifecycle-test-present disk exists
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/lifecycle-test-present.qcow2
+      register: _disk_present
+
+    - name: Assert lifecycle-test-present disk exists
+      ansible.builtin.assert:
+        that: _disk_present.stat.exists
+        fail_msg: "lifecycle-test-present disk should exist"
+        success_msg: "lifecycle-test-present disk exists as expected"
+
+    - name: Check lifecycle-test-present config exists
+      ansible.builtin.stat:
+        path: /etc/qemu/vms/lifecycle-test-present.conf
+      register: _conf_present
+
+    - name: Assert lifecycle-test-present config exists
+      ansible.builtin.assert:
+        that: _conf_present.stat.exists
+        fail_msg: "lifecycle-test-present config should exist"
+        success_msg: "lifecycle-test-present config exists as expected"
+
+    # Verify lifecycle-test-tpm was destroyed
+    - name: Check lifecycle-test-tpm disk does not exist
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/lifecycle-test-tpm.qcow2
+      register: _disk_tpm
+
+    - name: Assert lifecycle-test-tpm disk was removed
+      ansible.builtin.assert:
+        that: not _disk_tpm.stat.exists
+        fail_msg: "lifecycle-test-tpm disk should have been removed"
+        success_msg: "lifecycle-test-tpm disk was removed as expected"
+
+    - name: Check lifecycle-test-tpm config does not exist
+      ansible.builtin.stat:
+        path: /etc/qemu/vms/lifecycle-test-tpm.conf
+      register: _conf_tpm
+
+    - name: Assert lifecycle-test-tpm config was removed
+      ansible.builtin.assert:
+        that: not _conf_tpm.stat.exists
+        fail_msg: "lifecycle-test-tpm config should have been removed"
+        success_msg: "lifecycle-test-tpm config was removed as expected"
+
+    - name: Check lifecycle-test-tpm NVRAM does not exist
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/lifecycle-test-tpm_VARS.fd
+      register: _nvram_tpm
+
+    - name: Assert lifecycle-test-tpm NVRAM was removed
+      ansible.builtin.assert:
+        that: not _nvram_tpm.stat.exists
+        fail_msg: "lifecycle-test-tpm NVRAM should have been removed"
+        success_msg: "lifecycle-test-tpm NVRAM was removed as expected"
+
+    - name: Check lifecycle-test-tpm runtime dir does not exist
+      ansible.builtin.stat:
+        path: /var/lib/qemu/lifecycle-test-tpm
+      register: _runtime_tpm
+
+    - name: Assert lifecycle-test-tpm runtime dir was removed
+      ansible.builtin.assert:
+        that: not _runtime_tpm.stat.exists
+        fail_msg: "lifecycle-test-tpm runtime dir should have been removed"
+        success_msg: "lifecycle-test-tpm runtime dir was removed as expected"
+
+    - name: Check lifecycle-test-tpm swtpm state does not exist
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/lifecycle-test-tpm
+      register: _swtpm_tpm
+
+    - name: Assert lifecycle-test-tpm swtpm state was removed
+      ansible.builtin.assert:
+        that: not _swtpm_tpm.stat.exists
+        fail_msg: "lifecycle-test-tpm swtpm state should have been removed"
+        success_msg: "lifecycle-test-tpm swtpm state was removed as expected"
+
+    # Verify monitor socket directory created for existing VM
+    - name: Check monitor runtime dir exists for lifecycle-test-present
+      ansible.builtin.stat:
+        path: /var/lib/qemu/lifecycle-test-present
+      register: _monitor_dir
+
+    - name: Assert monitor runtime dir exists
+      ansible.builtin.assert:
+        that:
+          - _monitor_dir.stat.exists
+          - _monitor_dir.stat.isdir
+        fail_msg: "Monitor runtime directory should exist for lifecycle-test-present"
+        success_msg: "Monitor runtime directory exists as expected"
+
+    # Verify config contains monitor socket argument
+    - name: Read lifecycle-test-present config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/lifecycle-test-present.conf
+      register: _vm_config
+
+    - name: Decode config content
+      ansible.builtin.set_fact:
+        _config_content: "{{ _vm_config.content | b64decode }}"
+
+    - name: Assert monitor socket in config
+      ansible.builtin.assert:
+        that: "'-monitor unix:/var/lib/qemu/lifecycle-test-present/monitor.sock,server,nowait' in _config_content"
+        fail_msg: "Monitor socket argument should be in VM config"
+        success_msg: "Monitor socket correctly configured in VM config"

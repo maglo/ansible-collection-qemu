@@ -1,19 +1,35 @@
 ---
+# ── Filter VMs for creation (exclude those being destroyed) ──
+- name: Filter VMs for creation
+  ansible.builtin.set_fact:
+    _create_vm_active_vms: >-
+      {{ create_vm_vms | rejectattr('state', 'defined') | list
+         + create_vm_vms | selectattr('state', 'defined') | rejectattr('state', 'equalto', 'absent') | list }}
+
+# ── Creation phase (only for non-absent VMs) ──
 - name: Ensure UEFI firmware is available
   ansible.builtin.import_tasks: firmware.yml
+  when: _create_vm_active_vms | length > 0
 
 - name: Create VM disk images
   ansible.builtin.import_tasks: disk.yml
+  when: _create_vm_active_vms | length > 0
 
 - name: Configure per-VM TPM emulation
   ansible.builtin.import_tasks: tpm.yml
+  when: _create_vm_active_vms | length > 0
 
 - name: Configure VM networking
   ansible.builtin.import_tasks: network.yml
+  when: _create_vm_active_vms | length > 0
 
 - name: Configure noVNC for VMs
   ansible.builtin.import_tasks: novnc.yml
-  when: create_vm_vms | selectattr('novnc_enabled', 'defined') | selectattr('novnc_enabled') | list | length > 0
+  when: _create_vm_active_vms | selectattr('novnc_enabled', 'defined') | selectattr('novnc_enabled') | list | length > 0
+
+- name: Setup QEMU monitor sockets
+  ansible.builtin.import_tasks: monitor.yml
+  when: _create_vm_active_vms | length > 0
 
 - name: Generate VM config and manage service
   ansible.builtin.import_tasks: service.yml

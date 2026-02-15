@@ -7,8 +7,8 @@
     group: root
     mode: "0644"
   when: >-
-    create_vm_vms | selectattr('net_mode', 'defined')
-                  | selectattr('net_mode', 'equalto', 'bridge')
-                  | list | length > 0
-    or (create_vm_vms | rejectattr('net_mode', 'defined') | list | length > 0
+    _create_vm_active_vms | selectattr('net_mode', 'defined')
+                          | selectattr('net_mode', 'equalto', 'bridge')
+                          | list | length > 0
+    or (_create_vm_active_vms | rejectattr('net_mode', 'defined') | list | length > 0
         and create_vm_default_net_mode == 'bridge')

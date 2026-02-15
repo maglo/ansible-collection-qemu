@@ -2,8 +2,8 @@
 - name: Determine TPM-enabled VMs
   ansible.builtin.set_fact:
     _create_vm_tpm_vms: >-
-      {{ create_vm_vms | selectattr('tpm', 'defined') | selectattr('tpm') | list
-         + (create_vm_vms | rejectattr('tpm', 'defined') | list if create_vm_default_tpm else []) }}
+      {{ _create_vm_active_vms | selectattr('tpm', 'defined') | selectattr('tpm') | list
+         + (_create_vm_active_vms | rejectattr('tpm', 'defined') | list if create_vm_default_tpm else []) }}
 
 - name: Verify swtpm systemd template exists
   ansible.builtin.stat:

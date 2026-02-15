@@ -1,0 +1,77 @@
+---
+# Destroy VM and remove all artifacts
+# Requires force_destroy: true to prevent accidental data loss
+- name: Validate force_destroy flag is set
+  ansible.builtin.assert:
+    that:
+      - item.force_destroy is defined
+      - item.force_destroy | bool
+    fail_msg: "Cannot destroy VM '{{ item.name }}': force_destroy must be set to true"
+    success_msg: "force_destroy confirmed for VM '{{ item.name }}'"
+
+- name: Stop noVNC service
+  ansible.builtin.systemd_service:
+    name: "novnc@{{ item.name }}.service"
+    state: stopped
+    enabled: false
+  when: item.novnc_enabled | default(create_vm_default_novnc_enabled)
+  failed_when: false
+
+- name: Gracefully shut down VM
+  ansible.builtin.include_tasks: shutdown.yml
+
+- name: Disable VM service
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
+    enabled: false
+  failed_when: false
+
+- name: Stop and disable swtpm service
+  ansible.builtin.systemd_service:
+    name: "swtpm@{{ item.name }}.service"
+    state: stopped
+    enabled: false
+  when: item.tpm | default(create_vm_default_tpm)
+  failed_when: false
+
+- name: Remove VM config file
+  ansible.builtin.file:
+    path: "{{ create_vm_vm_config_dir }}/{{ item.name }}.conf"
+    state: absent
+
+- name: Remove noVNC config file
+  ansible.builtin.file:
+    path: "{{ create_vm_vm_config_dir }}/novnc-{{ item.name }}.conf"
+    state: absent
+  when: item.novnc_enabled | default(create_vm_default_novnc_enabled)
+
+- name: Remove disk image
+  ansible.builtin.file:
+    path: "{{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}"
+    state: absent
+
+- name: Remove UEFI NVRAM file
+  ansible.builtin.file:
+    path: "{{ create_vm_image_dir }}/{{ item.name }}_VARS.fd"
+    state: absent
+  when: item.uefi | default(create_vm_default_uefi)
+
+- name: Remove per-VM runtime directory
+  ansible.builtin.file:
+    path: /var/lib/qemu/{{ item.name }}
+    state: absent
+
+- name: Remove swtpm state directory
+  ansible.builtin.file:
+    path: "{{ create_vm_swtpm_state_dir }}/{{ item.name }}"
+    state: absent
+  when: item.tpm | default(create_vm_default_tpm)
+
+- name: Remove systemd drop-in directory
+  ansible.builtin.file:
+    path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
+    state: absent
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
