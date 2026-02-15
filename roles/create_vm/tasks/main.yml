@@ -10,3 +10,6 @@
 
 - name: Configure VM networking
   ansible.builtin.import_tasks: network.yml
+
+- name: Generate VM config and manage service
+  ansible.builtin.import_tasks: service.yml

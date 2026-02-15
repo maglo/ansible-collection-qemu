@@ -1,9 +1,32 @@
 {{ ansible_managed | comment }}
+{% set _fmt = item.disk_format | default(create_vm_default_disk_format) %}
+{% set _memory = item.memory | default(create_vm_default_memory) %}
+{% set _cpus = item.cpus | default(create_vm_default_cpus) %}
+{% set _uefi = item.uefi | default(create_vm_default_uefi) %}
+{% set _tpm = item.tpm | default(create_vm_default_tpm) %}
 {% set _net_mode = item.net_mode | default(create_vm_default_net_mode) %}
 {% set _mac = item.mac_address | default('52:54:00:' ~ (item.name | hash('md5'))[0:2] ~ ':' ~ (item.name | hash('md5'))[2:4] ~ ':' ~ (item.name | hash('md5'))[4:6]) %}
+{% set _args = [] %}
+{% set _ = _args.append('-name ' ~ item.name) %}
+{% set _ = _args.append('-machine q35,accel=kvm') %}
+{% set _ = _args.append('-m ' ~ _memory) %}
+{% set _ = _args.append('-smp ' ~ _cpus) %}
+{% set _ = _args.append('-nographic') %}
+{% set _ = _args.append('-drive if=virtio,format=' ~ _fmt ~ ',file=' ~ create_vm_image_dir ~ '/' ~ item.name ~ '.' ~ _fmt) %}
+{% if _uefi %}
+{% set _ = _args.append('-drive if=pflash,format=raw,readonly=on,file=' ~ create_vm_ovmf_code) %}
+{% set _ = _args.append('-drive if=pflash,format=raw,file=' ~ create_vm_image_dir ~ '/' ~ item.name ~ '_VARS.fd') %}
+{% endif %}
+{% if _tpm %}
+{% set _ = _args.append('-chardev socket,id=chrtpm,path=' ~ create_vm_swtpm_state_dir ~ '/' ~ item.name ~ '/swtpm.sock') %}
+{% set _ = _args.append('-tpmdev emulator,id=tpm0,chardev=chrtpm') %}
+{% set _ = _args.append('-device tpm-tis,tpmdev=tpm0') %}
+{% endif %}
 {% if _net_mode == 'user' %}
-QEMU_ARGS="-nic user,model=virtio-net-pci,mac={{ _mac }}"
+{% set _ = _args.append('-nic user,model=virtio-net-pci,mac=' ~ _mac) %}
 {% elif _net_mode == 'bridge' %}
 {% set _bridge = item.net_bridge | default(create_vm_default_net_bridge) %}
-QEMU_ARGS="-netdev bridge,id=net0,br={{ _bridge }} -device virtio-net-pci,netdev=net0,mac={{ _mac }}"
+{% set _ = _args.append('-netdev bridge,id=net0,br=' ~ _bridge) %}
+{% set _ = _args.append('-device virtio-net-pci,netdev=net0,mac=' ~ _mac) %}
 {% endif %}
+QEMU_ARGS="{{ _args | join(' ') }}"
