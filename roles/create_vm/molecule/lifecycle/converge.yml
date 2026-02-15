@@ -33,12 +33,12 @@
           - name: lifecycle-test-present
             state: absent
       ignore_errors: true
-      register: _destroy_without_force
+      register: create_vm_destroy_without_force
 
     - name: Verify destroy without force_destroy failed
       ansible.builtin.assert:
         that:
-          - _destroy_without_force is failed
+          - create_vm_destroy_without_force is failed
         fail_msg: "Destroy without force_destroy should have failed but didn't"
         success_msg: "Destroy safety check working correctly"
 

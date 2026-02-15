@@ -31,45 +31,11 @@
 
 # ── Handle restart state ──────────────────────────────────
 - name: Restart VMs with state=restarted
-  when: (item.state | default('present')) == 'restarted'
+  ansible.builtin.include_tasks: restart.yml
   loop: "{{ create_vm_vms }}"
   loop_control:
     label: "{{ item.name }}"
-  block:
-    - name: Stop noVNC service if enabled
-      ansible.builtin.systemd_service:
-        name: "novnc@{{ item.name }}.service"
-        state: stopped
-      when: item.novnc_enabled | default(create_vm_default_novnc_enabled)
-      failed_when: false
-
-    - name: Gracefully shut down VM
-      ansible.builtin.include_tasks: shutdown.yml
-
-    - name: Stop swtpm service if enabled
-      ansible.builtin.systemd_service:
-        name: "swtpm@{{ item.name }}.service"
-        state: stopped
-      when: item.tpm | default(create_vm_default_tpm)
-      failed_when: false
-
-    - name: Start swtpm service if enabled
-      ansible.builtin.systemd_service:
-        name: "swtpm@{{ item.name }}.service"
-        state: started
-      when: item.tpm | default(create_vm_default_tpm)
-
-    - name: Start VM service
-      ansible.builtin.systemd_service:
-        name: "qemu-vm@{{ item.name }}.service"
-        state: started
-        daemon_reload: true
-
-    - name: Start noVNC service if enabled
-      ansible.builtin.systemd_service:
-        name: "novnc@{{ item.name }}.service"
-        state: started
-      when: item.novnc_enabled | default(create_vm_default_novnc_enabled)
+  when: (item.state | default('present')) == 'restarted'
 
 # ── Handle destroy state ────────────────────────────────
 - name: Destroy VMs with state=absent
