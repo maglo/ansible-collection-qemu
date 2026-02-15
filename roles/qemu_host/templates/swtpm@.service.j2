@@ -5,11 +5,11 @@ Before=qemu-vm@%i.service
 
 [Service]
 Type=simple
-User={{ create_vm_service_user }}
-Group={{ create_vm_service_group }}
+User={{ qemu_host_service_user }}
+Group={{ qemu_host_service_group }}
 ExecStart=/usr/bin/swtpm socket \
-  --tpmstate dir={{ create_vm_swtpm_state_dir }}/%i \
-  --ctrl type=unixio,path={{ create_vm_swtpm_state_dir }}/%i/swtpm.sock \
+  --tpmstate dir={{ qemu_host_swtpm_state_dir }}/%i \
+  --ctrl type=unixio,path={{ qemu_host_swtpm_state_dir }}/%i/swtpm.sock \
   --tpm2 \
   --log level=1
 ExecStop=/bin/kill -SIGTERM $MAINPID

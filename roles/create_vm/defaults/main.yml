@@ -33,6 +33,7 @@ create_vm_ovmf_vars_template: /usr/share/edk2/ovmf/OVMF_VARS.fd
 create_vm_default_tpm: false
 
 # Base directory for per-VM swtpm state
+# NOTE: This must match qemu_host_swtpm_state_dir (used by swtpm@.service template)
 create_vm_swtpm_state_dir: /var/lib/swtpm
 
 # Default networking mode for VMs (user or bridge)

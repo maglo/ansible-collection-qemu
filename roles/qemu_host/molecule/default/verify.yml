@@ -94,6 +94,36 @@
           - "'EnvironmentFile=/etc/qemu/vms/%i.conf' in content"
           - "'ExecStart=/usr/libexec/qemu-kvm $QEMU_ARGS' in content"
 
+    - name: Stat swtpm@ service unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/swtpm@.service
+      register: swtpm_unit
+
+    - name: Assert swtpm@ service unit file
+      ansible.builtin.assert:
+        that:
+          - swtpm_unit.stat.exists
+          - swtpm_unit.stat.pw_name == 'root'
+          - swtpm_unit.stat.gr_name == 'root'
+          - swtpm_unit.stat.mode == '0644'
+
+    - name: Read swtpm@ service unit content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/swtpm@.service
+      register: swtpm_unit_content
+
+    - name: Assert swtpm@ service unit content
+      vars:
+        content: "{{ swtpm_unit_content.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'Ansible managed' in content"
+          - "'User=qemu' in content"
+          - "'Group=qemu' in content"
+          - "'Before=qemu-vm@%i.service' in content"
+          - "'/usr/bin/swtpm socket' in content"
+          - "'/var/lib/swtpm/%i' in content"
+
     # ── libvirtd is disabled ──────────────────────────────────
     - name: Check libvirtd is not enabled
       ansible.builtin.systemd_service:
