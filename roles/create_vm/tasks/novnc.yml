@@ -1,0 +1,43 @@
+---
+- name: Determine noVNC-enabled VMs
+  ansible.builtin.set_fact:
+    _create_vm_novnc_vms: >-
+      {{
+        create_vm_vms
+        | selectattr('novnc_enabled', 'defined')
+        | selectattr('novnc_enabled')
+        | list
+      }}
+
+- name: Configure noVNC for VMs
+  when: _create_vm_novnc_vms | length > 0
+  block:
+    - name: Install noVNC systemd template unit
+      ansible.builtin.template:
+        src: novnc@.service.j2
+        dest: /etc/systemd/system/novnc@.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload systemd
+
+    - name: Deploy per-VM noVNC environment files
+      ansible.builtin.template:
+        src: novnc-env.conf.j2
+        dest: "{{ create_vm_vm_config_dir }}/novnc-{{ item.name }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ _create_vm_novnc_vms }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Enable and start per-VM noVNC services
+      ansible.builtin.systemd_service:
+        name: "novnc@{{ item.name }}.service"
+        state: started
+        enabled: true
+        daemon_reload: true
+      loop: "{{ _create_vm_novnc_vms }}"
+      loop_control:
+        label: "{{ item.name }}"

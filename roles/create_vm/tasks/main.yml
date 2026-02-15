@@ -11,5 +11,9 @@
 - name: Configure VM networking
   ansible.builtin.import_tasks: network.yml
 
+- name: Configure noVNC for VMs
+  ansible.builtin.import_tasks: novnc.yml
+  when: create_vm_vms | selectattr('novnc_enabled', 'defined') | selectattr('novnc_enabled') | list | length > 0
+
 - name: Generate VM config and manage service
   ansible.builtin.import_tasks: service.yml

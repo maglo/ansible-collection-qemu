@@ -4,7 +4,7 @@ argument_specs:
     short_description: Install and configure a QEMU/KVM host on Enterprise Linux.
     description:
       - Installs QEMU/KVM packages, deploys a systemd template unit for managing VMs,
-        and optionally sets up noVNC for browser-based console access.
+        and optionally installs the noVNC package (per-VM configuration managed by create_vm role).
     options:
       qemu_host_packages:
         description: Packages to install for QEMU/KVM host.
@@ -37,34 +37,8 @@ argument_specs:
         type: str
         default: qemu
       qemu_host_novnc_enabled:
-        description: Whether to deploy noVNC for browser-based VNC console access.
+        description: >-
+          Whether to install the noVNC package for browser-based VNC console access.
+          Per-VM noVNC configuration is now managed by the C(create_vm) role.
         type: bool
         default: false
-      qemu_host_novnc_install_dir:
-        description: Directory where noVNC will be installed.
-        type: path
-        default: /opt/noVNC
-      qemu_host_novnc_version:
-        description: noVNC Git release tag to install.
-        type: str
-        default: "v1.5.0"
-      qemu_host_novnc_vms:
-        description: >-
-          List of VMs to create noVNC websocket proxy instances for.
-          Each entry creates a C(novnc@<name>.service) systemd instance.
-        type: list
-        elements: dict
-        default: []
-        options:
-          name:
-            description: VM name (matches C(qemu-vm@<name>.service)).
-            type: str
-            required: true
-          novnc_port:
-            description: Port the noVNC websocket proxy listens on for this VM.
-            type: int
-            required: true
-          vnc_target:
-            description: VNC backend address (e.g. C(localhost:5900)).
-            type: str
-            required: true

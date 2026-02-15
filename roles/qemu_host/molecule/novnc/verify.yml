@@ -18,17 +18,37 @@
         - swtpm
         - swtpm-tools
 
-    # ── noVNC dependency packages ─────────────────────────────
-    - name: Check noVNC dependency packages are installed
+    # ── noVNC package ─────────────────────────────────────────
+    - name: Check novnc package is installed
       ansible.builtin.dnf:
-        name: "{{ item }}"
+        name: novnc
         state: present
       check_mode: true
       register: novnc_pkg_check
       failed_when: novnc_pkg_check.changed
-      loop:
-        - git
-        - python3-numpy
+
+    # ── noVNC binaries and directories ───────────────────────
+    - name: Stat novnc_proxy binary
+      ansible.builtin.stat:
+        path: /usr/bin/novnc_proxy
+      register: novnc_proxy
+
+    - name: Assert novnc_proxy binary exists and is executable
+      ansible.builtin.assert:
+        that:
+          - novnc_proxy.stat.exists
+          - novnc_proxy.stat.executable
+
+    - name: Stat noVNC web files directory
+      ansible.builtin.stat:
+        path: /usr/share/novnc
+      register: novnc_webdir
+
+    - name: Assert noVNC web files directory exists
+      ansible.builtin.assert:
+        that:
+          - novnc_webdir.stat.exists
+          - novnc_webdir.stat.isdir
 
     # ── Directories ───────────────────────────────────────────
     - name: Stat VM config directory
@@ -73,41 +93,6 @@
           - qemu_vm_unit.stat.gr_name == 'root'
           - qemu_vm_unit.stat.mode == '0644'
 
-    # ── noVNC clone ───────────────────────────────────────────
-    - name: Stat noVNC directory
-      ansible.builtin.stat:
-        path: /opt/noVNC
-      register: novnc_dir
-
-    - name: Assert noVNC directory exists
-      ansible.builtin.assert:
-        that:
-          - novnc_dir.stat.exists
-          - novnc_dir.stat.isdir
-
-    - name: Stat noVNC proxy script
-      ansible.builtin.stat:
-        path: /opt/noVNC/utils/novnc_proxy
-      register: novnc_proxy
-
-    - name: Assert noVNC proxy script is executable
-      ansible.builtin.assert:
-        that:
-          - novnc_proxy.stat.exists
-          - novnc_proxy.stat.executable
-
-    - name: Get noVNC git version
-      ansible.builtin.command:
-        cmd: git describe --tags --exact-match
-        chdir: /opt/noVNC
-      register: novnc_version
-      changed_when: false
-
-    - name: Assert noVNC is at correct version
-      ansible.builtin.assert:
-        that:
-          - novnc_version.stdout == 'v1.5.0'
-
     # ── Legacy novnc.service removed ─────────────────────────
     - name: Stat legacy novnc.service unit
       ansible.builtin.stat:
@@ -119,119 +104,15 @@
         that:
           - not legacy_novnc_unit.stat.exists
 
-    # ── noVNC template unit ──────────────────────────────────
-    - name: Stat noVNC template service unit
+    # ── noVNC template unit removed ──────────────────────────
+    # Per-VM noVNC configuration is now managed by create_vm role
+    - name: Stat novnc@.service template unit
       ansible.builtin.stat:
         path: /etc/systemd/system/novnc@.service
       register: novnc_template_unit
 
-    - name: Assert noVNC template service unit file
+    - name: Assert novnc@.service template is absent
       ansible.builtin.assert:
         that:
-          - novnc_template_unit.stat.exists
-          - novnc_template_unit.stat.pw_name == 'root'
-          - novnc_template_unit.stat.gr_name == 'root'
-          - novnc_template_unit.stat.mode == '0644'
-
-    - name: Read noVNC template service unit content
-      ansible.builtin.slurp:
-        src: /etc/systemd/system/novnc@.service
-      register: novnc_template_content
-
-    - name: Assert noVNC template unit content
-      vars:
-        content: "{{ novnc_template_content.content | b64decode }}"
-      ansible.builtin.assert:
-        that:
-          - "'Ansible managed' in content"
-          - "'/opt/noVNC/utils/novnc_proxy' in content"
-          - "'--listen ${NOVNC_PORT}' in content"
-          - "'--vnc ${VNC_TARGET}' in content"
-          - "'EnvironmentFile=/etc/qemu/vms/novnc-%i.conf' in content"
-
-    # ── Per-VM environment files ─────────────────────────────
-    - name: Stat per-VM noVNC environment files
-      ansible.builtin.stat:
-        path: "/etc/qemu/vms/novnc-{{ item.name }}.conf"
-      register: novnc_env_files
-      loop:
-        - name: web01
-          novnc_port: 6080
-          vnc_target: localhost:5900
-        - name: db01
-          novnc_port: 6081
-          vnc_target: localhost:5901
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: Assert per-VM noVNC environment files exist
-      ansible.builtin.assert:
-        that:
-          - item.stat.exists
-          - item.stat.pw_name == 'root'
-          - item.stat.gr_name == 'root'
-          - item.stat.mode == '0644'
-      loop: "{{ novnc_env_files.results }}"
-      loop_control:
-        label: "{{ item.item.name }}"
-
-    - name: Read per-VM noVNC environment files
-      ansible.builtin.slurp:
-        src: "/etc/qemu/vms/novnc-{{ item.name }}.conf"
-      register: novnc_env_contents
-      loop:
-        - name: web01
-          novnc_port: 6080
-          vnc_target: localhost:5900
-        - name: db01
-          novnc_port: 6081
-          vnc_target: localhost:5901
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: Assert web01 noVNC environment file content
-      vars:
-        content: "{{ novnc_env_contents.results[0].content | b64decode }}"
-      ansible.builtin.assert:
-        that:
-          - "'NOVNC_PORT=6080' in content"
-          - "'VNC_TARGET=localhost:5900' in content"
-
-    - name: Assert db01 noVNC environment file content
-      vars:
-        content: "{{ novnc_env_contents.results[1].content | b64decode }}"
-      ansible.builtin.assert:
-        that:
-          - "'NOVNC_PORT=6081' in content"
-          - "'VNC_TARGET=localhost:5901' in content"
-
-    # ── Per-VM noVNC service state ───────────────────────────
-    - name: Check per-VM noVNC services are enabled
-      ansible.builtin.systemd_service:
-        name: "novnc@{{ item }}"
-        enabled: true
-      check_mode: true
-      register: novnc_enabled_check
-      failed_when: novnc_enabled_check.changed
-      loop:
-        - web01
-        - db01
-
-    - name: Check per-VM noVNC services are active
-      ansible.builtin.command:
-        cmd: "systemctl is-active novnc@{{ item }}"
-      register: novnc_active_check
-      changed_when: false
-      failed_when: novnc_active_check.stdout != 'active'
-      loop:
-        - web01
-        - db01
-
-    # ── Per-VM ports are listening ───────────────────────────
-    - name: Wait for per-VM noVNC ports
-      ansible.builtin.wait_for:
-        port: "{{ item }}"
-        timeout: 10
-      loop:
-        - 6080
-        - 6081
+          - not novnc_template_unit.stat.exists
+        fail_msg: "novnc@.service should not be present - per-VM noVNC is now managed by create_vm role"

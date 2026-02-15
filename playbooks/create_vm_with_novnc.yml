@@ -1,0 +1,31 @@
+---
+# Playbook that creates QEMU/KVM VMs with noVNC web console enabled.
+# Usage:
+#   ansible-playbook -i inventory.yml create_vm_with_novnc.yml
+- name: Configure QEMU/KVM host and create VMs with noVNC
+  hosts: qemu_hosts
+  become: true
+  roles:
+    # Install QEMU packages and noVNC package
+    - role: basalt.qemu.qemu_host
+      vars:
+        qemu_host_novnc_enabled: true
+
+    # Create VMs with noVNC web console enabled
+    - role: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          - name: web01
+            disk_size: 40G
+            memory: 4G
+            cpus: 4
+            novnc_enabled: true
+            novnc_port: 6080  # Optional, auto-assigned if omitted
+            state: started
+          - name: db01
+            disk_size: 100G
+            memory: 8G
+            cpus: 8
+            novnc_enabled: true
+            # Port auto-assigned (6081 based on VNC display number)
+            state: started
