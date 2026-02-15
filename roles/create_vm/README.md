@@ -34,6 +34,8 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `create_vm_vm_config_dir` | `/etc/qemu/vms` | Directory for per-VM QEMU configuration files |
 | `create_vm_default_memory` | `2G` | Default memory allocation for VMs |
 | `create_vm_default_cpus` | `2` | Default number of virtual CPUs |
+| `create_vm_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
+| `create_vm_default_novnc_port` | `null` | Default noVNC port (null = auto-assign as 6080 + VNC display number) |
 
 ### VM definition
 
@@ -52,6 +54,8 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `memory` | no | `create_vm_default_memory` | Memory allocation (e.g. `2G`, `4G`) |
 | `cpus` | no | `create_vm_default_cpus` | Number of virtual CPUs |
 | `vnc` | no | hash-based | VNC display number (port = 5900+N) |
+| `novnc_enabled` | no | `create_vm_default_novnc_enabled` | Enable noVNC web console for this VM |
+| `novnc_port` | no | `6080 + vnc` | Port for noVNC web console (auto-assigned if not specified) |
 | `state` | no | `present` | Desired service state: `started`, `stopped`, or `present` |
 
 ## Service management
@@ -97,6 +101,60 @@ vncviewer <host>:<5900+display>
 
 **Security note:** VNC is unauthenticated by default. Consider firewall rules or VNC password authentication for production use.
 
+## noVNC Web Console
+
+The role can configure per-VM noVNC instances for browser-based console access. noVNC provides an HTML5 VNC client that requires no client-side software.
+
+### Prerequisites
+
+1. Install the `novnc` package on the host (handled by `basalt.qemu.qemu_host` role with `qemu_host_novnc_enabled: true`)
+2. Ensure the EPEL repository is enabled (EPEL 9 provides novnc 1.4.0, EPEL 10 provides 1.5.0)
+
+### Configuration
+
+Enable noVNC per-VM by setting `novnc_enabled: true`:
+
+```yaml
+create_vm_vms:
+  - name: web01
+    novnc_enabled: true
+    novnc_port: 6080  # Optional, auto-assigned if omitted
+```
+
+When enabled, the role:
+- Deploys the `novnc@.service` systemd template
+- Creates a per-VM environment file at `/etc/qemu/vms/novnc-<name>.conf`
+- Starts and enables the `novnc@<name>.service` instance
+
+### Port Assignment
+
+noVNC ports are auto-assigned if not specified:
+- **Auto-assignment**: `6080 + VNC display number`
+- **Manual override**: Set `novnc_port: N` per VM
+
+**Examples:**
+- VM with VNC display :0 → noVNC port 6080
+- VM with VNC display :1 → noVNC port 6081
+- VM with `novnc_port: 8080` → noVNC port 8080 (override)
+
+### Access
+
+Once configured, access the VM console in a web browser:
+```
+http://<host>:<novnc_port>/vnc.html
+```
+
+For example, a VM with noVNC on port 6080:
+```
+http://192.168.1.100:6080/vnc.html
+```
+
+### Service Dependencies
+
+The `novnc@<name>.service` automatically depends on the corresponding `qemu-vm@<name>.service`, ensuring the VM starts before its noVNC proxy.
+
+**Security note:** noVNC serves unencrypted WebSocket connections by default. For production use, consider placing it behind a reverse proxy with TLS/SSL.
+
 ## Example Playbook
 
 ```yaml
@@ -141,6 +199,30 @@ To start a per-VM `swtpm` instance, set `tpm: true` on the VM entry:
 ```
 
 This deploys an `swtpm@.service` systemd template and starts `swtpm@secure-vm.service`, creating a per-VM state directory under `create_vm_swtpm_state_dir`.
+
+### noVNC web console
+
+To enable browser-based console access with noVNC:
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - role: basalt.qemu.qemu_host
+      vars:
+        qemu_host_novnc_enabled: true  # Install novnc package
+    - role: basalt.qemu.create_vm
+      vars:
+        create_vm_vms:
+          - name: web01
+            disk_size: 40G
+            novnc_enabled: true
+            novnc_port: 6080  # Optional, auto-assigned if omitted
+          - name: db01
+            disk_size: 100G
+            novnc_enabled: true  # Port auto-assigned (6081 based on VNC display)
+```
+
+Access the web console at `http://<host>:6080/vnc.html` (for web01) and `http://<host>:6081/vnc.html` (for db01).
 
 ## License
 

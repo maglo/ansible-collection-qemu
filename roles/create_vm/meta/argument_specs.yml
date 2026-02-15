@@ -21,6 +21,8 @@ argument_specs:
             C(memory) (overrides C(create_vm_default_memory)),
             C(cpus) (overrides C(create_vm_default_cpus)),
             C(vnc) (VNC display number, auto-generated from VM name if not specified),
+            C(novnc_enabled) (enable noVNC web console for this VM),
+            C(novnc_port) (noVNC port, auto-assigned if not specified),
             C(state) (C(started), C(stopped), or C(present))."
         type: list
         elements: dict
@@ -67,6 +69,16 @@ argument_specs:
             description: >-
               VNC display number for this VM (maps to port 5900+N).
               If not specified, calculated from hash of VM name.
+            type: int
+          novnc_enabled:
+            description: >-
+              Enable noVNC web console for this VM. Overrides C(create_vm_default_novnc_enabled).
+              Requires novnc package to be installed (via qemu_host role with qemu_host_novnc_enabled: true).
+            type: bool
+          novnc_port:
+            description: >-
+              Port number for the noVNC web console.
+              If not specified, auto-assigned as 6080 + VNC display number.
             type: int
           state:
             description: >-
@@ -147,3 +159,14 @@ argument_specs:
         description: Default number of virtual CPUs for VMs that do not specify C(cpus).
         type: int
         default: 2
+      create_vm_default_novnc_enabled:
+        description: >-
+          Whether VMs default to noVNC web console when not specified per-VM.
+          Requires novnc package to be installed (via qemu_host role).
+        type: bool
+        default: false
+      create_vm_default_novnc_port:
+        description: >-
+          Default noVNC port for VMs that do not specify C(novnc_port).
+          If null, ports are auto-assigned as 6080 + VNC display number.
+        type: int

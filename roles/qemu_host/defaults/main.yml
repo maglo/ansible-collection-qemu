@@ -20,14 +20,6 @@ qemu_host_vm_image_dir: /var/lib/qemu/images
 qemu_host_service_user: qemu
 qemu_host_service_group: qemu
 
-# noVNC
+# Whether to install the noVNC package
+# Per-VM noVNC configuration is now managed by the create_vm role
 qemu_host_novnc_enabled: false
-qemu_host_novnc_install_dir: /opt/noVNC
-qemu_host_novnc_version: "v1.5.0"
-
-# List of VMs to create noVNC websocket proxy instances for.
-# Each entry creates a novnc@<name>.service systemd instance.
-#   name:       VM name (matches qemu-vm@<name>.service)
-#   novnc_port: port the noVNC websocket proxy listens on
-#   vnc_target: VNC backend address (e.g. localhost:5900)
-qemu_host_novnc_vms: []

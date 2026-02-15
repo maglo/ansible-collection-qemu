@@ -1,0 +1,14 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=noVNC websocket proxy for %i
+After=network.target qemu-vm@%i.service
+
+[Service]
+Type=simple
+EnvironmentFile={{ create_vm_vm_config_dir }}/novnc-%i.conf
+ExecStart=/usr/bin/novnc_proxy --listen ${NOVNC_PORT} --vnc ${VNC_TARGET}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

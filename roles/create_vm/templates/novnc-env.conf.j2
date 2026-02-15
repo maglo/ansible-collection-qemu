@@ -1,0 +1,5 @@
+{{ ansible_managed | comment }}
+{% set _vnc = item.vnc | default((item.name | hash('md5') | int(base=16)) % 100) %}
+{% set _novnc_port = item.novnc_port | default(6080 + _vnc) %}
+NOVNC_PORT={{ _novnc_port }}
+VNC_TARGET=localhost:{{ 5900 + _vnc }}

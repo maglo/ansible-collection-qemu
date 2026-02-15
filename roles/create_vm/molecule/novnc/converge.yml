@@ -1,0 +1,22 @@
+---
+- name: Converge
+  hosts: all
+  roles:
+    - role: create_vm
+      create_vm_vms:
+        - name: web01
+          disk_size: 1G
+          novnc_enabled: true
+          novnc_port: 6080
+          vnc: 0
+          state: present
+        - name: db01
+          disk_size: 1G
+          novnc_enabled: true
+          # Test auto-port assignment (should be 6080 + vnc display number)
+          vnc: 1
+          state: present
+        - name: app01
+          disk_size: 1G
+          # Test VM without noVNC
+          state: present

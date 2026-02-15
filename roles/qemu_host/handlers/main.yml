@@ -7,11 +7,3 @@
   ansible.builtin.systemd_service:
     name: libvirtd
     state: restarted
-
-- name: Restart novnc instances
-  ansible.builtin.systemd_service:
-    name: "novnc@{{ item.name }}"
-    state: restarted
-  loop: "{{ qemu_host_novnc_vms }}"
-  loop_control:
-    label: "{{ item.name }}"

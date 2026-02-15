@@ -2,7 +2,7 @@
 
 Install and configure a QEMU/KVM host on Enterprise Linux (RHEL, Rocky, Alma, CentOS).
 
-The role installs QEMU/KVM packages, deploys a systemd template unit for managing VMs, and optionally sets up noVNC for browser-based console access.
+The role installs QEMU/KVM packages, deploys a systemd template unit for managing VMs, and optionally installs the noVNC package for browser-based console access. Per-VM noVNC configuration is managed by the `basalt.qemu.create_vm` role.
 
 ## Requirements
 
@@ -19,18 +19,7 @@ The role installs QEMU/KVM packages, deploys a systemd template unit for managin
 | `qemu_host_vm_image_dir` | `/var/lib/qemu/images` | Directory containing VM disk images |
 | `qemu_host_service_user` | `qemu` | User for the QEMU systemd service |
 | `qemu_host_service_group` | `qemu` | Group for the QEMU systemd service |
-| `qemu_host_novnc_enabled` | `false` | Enable noVNC deployment |
-| `qemu_host_novnc_install_dir` | `/opt/noVNC` | noVNC installation directory |
-| `qemu_host_novnc_version` | `v1.5.0` | noVNC release tag to install |
-| `qemu_host_novnc_vms` | `[]` | List of VMs to create noVNC proxy instances for (see below) |
-
-Each entry in `qemu_host_novnc_vms` creates a `novnc@<name>.service` systemd instance:
-
-| Key | Required | Description |
-|-----|----------|-------------|
-| `name` | yes | VM name (matches `qemu-vm@<name>.service`) |
-| `novnc_port` | yes | Port the noVNC websocket proxy listens on |
-| `vnc_target` | yes | VNC backend address (e.g. `localhost:5900`) |
+| `qemu_host_novnc_enabled` | `false` | Install the noVNC package from EPEL (per-VM configuration managed by `basalt.qemu.create_vm` role) |
 
 ## Dependencies
 
@@ -46,7 +35,7 @@ Basic usage:
     - basalt.qemu.qemu_host
 ```
 
-With noVNC enabled for two VMs:
+With noVNC package installation (for browser-based console access):
 
 ```yaml
 - hosts: hypervisors
@@ -54,14 +43,9 @@ With noVNC enabled for two VMs:
     - role: basalt.qemu.qemu_host
       vars:
         qemu_host_novnc_enabled: true
-        qemu_host_novnc_vms:
-          - name: web01
-            novnc_port: 6080
-            vnc_target: localhost:5900
-          - name: db01
-            novnc_port: 6081
-            vnc_target: localhost:5901
 ```
+
+**Note:** This installs the `novnc` package from EPEL. To configure per-VM noVNC services, use the `basalt.qemu.create_vm` role with the `novnc_enabled` parameter for each VM.
 
 ## Managing VMs
 

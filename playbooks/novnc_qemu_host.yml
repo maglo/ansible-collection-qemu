@@ -1,19 +1,37 @@
 ---
-# Playbook that sets up a QEMU/KVM host with noVNC enabled.
-# Usage:
-#   ansible-playbook -i inventory.yml novnc_qemu_host.yml
-- name: Configure QEMU/KVM hosts with noVNC
+# DEPRECATED: This playbook is deprecated as of the noVNC refactoring.
+# Per-VM noVNC configuration is now managed by the create_vm role.
+# See: playbooks/create_vm_with_novnc.yml for the updated pattern.
+#
+# For legacy support: this playbook now only installs the noVNC package.
+# To configure per-VM noVNC services, use the create_vm role with novnc_enabled.
+- name: Configure QEMU/KVM hosts with noVNC package (DEPRECATED)
   hosts: qemu_hosts_novnc
   become: true
   roles:
     - role: basalt.qemu.qemu_host
       vars:
         qemu_host_novnc_enabled: true
-        # qemu_host_novnc_version: "v1.5.0"
-        # qemu_host_novnc_vms:
-        #   - name: web01
-        #     novnc_port: 6080
-        #     vnc_target: localhost:5900
-        #   - name: db01
-        #     novnc_port: 6081
-        #     vnc_target: localhost:5901
+
+  post_tasks:
+    - name: Display deprecation notice
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  DEPRECATION NOTICE ⚠️
+          This playbook is deprecated. Per-VM noVNC configuration has moved to the create_vm role.
+
+          Please use: playbooks/create_vm_with_novnc.yml
+
+          Example:
+            - role: basalt.qemu.qemu_host
+              vars:
+                qemu_host_novnc_enabled: true
+
+            - role: basalt.qemu.create_vm
+              vars:
+                create_vm_vms:
+                  - name: web01
+                    novnc_enabled: true
+                    novnc_port: 6080
+
+          See roles/create_vm/README.md for full documentation.

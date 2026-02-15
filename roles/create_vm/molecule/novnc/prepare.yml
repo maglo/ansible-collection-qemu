@@ -11,3 +11,8 @@
       ansible.builtin.dnf:
         name: python3-websockify
         state: present
+
+    - name: Install novnc package
+      ansible.builtin.dnf:
+        name: novnc
+        state: present

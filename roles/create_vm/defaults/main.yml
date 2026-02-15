@@ -52,3 +52,9 @@ create_vm_default_memory: 2G
 
 # Default number of virtual CPUs (used when a VM does not specify cpus)
 create_vm_default_cpus: 2
+
+# Whether VMs default to noVNC web console (per-VM override with `novnc_enabled` key)
+create_vm_default_novnc_enabled: false
+
+# Default noVNC port (null means auto-assign: 6080 + VNC display number)
+create_vm_default_novnc_port: null
