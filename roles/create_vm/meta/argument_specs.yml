@@ -17,7 +17,11 @@ argument_specs:
             C(tpm) (overrides C(create_vm_default_tpm)),
             C(net_mode) (overrides C(create_vm_default_net_mode)),
             C(net_bridge) (overrides C(create_vm_default_net_bridge)),
-            C(mac_address) (overrides the auto-generated MAC)."
+            C(mac_address) (overrides the auto-generated MAC),
+            C(memory) (overrides C(create_vm_default_memory)),
+            C(cpus) (overrides C(create_vm_default_cpus)),
+            C(vnc) (VNC display number, auto-generated from VM name if not specified),
+            C(state) (C(started), C(stopped), or C(present))."
         type: list
         elements: dict
         default: []
@@ -53,6 +57,26 @@ argument_specs:
           mac_address:
             description: MAC address for this VM. Overrides the auto-generated deterministic MAC.
             type: str
+          memory:
+            description: Memory allocation for this VM (e.g. C(2G), C(4G)). Overrides C(create_vm_default_memory).
+            type: str
+          cpus:
+            description: Number of virtual CPUs for this VM. Overrides C(create_vm_default_cpus).
+            type: int
+          vnc:
+            description: >-
+              VNC display number for this VM (maps to port 5900+N).
+              If not specified, calculated from hash of VM name.
+            type: int
+          state:
+            description: >-
+              Desired state of the VM service. C(started) enables and starts the service,
+              C(stopped) enables but stops the service, C(present) only writes config without managing the service.
+            type: str
+            choices:
+              - started
+              - stopped
+              - present
       create_vm_default_disk_size:
         description: Default disk size for VMs that do not specify C(disk_size).
         type: str
@@ -115,3 +139,11 @@ argument_specs:
         description: Directory for per-VM QEMU configuration files.
         type: path
         default: /etc/qemu/vms
+      create_vm_default_memory:
+        description: Default memory allocation for VMs that do not specify C(memory).
+        type: str
+        default: "2G"
+      create_vm_default_cpus:
+        description: Default number of virtual CPUs for VMs that do not specify C(cpus).
+        type: int
+        default: 2

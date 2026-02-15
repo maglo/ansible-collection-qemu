@@ -119,43 +119,78 @@
         that:
           - not swtpm_no_tpm_dir.stat.exists
 
-    # ── Networking — testvm (user mode, auto MAC) ────────────
+    # ── VM config — testvm (UEFI + user-mode, default memory/cpus) ──
     - name: Read testvm config
       ansible.builtin.slurp:
         src: /etc/qemu/vms/testvm.conf
       register: testvm_conf
 
-    - name: Assert testvm config has user-mode networking
+    - name: Assert testvm config has full QEMU_ARGS
+      vars:
+        _content: "{{ testvm_conf.content | b64decode }}"
       ansible.builtin.assert:
         that:
-          - "'-nic user' in testvm_conf.content | b64decode"
-          - "'model=virtio-net-pci' in testvm_conf.content | b64decode"
-          - "'mac=52:54:00' in testvm_conf.content | b64decode"
+          - "'-name testvm' in _content"
+          - "'-machine q35,accel=kvm' in _content"
+          - "'-m 2G' in _content"
+          - "'-smp 2' in _content"
+          - "'-nographic' in _content"
+          - "'-vnc :' in _content"
+          - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
+          - "'-drive if=pflash,format=raw,readonly=on,file=' in _content"
+          - "'testvm_VARS.fd' in _content"
+          - "'-nic user,model=virtio-net-pci,mac=52:54:00' in _content"
 
-    # ── Networking — testvm-bridge (bridge mode) ─────────────
+    # ── VM config — testvm-tpm (TPM + default UEFI + default networking) ──
+    - name: Read testvm-tpm config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-tpm.conf
+      register: testvm_tpm_conf
+
+    - name: Assert testvm-tpm config has TPM args
+      vars:
+        _content: "{{ testvm_tpm_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-name testvm-tpm' in _content"
+          - "'-vnc :' in _content"
+          - "'-chardev socket,id=chrtpm,path=/var/lib/swtpm/testvm-tpm/swtpm.sock' in _content"
+          - "'-tpmdev emulator,id=tpm0,chardev=chrtpm' in _content"
+          - "'-device tpm-tis,tpmdev=tpm0' in _content"
+
+    # ── VM config — testvm-bridge (bridge mode, no UEFI, custom memory/cpus) ──
     - name: Read testvm-bridge config
       ansible.builtin.slurp:
         src: /etc/qemu/vms/testvm-bridge.conf
       register: testvm_bridge_conf
 
-    - name: Assert testvm-bridge config has bridge-mode networking
+    - name: Assert testvm-bridge config has bridge networking and custom resources
+      vars:
+        _content: "{{ testvm_bridge_conf.content | b64decode }}"
       ansible.builtin.assert:
         that:
-          - "'-netdev bridge' in testvm_bridge_conf.content | b64decode"
-          - "'br=br-test' in testvm_bridge_conf.content | b64decode"
-          - "'-device virtio-net-pci' in testvm_bridge_conf.content | b64decode"
-          - "'mac=52:54:00' in testvm_bridge_conf.content | b64decode"
+          - "'-name testvm-bridge' in _content"
+          - "'-m 4G' in _content"
+          - "'-smp 4' in _content"
+          - "'-vnc :10' in _content"
+          - "'-netdev bridge,id=net0,br=br-test' in _content"
+          - "'-device virtio-net-pci,netdev=net0' in _content"
+          - "'mac=52:54:00' in _content"
+          - "'-drive if=pflash' not in _content"
 
-    # ── Networking — testvm-mac (user mode, custom MAC) ──────
+    # ── VM config — testvm-mac (custom MAC) ────────────────────
     - name: Read testvm-mac config
       ansible.builtin.slurp:
         src: /etc/qemu/vms/testvm-mac.conf
       register: testvm_mac_conf
 
     - name: Assert testvm-mac config has custom MAC
+      vars:
+        _content: "{{ testvm_mac_conf.content | b64decode }}"
       ansible.builtin.assert:
         that:
-          - "'mac=52:54:00:aa:bb:cc' in testvm_mac_conf.content | b64decode"
+          - "'-vnc :' in _content"
+          - "'mac=52:54:00:aa:bb:cc' in _content"
 
     # ── bridge.conf ──────────────────────────────────────────
     - name: Stat bridge.conf
@@ -210,19 +245,26 @@
           - name: testvm
             disk_size: 1G
             uefi: true
+            state: present
           - name: testvm-tpm
             disk_size: 1G
             tpm: true
+            state: present
           - name: testvm-bridge
             disk_size: 1G
             uefi: false
             net_mode: bridge
             net_bridge: br-test
+            memory: 4G
+            cpus: 4
+            vnc: 10
+            state: present
           - name: testvm-mac
             disk_size: 1G
             uefi: false
             net_mode: user
             mac_address: "52:54:00:aa:bb:cc"
+            state: present
 
     - name: Record image modification time after re-run
       ansible.builtin.stat:

@@ -1,8 +1,8 @@
 # basalt.qemu.create_vm
 
-Create QEMU/KVM virtual machine disk images on an Enterprise Linux host.
+Create QEMU/KVM virtual machines on an Enterprise Linux host.
 
-The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vms`, sets the correct ownership and permissions, and is idempotent (existing images are not recreated). It also configures per-VM networking (user-mode or bridge/tap) and writes a per-VM `.conf` file with the appropriate QEMU arguments.
+The role creates disk images, configures UEFI firmware, TPM emulation, and networking for each VM defined in `create_vm_vms`. It generates a complete per-VM `.conf` file with all QEMU arguments and manages the `qemu-vm@<name>.service` systemd service.
 
 ## Requirements
 
@@ -32,6 +32,8 @@ The role creates qcow2 (or raw) disk images for each VM defined in `create_vm_vm
 | `create_vm_default_net_bridge` | `br0` | Default bridge device for bridge-mode VMs |
 | `create_vm_bridge_conf` | `/etc/qemu/bridge.conf` | Path to the QEMU bridge helper ACL file |
 | `create_vm_vm_config_dir` | `/etc/qemu/vms` | Directory for per-VM QEMU configuration files |
+| `create_vm_default_memory` | `2G` | Default memory allocation for VMs |
+| `create_vm_default_cpus` | `2` | Default number of virtual CPUs |
 
 ### VM definition
 
@@ -47,6 +49,18 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `net_mode` | no | `create_vm_default_net_mode` | Networking mode: `user` or `bridge` |
 | `net_bridge` | no | `create_vm_default_net_bridge` | Bridge device (only used when `net_mode` is `bridge`) |
 | `mac_address` | no | auto-generated | MAC address (overrides the deterministic auto-generated MAC) |
+| `memory` | no | `create_vm_default_memory` | Memory allocation (e.g. `2G`, `4G`) |
+| `cpus` | no | `create_vm_default_cpus` | Number of virtual CPUs |
+| `vnc` | no | hash-based | VNC display number (port = 5900+N) |
+| `state` | no | `present` | Desired service state: `started`, `stopped`, or `present` |
+
+## Service management
+
+The role manages each VM as a `qemu-vm@<name>.service` systemd unit. The per-VM `state` parameter controls the service:
+
+- **`present`** (default) — the config file is written but the service is not managed at all (useful for testing or environments without KVM).
+- **`started`** — the service is enabled and started.
+- **`stopped`** — the service is enabled but stopped (useful for pre-provisioning).
 
 ## Networking
 
@@ -63,6 +77,26 @@ Bridge mode uses QEMU's `qemu-bridge-helper` to attach VMs to a host bridge. The
 
 Each VM is assigned a deterministic MAC address derived from its name using the QEMU OUI prefix `52:54:00`. The last three octets are taken from the MD5 hash of the VM name. You can override this with the `mac_address` per-VM key.
 
+## VNC Console Access
+
+Each VM is configured with a VNC console for remote graphical access. VNC display numbers are assigned as follows:
+
+- **Default**: Hash of VM name modulo 100 (deterministic, prevents conflicts)
+- **Override**: Set `vnc: N` per VM to specify display number N
+
+VNC ports are calculated as 5900+N where N is the display number.
+
+**Examples:**
+- VM "testvm" → display :42 → VNC port 5942
+- VM with `vnc: 10` → display :10 → VNC port 5910
+
+**Access:** Connect using any VNC client:
+```bash
+vncviewer <host>:<5900+display>
+```
+
+**Security note:** VNC is unauthenticated by default. Consider firewall rules or VNC password authentication for production use.
+
 ## Example Playbook
 
 ```yaml
@@ -74,14 +108,20 @@ Each VM is assigned a deterministic MAC address derived from its name using the 
         create_vm_vms:
           - name: web01
             disk_size: 40G
+            memory: 4G
+            cpus: 4
+            vnc: 1
           - name: db01
             disk_size: 100G
             disk_format: raw
             net_mode: bridge
             net_bridge: br-lan
+            memory: 8G
+            cpus: 8
           - name: worker01
             uefi: false
             mac_address: "52:54:00:aa:bb:cc"
+            state: stopped
 ```
 
 ### TPM 2.0 emulation

@@ -7,16 +7,23 @@
         - name: testvm
           disk_size: 1G
           uefi: true
+          state: present
         - name: testvm-tpm
           disk_size: 1G
           tpm: true
+          state: present
         - name: testvm-bridge
           disk_size: 1G
           uefi: false
           net_mode: bridge
           net_bridge: br-test
+          memory: 4G
+          cpus: 4
+          vnc: 10
+          state: present
         - name: testvm-mac
           disk_size: 1G
           uefi: false
           net_mode: user
           mac_address: "52:54:00:aa:bb:cc"
+          state: present

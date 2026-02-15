@@ -1,0 +1,30 @@
+---
+- name: Ensure VM config directory exists
+  ansible.builtin.file:
+    path: "{{ create_vm_vm_config_dir }}"
+    state: directory
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0755"
+
+- name: Write per-VM config
+  ansible.builtin.template:
+    src: vm.conf.j2
+    dest: "{{ create_vm_vm_config_dir }}/{{ item.name }}.conf"
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0644"
+  loop: "{{ create_vm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Enable and start VM service
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
+    state: "{{ item.state }}"
+    enabled: true
+    daemon_reload: true
+  loop: "{{ create_vm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) in ['started', 'stopped']
