@@ -20,6 +20,7 @@ argument_specs:
             C(mac_address) (overrides the auto-generated MAC),
             C(memory) (overrides C(create_vm_default_memory)),
             C(cpus) (overrides C(create_vm_default_cpus)),
+            C(vnc) (VNC display number, auto-generated from VM name if not specified),
             C(state) (C(started), C(stopped), or C(present))."
         type: list
         elements: dict
@@ -61,6 +62,11 @@ argument_specs:
             type: str
           cpus:
             description: Number of virtual CPUs for this VM. Overrides C(create_vm_default_cpus).
+            type: int
+          vnc:
+            description: >-
+              VNC display number for this VM (maps to port 5900+N).
+              If not specified, calculated from hash of VM name.
             type: int
           state:
             description: >-

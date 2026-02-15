@@ -12,6 +12,8 @@
 {% set _ = _args.append('-m ' ~ _memory) %}
 {% set _ = _args.append('-smp ' ~ _cpus) %}
 {% set _ = _args.append('-nographic') %}
+{% set _vnc = item.vnc | default((item.name | hash('md5') | int(base=16)) % 100) %}
+{% set _ = _args.append('-vnc :' ~ _vnc) %}
 {% set _ = _args.append('-drive if=virtio,format=' ~ _fmt ~ ',file=' ~ create_vm_image_dir ~ '/' ~ item.name ~ '.' ~ _fmt) %}
 {% if _uefi %}
 {% set _ = _args.append('-drive if=pflash,format=raw,readonly=on,file=' ~ create_vm_ovmf_code) %}

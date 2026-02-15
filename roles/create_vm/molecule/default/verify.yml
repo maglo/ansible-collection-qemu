@@ -135,6 +135,7 @@
           - "'-m 2G' in _content"
           - "'-smp 2' in _content"
           - "'-nographic' in _content"
+          - "'-vnc :' in _content"
           - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
           - "'-drive if=pflash,format=raw,readonly=on,file=' in _content"
           - "'testvm_VARS.fd' in _content"
@@ -152,6 +153,7 @@
       ansible.builtin.assert:
         that:
           - "'-name testvm-tpm' in _content"
+          - "'-vnc :' in _content"
           - "'-chardev socket,id=chrtpm,path=/var/lib/swtpm/testvm-tpm/swtpm.sock' in _content"
           - "'-tpmdev emulator,id=tpm0,chardev=chrtpm' in _content"
           - "'-device tpm-tis,tpmdev=tpm0' in _content"
@@ -170,6 +172,7 @@
           - "'-name testvm-bridge' in _content"
           - "'-m 4G' in _content"
           - "'-smp 4' in _content"
+          - "'-vnc :10' in _content"
           - "'-netdev bridge,id=net0,br=br-test' in _content"
           - "'-device virtio-net-pci,netdev=net0' in _content"
           - "'mac=52:54:00' in _content"
@@ -186,6 +189,7 @@
         _content: "{{ testvm_mac_conf.content | b64decode }}"
       ansible.builtin.assert:
         that:
+          - "'-vnc :' in _content"
           - "'mac=52:54:00:aa:bb:cc' in _content"
 
     # ── bridge.conf ──────────────────────────────────────────
@@ -253,6 +257,7 @@
             net_bridge: br-test
             memory: 4G
             cpus: 4
+            vnc: 10
             state: present
           - name: testvm-mac
             disk_size: 1G

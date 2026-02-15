@@ -19,6 +19,7 @@
           net_bridge: br-test
           memory: 4G
           cpus: 4
+          vnc: 10
           state: present
         - name: testvm-mac
           disk_size: 1G
