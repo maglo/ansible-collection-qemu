@@ -1,0 +1,24 @@
+---
+- name: Converge
+  hosts: all
+  roles:
+    - role: create_vm
+      create_vm_vms:
+        # VM with URL-based provisioning (no checksum for testing)
+        - name: testvm-cloud
+          disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+          disk_size: 10G
+          uefi: true
+          state: present
+
+        # VM with URL-based provisioning and different URL to test caching
+        - name: testvm-cloud2
+          disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+          disk_size: 20G
+          state: present
+
+        # Blank disk VM (regression test)
+        - name: testvm-blank
+          disk_size: 5G
+          uefi: true
+          state: present

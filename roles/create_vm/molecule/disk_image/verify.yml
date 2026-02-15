@@ -1,0 +1,202 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    # ── Cache directory ──────────────────────────────────────
+    - name: Stat cache directory
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/cache
+      register: cache_dir
+
+    - name: Assert cache directory properties
+      ansible.builtin.assert:
+        that:
+          - cache_dir.stat.exists
+          - cache_dir.stat.isdir
+          - cache_dir.stat.pw_name == 'qemu'
+          - cache_dir.stat.gr_name == 'qemu'
+          - cache_dir.stat.mode == '0755'
+
+    # ── Cached base image ────────────────────────────────────
+    - name: Stat cached base image
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/cache/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2
+      register: cached_image
+
+    - name: Assert cached image properties
+      ansible.builtin.assert:
+        that:
+          - cached_image.stat.exists
+          - cached_image.stat.pw_name == 'qemu'
+          - cached_image.stat.gr_name == 'qemu'
+          - cached_image.stat.mode == '0644'
+
+    - name: Validate cached image is valid qcow2
+      ansible.builtin.command:
+        cmd: qemu-img info /var/lib/qemu/images/cache/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2
+      register: cached_image_info
+      changed_when: false
+
+    - name: Assert cached image is qcow2 format
+      ansible.builtin.assert:
+        that:
+          - "'file format: qcow2' in cached_image_info.stdout"
+
+    # ── Overlay disk for testvm-cloud ──────────────────────────
+    - name: Stat testvm-cloud overlay disk
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-cloud.qcow2
+      register: overlay1
+
+    - name: Assert testvm-cloud overlay properties
+      ansible.builtin.assert:
+        that:
+          - overlay1.stat.exists
+          - overlay1.stat.pw_name == 'qemu'
+          - overlay1.stat.gr_name == 'qemu'
+          - overlay1.stat.mode == '0644'
+
+    - name: Check testvm-cloud overlay backing file
+      ansible.builtin.command:
+        cmd: qemu-img info /var/lib/qemu/images/testvm-cloud.qcow2
+      register: overlay1_info
+      changed_when: false
+
+    - name: Assert testvm-cloud has backing file
+      ansible.builtin.assert:
+        that:
+          - "'file format: qcow2' in overlay1_info.stdout"
+          - "'backing file:' in overlay1_info.stdout"
+          - "'AlmaLinux-9-GenericCloud-latest.x86_64.qcow2' in overlay1_info.stdout"
+
+    # ── Overlay disk for testvm-cloud2 ─────────────────────────
+    - name: Stat testvm-cloud2 overlay disk
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-cloud2.qcow2
+      register: overlay2
+
+    - name: Assert testvm-cloud2 overlay properties
+      ansible.builtin.assert:
+        that:
+          - overlay2.stat.exists
+          - overlay2.stat.pw_name == 'qemu'
+          - overlay2.stat.gr_name == 'qemu'
+          - overlay2.stat.mode == '0644'
+
+    - name: Check testvm-cloud2 overlay backing file
+      ansible.builtin.command:
+        cmd: qemu-img info /var/lib/qemu/images/testvm-cloud2.qcow2
+      register: overlay2_info
+      changed_when: false
+
+    - name: Assert testvm-cloud2 has backing file
+      ansible.builtin.assert:
+        that:
+          - "'file format: qcow2' in overlay2_info.stdout"
+          - "'backing file:' in overlay2_info.stdout"
+          - "'AlmaLinux-9-GenericCloud-latest.x86_64.qcow2' in overlay2_info.stdout"
+
+    # ── Blank disk for testvm-blank (regression) ───────────────
+    - name: Stat testvm-blank disk
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-blank.qcow2
+      register: blank_disk
+
+    - name: Assert testvm-blank disk properties
+      ansible.builtin.assert:
+        that:
+          - blank_disk.stat.exists
+          - blank_disk.stat.pw_name == 'qemu'
+          - blank_disk.stat.gr_name == 'qemu'
+          - blank_disk.stat.mode == '0644'
+
+    - name: Check testvm-blank has no backing file
+      ansible.builtin.command:
+        cmd: qemu-img info /var/lib/qemu/images/testvm-blank.qcow2
+      register: blank_disk_info
+      changed_when: false
+
+    - name: Assert testvm-blank has no backing file (regression test)
+      ansible.builtin.assert:
+        that:
+          - "'file format: qcow2' in blank_disk_info.stdout"
+          - "'backing file:' not in blank_disk_info.stdout"
+
+    # ── Verify multiple VMs share same cached image ────────────
+    - name: List cache directory to verify only one download
+      ansible.builtin.find:
+        paths: /var/lib/qemu/images/cache
+        patterns: "*.qcow2"
+      register: cache_files
+
+    - name: Assert only one cached image exists (shared)
+      ansible.builtin.assert:
+        that:
+          - cache_files.matched == 1
+          - cache_files.files[0].path == '/var/lib/qemu/images/cache/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2'
+
+    # ── Idempotency test ─────────────────────────────────────
+    - name: Record cached image modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/cache/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2
+      register: before_rerun
+
+    - name: Record overlay1 modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-cloud.qcow2
+      register: overlay1_before_rerun
+
+    - name: Record blank disk modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-blank.qcow2
+      register: blank_before_rerun
+
+    - name: Re-run create_vm role
+      ansible.builtin.include_role:
+        name: create_vm
+      vars:
+        create_vm_vms:
+          - name: testvm-cloud
+            disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+            disk_size: 10G
+            uefi: true
+            state: present
+          - name: testvm-cloud2
+            disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+            disk_size: 20G
+            state: present
+          - name: testvm-blank
+            disk_size: 5G
+            uefi: true
+            state: present
+
+    - name: Record cached image modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/cache/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2
+      register: after_rerun
+
+    - name: Record overlay1 modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-cloud.qcow2
+      register: overlay1_after_rerun
+
+    - name: Record blank disk modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-blank.qcow2
+      register: blank_after_rerun
+
+    - name: Assert cached image was not re-downloaded
+      ansible.builtin.assert:
+        that:
+          - before_rerun.stat.mtime == after_rerun.stat.mtime
+
+    - name: Assert overlay was not recreated
+      ansible.builtin.assert:
+        that:
+          - overlay1_before_rerun.stat.mtime == overlay1_after_rerun.stat.mtime
+
+    - name: Assert blank disk was not recreated
+      ansible.builtin.assert:
+        that:
+          - blank_before_rerun.stat.mtime == blank_after_rerun.stat.mtime

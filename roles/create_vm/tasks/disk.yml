@@ -1,15 +1,31 @@
 ---
-- name: Create qcow2 disk image for {{ item.name }}
+# Create blank disk images for VMs WITHOUT disk_image_url
+- name: Create blank disk image for {{ item.name }}
   ansible.builtin.command:
     cmd: >-
       qemu-img create -f {{ item.disk_format | default(create_vm_default_disk_format) }}
       {{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}
       {{ item.disk_size | default(create_vm_default_disk_size) }}
     creates: "{{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}"
-  loop: "{{ _create_vm_active_vms }}"
+  loop: "{{ _create_vm_active_vms | rejectattr('disk_image_url', 'defined') | list }}"
   loop_control:
     label: "{{ item.name }}"
 
+# Create overlay disk images for VMs WITH disk_image_url (using backing file)
+- name: Create overlay disk image with backing file for {{ item.name }}
+  ansible.builtin.command:
+    cmd: >-
+      qemu-img create -f {{ item.disk_format | default(create_vm_default_disk_format) }}
+      -b {{ create_vm_image_cache_dir }}/{{ item.disk_image_url | basename }}
+      -F qcow2
+      {{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}
+      {{ item.disk_size | default(create_vm_default_disk_size) }}
+    creates: "{{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}"
+  loop: "{{ _create_vm_active_vms | selectattr('disk_image_url', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Set ownership and permissions on ALL disk images (both blank and overlay)
 - name: Set ownership and permissions on disk images
   ansible.builtin.file:
     path: "{{ create_vm_image_dir }}/{{ item.name }}.{{ item.disk_format | default(create_vm_default_disk_format) }}"
