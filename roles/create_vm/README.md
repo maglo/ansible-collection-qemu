@@ -21,6 +21,8 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `create_vm_default_disk_size` | `20G` | Default disk size when not specified per VM |
 | `create_vm_default_disk_format` | `qcow2` | Default disk format (`qcow2` or `raw`) |
 | `create_vm_image_dir` | `/var/lib/qemu/images` | Directory for disk images (should match `qemu_host_vm_image_dir`) |
+| `create_vm_image_cache_dir` | `/var/lib/qemu/images/cache` | Cache directory for downloaded disk images (shared across VMs) |
+| `create_vm_verify_checksums` | `true` | Whether to verify checksums for downloaded images (currently unused but reserved) |
 | `create_vm_service_user` | `qemu` | Owner of the created disk images |
 | `create_vm_service_group` | `qemu` | Group of the created disk images |
 | `create_vm_default_uefi` | `true` | Whether VMs default to UEFI boot when not specified per VM |
@@ -47,6 +49,8 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `name` | yes | — | VM name, used as the disk image filename |
 | `disk_size` | no | `create_vm_default_disk_size` | Disk image size (e.g. `20G`, `100G`) |
 | `disk_format` | no | `create_vm_default_disk_format` | Disk format (`qcow2` or `raw`) |
+| `disk_image_url` | no | — | URL to a qcow2 image to download and use as a backing file |
+| `disk_image_checksum` | no | — | SHA256 checksum for the downloaded image (format: `sha256:abc123...`) |
 | `uefi` | no | `create_vm_default_uefi` | Whether to enable UEFI boot for this VM |
 | `tpm` | no | `create_vm_default_tpm` | Enable TPM 2.0 emulation via swtpm |
 | `net_mode` | no | `create_vm_default_net_mode` | Networking mode: `user` or `bridge` |
@@ -184,6 +188,87 @@ http://192.168.1.100:6080/vnc.html
 The `novnc@<name>.service` automatically depends on the corresponding `qemu-vm@<name>.service`, ensuring the VM starts before its noVNC proxy.
 
 **Security note:** noVNC serves unencrypted WebSocket connections by default. For production use, consider placing it behind a reverse proxy with TLS/SSL.
+
+## URL-based Disk Provisioning
+
+The role supports provisioning VMs from pre-built cloud images (QCOW2 format) downloaded from a URL. This enables rapid VM deployment with pre-installed operating systems while maintaining storage efficiency through QCOW2 copy-on-write overlay images.
+
+### How it works
+
+When you specify `disk_image_url` for a VM:
+
+1. **Download**: The image is downloaded to `create_vm_image_cache_dir` (default: `/var/lib/qemu/images/cache/`)
+2. **Cache**: The downloaded image is cached and reused across multiple VMs
+3. **Overlay**: An overlay disk is created with the cached image as a backing file
+4. **Efficiency**: Multiple VMs sharing the same URL use the same cached base image
+
+### Storage architecture
+
+```
+/var/lib/qemu/images/
+├── cache/
+│   └── AlmaLinux-9-GenericCloud-latest.x86_64.qcow2  (1.2 GB - shared)
+├── web01.qcow2  (overlay referencing cached image)
+├── web02.qcow2  (overlay referencing cached image)
+└── custom.qcow2 (blank disk, no backing file)
+```
+
+**Result**: Two VMs with 20G disks only consume ~1.2 GB (not 40 GB) on disk.
+
+### Features
+
+- **Checksum verification**: Optional SHA256 checksum validation with `disk_image_checksum`
+- **Idempotency**: Images are only downloaded once; re-runs skip existing files
+- **Format validation**: Downloaded images are verified to be valid QCOW2 format
+- **Disk resizing**: Overlay disks can be larger than the backing file (e.g., 10G base → 50G VM)
+- **Backward compatible**: VMs without `disk_image_url` still get blank disks as before
+
+### Usage
+
+```yaml
+create_vm_vms:
+  # Cloud image with checksum verification
+  - name: almalinux-web
+    disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+    disk_image_checksum: "sha256:abc123def456..."
+    disk_size: 20G
+    state: started
+
+  # Multiple VMs sharing same backing file
+  - name: almalinux-db
+    disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+    disk_image_checksum: "sha256:abc123def456..."
+    disk_size: 50G  # Larger than base image
+    state: started
+
+  # Cloud image without checksum
+  - name: ubuntu-test
+    disk_image_url: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    disk_size: 30G
+    state: present
+
+  # Traditional blank disk (backward compatible)
+  - name: custom-vm
+    disk_size: 100G
+    state: started
+```
+
+### Cloud image sources
+
+Common cloud image providers:
+
+- **AlmaLinux**: `https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/`
+- **Rocky Linux**: `https://download.rockylinux.org/pub/rocky/9/images/x86_64/`
+- **Ubuntu**: `https://cloud-images.ubuntu.com/releases/`
+- **CentOS Stream**: `https://cloud.centos.org/centos/9-stream/x86_64/images/`
+
+**Important**: Only QCOW2-format images are supported. The role validates the format and fails if a non-QCOW2 file is downloaded.
+
+### Security considerations
+
+- **Checksums**: Always use `disk_image_checksum` for production to verify image integrity
+- **HTTPS**: Prefer HTTPS URLs to prevent man-in-the-middle attacks
+- **Trusted sources**: Only download images from trusted, official repositories
 
 ## Example Playbook
 

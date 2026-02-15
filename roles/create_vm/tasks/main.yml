@@ -11,6 +11,9 @@
   ansible.builtin.import_tasks: firmware.yml
   when: _create_vm_active_vms | length > 0
 
+- name: Download and cache disk images
+  ansible.builtin.import_tasks: disk_image.yml
+
 - name: Create VM disk images
   ansible.builtin.import_tasks: disk.yml
   when: _create_vm_active_vms | length > 0

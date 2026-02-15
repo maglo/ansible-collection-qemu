@@ -1,0 +1,43 @@
+---
+# Determine which VMs need image downloads
+- name: Determine VMs with disk_image_url
+  ansible.builtin.set_fact:
+    _create_vm_image_vms: >-
+      {{ create_vm_vms | selectattr('disk_image_url', 'defined') | list }}
+
+# Create cache directory if any VM needs downloads
+- name: Create disk image cache directory
+  ansible.builtin.file:
+    path: "{{ create_vm_image_cache_dir }}"
+    state: directory
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0755"
+  when: _create_vm_image_vms | length > 0
+
+# Download images (with checksum verification)
+- name: Download disk images to cache
+  ansible.builtin.get_url:
+    url: "{{ item.disk_image_url }}"
+    dest: "{{ create_vm_image_cache_dir }}/{{ item.disk_image_url | basename }}"
+    checksum: "{{ item.disk_image_checksum | default(omit) }}"
+    owner: "{{ create_vm_service_user }}"
+    group: "{{ create_vm_service_group }}"
+    mode: "0644"
+    force: false  # Don't re-download if file exists
+  loop: "{{ _create_vm_image_vms }}"
+  loop_control:
+    label: "{{ item.name }} - {{ item.disk_image_url | basename }}"
+  when: item.disk_image_url is defined
+
+# Validate downloaded images are valid qcow2
+- name: Validate cached images are valid qcow2 format
+  ansible.builtin.command:
+    cmd: "qemu-img info {{ create_vm_image_cache_dir }}/{{ item.disk_image_url | basename }}"
+  register: _create_vm_image_info
+  changed_when: false
+  failed_when: "'file format: qcow2' not in _create_vm_image_info.stdout"
+  loop: "{{ _create_vm_image_vms }}"
+  loop_control:
+    label: "{{ item.name }} - {{ item.disk_image_url | basename }}"
+  when: item.disk_image_url is defined

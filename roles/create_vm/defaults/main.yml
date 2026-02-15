@@ -16,6 +16,12 @@ create_vm_default_disk_format: qcow2
 # Directory for VM disk images (must match qemu_host_vm_image_dir)
 create_vm_image_dir: /var/lib/qemu/images
 
+# Cache directory for downloaded disk images (shared across VMs)
+create_vm_image_cache_dir: /var/lib/qemu/images/cache
+
+# Whether to verify checksums for downloaded images
+create_vm_verify_checksums: true
+
 # Owner/group for created images
 create_vm_service_user: qemu
 create_vm_service_group: qemu

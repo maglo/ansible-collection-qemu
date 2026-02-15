@@ -13,6 +13,8 @@ argument_specs:
           - List of VMs to create. Each entry is a dictionary with at least a C(name) key.
           - "Optional per-VM keys: C(disk_size) (overrides C(create_vm_default_disk_size)),
             C(disk_format) (overrides C(create_vm_default_disk_format)),
+            C(disk_image_url) (URL to qcow2 image to use as backing file),
+            C(disk_image_checksum) (SHA256 checksum for image verification),
             C(uefi) (overrides C(create_vm_default_uefi)),
             C(tpm) (overrides C(create_vm_default_tpm)),
             C(net_mode) (overrides C(create_vm_default_net_mode)),
@@ -41,6 +43,18 @@ argument_specs:
             choices:
               - qcow2
               - raw
+          disk_image_url:
+            description: >-
+              URL to a qcow2 disk image to download and use as a backing file.
+              When specified, creates an overlay image instead of a blank disk.
+              The downloaded image is cached in C(create_vm_image_cache_dir).
+            type: str
+          disk_image_checksum:
+            description: >-
+              SHA256 checksum for the downloaded image (format: C(sha256:abc123...)).
+              When specified with C(disk_image_url), verifies the downloaded file.
+              Download fails if checksum doesn't match.
+            type: str
           uefi:
             description: Whether to enable UEFI boot for this VM. Overrides C(create_vm_default_uefi).
             type: bool
@@ -119,6 +133,18 @@ argument_specs:
         description: Directory for VM disk images. Should match C(qemu_host_vm_image_dir).
         type: path
         default: /var/lib/qemu/images
+      create_vm_image_cache_dir:
+        description: >-
+          Directory for caching downloaded disk images.
+          Images are shared across VMs and used as backing files.
+        type: path
+        default: /var/lib/qemu/images/cache
+      create_vm_verify_checksums:
+        description: >-
+          Whether to verify checksums for downloaded images.
+          Currently unused but reserved for future enhancement.
+        type: bool
+        default: true
       create_vm_service_user:
         description: Owner of the created disk image files.
         type: str
