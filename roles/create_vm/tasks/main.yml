@@ -7,3 +7,6 @@
 
 - name: Configure per-VM TPM emulation
   ansible.builtin.import_tasks: tpm.yml
+
+- name: Configure VM networking
+  ansible.builtin.import_tasks: network.yml

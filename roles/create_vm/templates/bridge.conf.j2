@@ -1,0 +1,14 @@
+{{ ansible_managed | comment }}
+{% set _bridge_vms = create_vm_vms
+     | selectattr('net_mode', 'defined')
+     | selectattr('net_mode', 'equalto', 'bridge')
+     | list
+   + (create_vm_vms
+     | rejectattr('net_mode', 'defined')
+     | list if create_vm_default_net_mode == 'bridge' else []) %}
+{% for bridge in _bridge_vms
+     | map(attribute='net_bridge', default=create_vm_default_net_bridge)
+     | unique
+     | sort %}
+allow {{ bridge }}
+{% endfor %}
