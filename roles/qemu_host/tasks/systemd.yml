@@ -8,3 +8,13 @@
     mode: "0644"
   notify:
     - Reload systemd
+
+- name: Install swtpm template systemd unit
+  ansible.builtin.template:
+    src: swtpm@.service.j2
+    dest: /etc/systemd/system/swtpm@.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd

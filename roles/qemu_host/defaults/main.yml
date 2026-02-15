@@ -23,3 +23,6 @@ qemu_host_service_group: qemu
 # Whether to install the noVNC package
 # Per-VM noVNC configuration is now managed by the create_vm role
 qemu_host_novnc_enabled: false
+
+# Base directory for per-VM swtpm state
+qemu_host_swtpm_state_dir: /var/lib/swtpm

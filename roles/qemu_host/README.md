@@ -2,7 +2,7 @@
 
 Install and configure a QEMU/KVM host on Enterprise Linux (RHEL, Rocky, Alma, CentOS).
 
-The role installs QEMU/KVM packages, deploys a systemd template unit for managing VMs, and optionally installs the noVNC package for browser-based console access. Per-VM noVNC configuration is managed by the `basalt.qemu.create_vm` role.
+The role installs QEMU/KVM packages, deploys systemd template units for managing VMs (`qemu-vm@.service` and `swtpm@.service`), and optionally installs the noVNC package for browser-based console access. Per-VM noVNC configuration is managed by the `basalt.qemu.create_vm` role.
 
 ## Requirements
 
@@ -19,6 +19,7 @@ The role installs QEMU/KVM packages, deploys a systemd template unit for managin
 | `qemu_host_vm_image_dir` | `/var/lib/qemu/images` | Directory containing VM disk images |
 | `qemu_host_service_user` | `qemu` | User for the QEMU systemd service |
 | `qemu_host_service_group` | `qemu` | Group for the QEMU systemd service |
+| `qemu_host_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state (used by `swtpm@.service` template) |
 | `qemu_host_novnc_enabled` | `false` | Install the noVNC package from EPEL (per-VM configuration managed by `basalt.qemu.create_vm` role) |
 
 ## Dependencies
@@ -49,7 +50,12 @@ With noVNC package installation (for browser-based console access):
 
 ## Managing VMs
 
-The role deploys a `qemu-vm@.service` systemd template unit. Each VM is defined by a configuration file in `qemu_host_vm_config_dir` (`/etc/qemu/vms` by default) that sets `QEMU_ARGS`:
+The role deploys two systemd template units:
+
+- **`qemu-vm@.service`** — Main QEMU VM service template
+- **`swtpm@.service`** — Software TPM 2.0 emulator service template (used by VMs with TPM enabled)
+
+Each VM is defined by a configuration file in `qemu_host_vm_config_dir` (`/etc/qemu/vms` by default) that sets `QEMU_ARGS`:
 
 ```bash
 cat > /etc/qemu/vms/myvm.conf <<'EOF'

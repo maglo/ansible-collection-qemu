@@ -5,6 +5,13 @@
       {{ create_vm_vms | selectattr('tpm', 'defined') | selectattr('tpm') | list
          + (create_vm_vms | rejectattr('tpm', 'defined') | list if create_vm_default_tpm else []) }}
 
+- name: Verify swtpm systemd template exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/swtpm@.service
+  register: _create_vm_swtpm_template
+  failed_when: not _create_vm_swtpm_template.stat.exists
+  when: _create_vm_tpm_vms | length > 0
+
 - name: Create swtpm base state directory
   ansible.builtin.file:
     path: "{{ create_vm_swtpm_state_dir }}"
@@ -24,19 +31,6 @@
   loop: "{{ _create_vm_tpm_vms }}"
   loop_control:
     label: "{{ item.name }}"
-
-- name: Deploy swtpm@.service systemd template
-  ansible.builtin.template:
-    src: swtpm@.service.j2
-    dest: /etc/systemd/system/swtpm@.service
-    owner: root
-    group: root
-    mode: "0644"
-  when: _create_vm_tpm_vms | length > 0
-  notify: Reload systemd
-
-- name: Flush handlers
-  ansible.builtin.meta: flush_handlers
 
 - name: Enable and start swtpm for TPM-enabled VMs
   ansible.builtin.systemd_service:

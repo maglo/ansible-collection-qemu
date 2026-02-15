@@ -198,7 +198,7 @@ To start a per-VM `swtpm` instance, set `tpm: true` on the VM entry:
             tpm: true
 ```
 
-This deploys an `swtpm@.service` systemd template and starts `swtpm@secure-vm.service`, creating a per-VM state directory under `create_vm_swtpm_state_dir`.
+This starts the `swtpm@secure-vm.service` instance (using the `swtpm@.service` template deployed by `qemu_host`), creating a per-VM state directory under `create_vm_swtpm_state_dir`.
 
 ### noVNC web console
 
