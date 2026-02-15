@@ -40,3 +40,31 @@
   loop: "{{ _create_vm_tpm_vms }}"
   loop_control:
     label: "{{ item.name }}"
+
+- name: Create systemd drop-in directory for qemu-vm@{{ item.name }}
+  ansible.builtin.file:
+    path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop: "{{ _create_vm_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy swtpm dependency override for TPM-enabled VMs
+  ansible.builtin.template:
+    src: qemu-vm-tpm-dependency.conf.j2
+    dest: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/tpm-dependency.conf"
+    mode: '0644'
+    owner: root
+    group: root
+  loop: "{{ _create_vm_tpm_vms }}"
+  notify: Reload systemd
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: _create_vm_tpm_vms | length > 0

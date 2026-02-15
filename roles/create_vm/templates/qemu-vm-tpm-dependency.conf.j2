@@ -1,0 +1,5 @@
+# Managed by Ansible - create_vm role
+# TPM dependency for VM {{ item.name }}
+[Unit]
+After=swtpm@{{ item.name }}.service
+Requires=swtpm@{{ item.name }}.service
