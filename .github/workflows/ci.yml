@@ -94,11 +94,12 @@ jobs:
         run: antsibull-docs lint-collection-docs --plugin-docs ansible_collections/basalt/qemu
 
   molecule:
-    name: Molecule - ${{ matrix.role }} (${{ matrix.scenario }})
+    name: Molecule - ${{ matrix.role }} (${{ matrix.scenario }}) - EL${{ matrix.el_version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        el_version: [9, 10]
         include:
           - role: qemu_host
             scenario: default
@@ -121,6 +122,8 @@ jobs:
       - name: Run Molecule
         run: molecule test -s ${{ matrix.scenario }}
         working-directory: roles/${{ matrix.role }}
+        env:
+          EL_VERSION: ${{ matrix.el_version }}
 
   gate:
     name: CI
