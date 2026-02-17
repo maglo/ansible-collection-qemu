@@ -34,5 +34,9 @@
   ansible.builtin.import_tasks: monitor.yml
   when: _create_vm_active_vms | length > 0
 
+- name: Validate USB disk image attachments
+  ansible.builtin.import_tasks: usb_disk.yml
+  when: _create_vm_active_vms | length > 0
+
 - name: Generate VM config and manage service
   ansible.builtin.import_tasks: service.yml

@@ -5,8 +5,8 @@ argument_specs:
     description:
       - Creates qcow2 (or raw) disk images for QEMU/KVM virtual machines
         and sets the correct ownership and permissions.
-      - This role depends on C(basalt.qemu.qemu_host) to provide the host-level
-        QEMU installation and directory structure.
+      - "Prerequisite: apply C(basalt.qemu.qemu_host) first (or provide equivalent host setup)
+        to ensure QEMU binaries and required directories already exist."
     options:
       create_vm_vms:
         description:
@@ -23,6 +23,8 @@ argument_specs:
             C(memory) (overrides C(create_vm_default_memory)),
             C(cpus) (overrides C(create_vm_default_cpus)),
             C(vnc) (VNC display number, auto-generated from VM name if not specified),
+            C(usb_disk_image) (path to USB disk image: iso/raw/img/qcow2),
+            C(usb_boot_priority) (boot from attached USB first; defaults to true when usb image is set),
             C(novnc_enabled) (enable noVNC web console for this VM),
             C(novnc_port) (noVNC port, auto-assigned if not specified),
             C(state) (C(started), C(stopped), or C(present))."
@@ -84,6 +86,16 @@ argument_specs:
               VNC display number for this VM (maps to port 5900+N).
               If not specified, calculated from hash of VM name.
             type: int
+          usb_disk_image:
+            description: >-
+              Path to a pre-provisioned USB disk image to attach to the VM.
+              Supported formats: C(.iso), C(.raw), C(.img), C(.qcow2).
+            type: path
+          usb_boot_priority:
+            description: >-
+              Whether to boot from attached USB storage first.
+              Defaults to C(true) when C(usb_disk_image) is set.
+            type: bool
           novnc_enabled:
             description: >-
               Enable noVNC web console for this VM. Overrides C(create_vm_default_novnc_enabled).

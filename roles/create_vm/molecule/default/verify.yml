@@ -192,6 +192,36 @@
           - "'-vnc :' in _content"
           - "'mac=52:54:00:aa:bb:cc' in _content"
 
+    # ── VM config — USB disk attachment ─────────────────────
+    - name: Read testvm-usb config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-usb.conf
+      register: testvm_usb_conf
+
+    - name: Assert testvm-usb config has USB image and boot priority
+      vars:
+        _content: "{{ testvm_usb_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device qemu-xhci,id=xhci' in _content"
+          - "'-drive if=none,id=usb0,format=raw,file=/tmp/test-usb-installer.iso' in _content"
+          - "'-device usb-storage,drive=usb0,bootindex=1' in _content"
+
+    - name: Read testvm-usb-noboot config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-usb-noboot.conf
+      register: testvm_usb_noboot_conf
+
+    - name: Assert testvm-usb-noboot config disables USB boot priority
+      vars:
+        _content: "{{ testvm_usb_noboot_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device qemu-xhci,id=xhci' in _content"
+          - "'-drive if=none,id=usb0,format=raw,file=/tmp/test-usb-installer.iso' in _content"
+          - "'-device usb-storage,drive=usb0' in _content"
+          - "'bootindex=1' not in _content"
+
     # ── bridge.conf ──────────────────────────────────────────
     - name: Stat bridge.conf
       ansible.builtin.stat:
@@ -264,6 +294,15 @@
             uefi: false
             net_mode: user
             mac_address: "52:54:00:aa:bb:cc"
+            state: present
+          - name: testvm-usb
+            disk_size: 1G
+            usb_disk_image: /tmp/test-usb-installer.iso
+            state: present
+          - name: testvm-usb-noboot
+            disk_size: 1G
+            usb_disk_image: /tmp/test-usb-installer.iso
+            usb_boot_priority: false
             state: present
 
     - name: Record image modification time after re-run
