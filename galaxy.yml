@@ -1,10 +1,10 @@
 ---
-namespace: basalt
+namespace: maglo
 name: qemu
 version: 0.1.0
 readme: README.md
 authors:
-  - Basalt
+  - maglo
 description: Ansible collection for managing QEMU/KVM hosts on Enterprise Linux
 license_file: LICENSE
 tags:

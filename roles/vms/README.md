@@ -1,0 +1,408 @@
+# maglo.qemu.vms
+
+Create QEMU/KVM virtual machines on an Enterprise Linux host.
+
+The role creates disk images, configures UEFI firmware, TPM emulation, and networking for each VM defined in `vms_list`. It generates a complete per-VM `.conf` file with all QEMU arguments and manages the `qemu-vm@<name>.service` systemd service.
+
+## Requirements
+
+- Ansible >= 2.15
+- Target hosts running Enterprise Linux 9 or 10
+
+## Dependencies
+
+- No automatic role dependencies.
+- Prerequisite: apply `maglo.qemu.host` first (or provide equivalent host setup) so QEMU binaries, directories, and systemd templates exist.
+
+## Role Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `vms_list` | `[]` | List of VMs to create (see below) |
+| `vms_default_disk_size` | `20G` | Default disk size when not specified per VM |
+| `vms_default_disk_format` | `qcow2` | Default disk format (`qcow2` or `raw`) |
+| `vms_image_dir` | `/var/lib/qemu/images` | Directory for disk images (should match `host_vm_image_dir`) |
+| `vms_image_cache_dir` | `/var/lib/qemu/images/cache` | Cache directory for downloaded disk images (shared across VMs) |
+| `vms_verify_checksums` | `true` | Whether to verify checksums for downloaded images (currently unused but reserved) |
+| `vms_service_user` | `qemu` | Owner of the created disk images |
+| `vms_service_group` | `qemu` | Group of the created disk images |
+| `vms_default_uefi` | `true` | Whether VMs default to UEFI boot when not specified per VM |
+| `vms_ovmf_code` | `/usr/share/edk2/ovmf/OVMF_CODE.fd` | Path to OVMF firmware code file |
+| `vms_ovmf_vars_template` | `/usr/share/edk2/ovmf/OVMF_VARS.fd` | Path to OVMF vars template (copied per VM) |
+| `vms_default_tpm` | `false` | Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key) |
+| `vms_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state |
+| `vms_default_net_mode` | `user` | Default networking mode (`user` or `bridge`) |
+| `vms_default_net_bridge` | `br0` | Default bridge device for bridge-mode VMs |
+| `vms_bridge_conf` | `/etc/qemu/bridge.conf` | Path to the QEMU bridge helper ACL file |
+| `vms_vm_config_dir` | `/etc/qemu/vms` | Directory for per-VM QEMU configuration files |
+| `vms_default_memory` | `2G` | Default memory allocation for VMs |
+| `vms_default_cpus` | `2` | Default number of virtual CPUs |
+| `vms_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
+| `vms_default_novnc_port` | `null` | Default noVNC port (null = auto-assign as 6080 + VNC display number) |
+| `vms_default_shutdown_timeout` | `120` | Default timeout in seconds for graceful ACPI shutdown |
+
+### VM definition
+
+Each entry in `vms_list` is a dictionary with the following keys:
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `name` | yes | — | VM name, used as the disk image filename |
+| `disk_size` | no | `vms_default_disk_size` | Disk image size (e.g. `20G`, `100G`) |
+| `disk_format` | no | `vms_default_disk_format` | Disk format (`qcow2` or `raw`) |
+| `disk_image_url` | no | — | URL to a qcow2 image to download and use as a backing file |
+| `disk_image_checksum` | no | — | SHA256 checksum for the downloaded image (format: `sha256:abc123...`) |
+| `uefi` | no | `vms_default_uefi` | Whether to enable UEFI boot for this VM |
+| `tpm` | no | `vms_default_tpm` | Enable TPM 2.0 emulation via swtpm |
+| `net_mode` | no | `vms_default_net_mode` | Networking mode: `user` or `bridge` |
+| `net_bridge` | no | `vms_default_net_bridge` | Bridge device (only used when `net_mode` is `bridge`) |
+| `mac_address` | no | auto-generated | MAC address (overrides the deterministic auto-generated MAC) |
+| `memory` | no | `vms_default_memory` | Memory allocation (e.g. `2G`, `4G`) |
+| `cpus` | no | `vms_default_cpus` | Number of virtual CPUs |
+| `vnc` | no | hash-based | VNC display number (port = 5900+N) |
+| `usb_disk_image` | no | — | Path to USB disk image to attach (`.iso`, `.raw`, `.img`, `.qcow2`) |
+| `usb_boot_priority` | no | `true` when `usb_disk_image` is set | Boot from USB first |
+| `novnc_enabled` | no | `vms_default_novnc_enabled` | Enable noVNC web console for this VM |
+| `novnc_port` | no | `6080 + vnc` | Port for noVNC web console (auto-assigned if not specified) |
+| `state` | no | `present` | Desired service state: `started`, `stopped`, `present`, `restarted`, or `absent` |
+| `force_destroy` | no | `false` | Safety flag required to destroy VM with `state: absent` (must be `true`) |
+| `shutdown_timeout` | no | `120` | Timeout in seconds for graceful ACPI shutdown (used by `restarted` and `absent`) |
+
+## Service management
+
+The role manages each VM as a `qemu-vm@<name>.service` systemd unit. The per-VM `state` parameter controls the service lifecycle:
+
+- **`present`** (default) — the config file is written but the service is not managed at all (useful for testing or environments without KVM).
+- **`started`** — the service is enabled and started.
+- **`stopped`** — the service is enabled but stopped (useful for pre-provisioning).
+- **`restarted`** — performs a graceful restart (stop + start). The VM is sent an ACPI shutdown signal and given time to shut down gracefully before being restarted.
+- **`absent`** — **DESTRUCTIVE**: stops and removes the VM along with all artifacts (disk image, NVRAM, TPM state, configs). Requires `force_destroy: true` to execute.
+
+### Graceful shutdown
+
+When stopping or restarting VMs, the role uses QEMU's monitor socket to send an ACPI shutdown signal (`system_powerdown`). This allows the guest OS to shut down cleanly. The role waits up to `shutdown_timeout` seconds (default: 120) for the guest to stop. If the timeout is exceeded, the VM is forcefully stopped via `systemctl stop`.
+
+### Destroying VMs
+
+To prevent accidental data loss, destroying a VM requires setting `force_destroy: true` on the VM definition:
+
+```yaml
+vms_list:
+  - name: testvm
+    state: absent
+    force_destroy: true  # Required!
+```
+
+When destroyed, the following artifacts are removed:
+- Disk image (`/var/lib/qemu/images/{name}.{qcow2|raw}`)
+- UEFI NVRAM file (`/var/lib/qemu/images/{name}_VARS.fd`)
+- Config files (`/etc/qemu/vms/{name}.conf`, `/etc/qemu/vms/novnc-{name}.conf`)
+- Runtime directory (`/var/lib/qemu/{name}/`)
+- TPM state directory (`/var/lib/swtpm/{name}/`)
+- Systemd service instances
+
+**Note:** Shared resources like `/etc/qemu/bridge.conf` are not removed.
+
+## Networking
+
+The role supports two networking modes:
+
+- **`user`** (default) — QEMU user-mode networking (SLIRP). No host configuration needed. The VM gets outbound connectivity via NAT but is not reachable from the host network.
+- **`bridge`** — Bridge/tap networking via `qemu-bridge-helper`. The VM is attached to a host bridge and appears as a device on the bridged network.
+
+### Bridge mode prerequisites
+
+Bridge mode uses QEMU's `qemu-bridge-helper` to attach VMs to a host bridge. The bridge device itself must already exist on the host (this role does not create it). The role writes `/etc/qemu/bridge.conf` to authorize the helper to use the specified bridges.
+
+### MAC address generation
+
+Each VM is assigned a deterministic MAC address derived from its name using the QEMU OUI prefix `52:54:00`. The last three octets are taken from the MD5 hash of the VM name. You can override this with the `mac_address` per-VM key.
+
+## VNC Console Access
+
+Each VM is configured with a VNC console for remote graphical access. VNC display numbers are assigned as follows:
+
+- **Default**: Hash of VM name modulo 100 (deterministic, prevents conflicts)
+- **Override**: Set `vnc: N` per VM to specify display number N
+
+VNC ports are calculated as 5900+N where N is the display number.
+
+**Examples:**
+- VM "testvm" → display :42 → VNC port 5942
+- VM with `vnc: 10` → display :10 → VNC port 5910
+
+**Access:** Connect using any VNC client:
+```bash
+vncviewer <host>:<5900+display>
+```
+
+**Security note:** VNC is unauthenticated by default. Consider firewall rules or VNC password authentication for production use.
+
+## USB Disk Image Attachment
+
+You can attach one pre-provisioned USB disk image per VM (for example installer or rescue media).
+When `usb_disk_image` is set, the role adds a USB 3.0 XHCI controller and USB storage device to QEMU.
+
+Supported image formats:
+- `.iso`
+- `.raw`
+- `.img`
+- `.qcow2`
+
+By default, USB is given boot priority when attached. You can disable this with `usb_boot_priority: false`.
+
+Example:
+
+```yaml
+vms_list:
+  - name: installer-vm
+    disk_size: 40G
+    usb_disk_image: /var/lib/qemu/images/installer.iso
+    usb_boot_priority: true
+    state: started
+```
+
+## noVNC Web Console
+
+The role can configure per-VM noVNC instances for browser-based console access. noVNC provides an HTML5 VNC client that requires no client-side software.
+
+### Prerequisites
+
+1. Install the `novnc` package on the host (handled by `maglo.qemu.host` role with `host_novnc_enabled: true`)
+2. Ensure the EPEL repository is enabled (EPEL 9 provides novnc 1.4.0, EPEL 10 provides 1.5.0)
+
+### Configuration
+
+Enable noVNC per-VM by setting `novnc_enabled: true`:
+
+```yaml
+vms_list:
+  - name: web01
+    novnc_enabled: true
+    novnc_port: 6080  # Optional, auto-assigned if omitted
+```
+
+When enabled, the role:
+- Deploys the `novnc@.service` systemd template
+- Creates a per-VM environment file at `/etc/qemu/vms/novnc-<name>.conf`
+- Starts and enables the `novnc@<name>.service` instance
+
+### Port Assignment
+
+noVNC ports are auto-assigned if not specified:
+- **Auto-assignment**: `6080 + VNC display number`
+- **Manual override**: Set `novnc_port: N` per VM
+
+**Examples:**
+- VM with VNC display :0 → noVNC port 6080
+- VM with VNC display :1 → noVNC port 6081
+- VM with `novnc_port: 8080` → noVNC port 8080 (override)
+
+### Access
+
+Once configured, access the VM console in a web browser:
+```
+http://<host>:<novnc_port>/vnc.html
+```
+
+For example, a VM with noVNC on port 6080:
+```
+http://192.168.1.100:6080/vnc.html
+```
+
+### Service Dependencies
+
+The `novnc@<name>.service` automatically depends on the corresponding `qemu-vm@<name>.service`, ensuring the VM starts before its noVNC proxy.
+
+**Security note:** noVNC serves unencrypted WebSocket connections by default. For production use, consider placing it behind a reverse proxy with TLS/SSL.
+
+## URL-based Disk Provisioning
+
+The role supports provisioning VMs from pre-built cloud images (QCOW2 format) downloaded from a URL. This enables rapid VM deployment with pre-installed operating systems while maintaining storage efficiency through QCOW2 copy-on-write overlay images.
+
+### How it works
+
+When you specify `disk_image_url` for a VM:
+
+1. **Download**: The image is downloaded to `vms_image_cache_dir` (default: `/var/lib/qemu/images/cache/`)
+2. **Cache**: The downloaded image is cached and reused across multiple VMs
+3. **Overlay**: An overlay disk is created with the cached image as a backing file
+4. **Efficiency**: Multiple VMs sharing the same URL use the same cached base image
+
+### Storage architecture
+
+```
+/var/lib/qemu/images/
+├── cache/
+│   └── AlmaLinux-9-GenericCloud-latest.x86_64.qcow2  (1.2 GB - shared)
+├── web01.qcow2  (overlay referencing cached image)
+├── web02.qcow2  (overlay referencing cached image)
+└── custom.qcow2 (blank disk, no backing file)
+```
+
+**Result**: Two VMs with 20G disks only consume ~1.2 GB (not 40 GB) on disk.
+
+### Features
+
+- **Checksum verification**: Optional SHA256 checksum validation with `disk_image_checksum`
+- **Idempotency**: Images are only downloaded once; re-runs skip existing files
+- **Format validation**: Downloaded images are verified to be valid QCOW2 format
+- **Disk resizing**: Overlay disks can be larger than the backing file (e.g., 10G base → 50G VM)
+- **Backward compatible**: VMs without `disk_image_url` still get blank disks as before
+
+### Usage
+
+```yaml
+vms_list:
+  # Cloud image with checksum verification
+  - name: almalinux-web
+    disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+    disk_image_checksum: "sha256:abc123def456..."
+    disk_size: 20G
+    state: started
+
+  # Multiple VMs sharing same backing file
+  - name: almalinux-db
+    disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+    disk_image_checksum: "sha256:abc123def456..."
+    disk_size: 50G  # Larger than base image
+    state: started
+
+  # Cloud image without checksum
+  - name: ubuntu-test
+    disk_image_url: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    disk_size: 30G
+    state: present
+
+  # Traditional blank disk (backward compatible)
+  - name: custom-vm
+    disk_size: 100G
+    state: started
+```
+
+### Cloud image sources
+
+Common cloud image providers:
+
+- **AlmaLinux**: `https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/`
+- **Rocky Linux**: `https://download.rockylinux.org/pub/rocky/9/images/x86_64/`
+- **Ubuntu**: `https://cloud-images.ubuntu.com/releases/`
+- **CentOS Stream**: `https://cloud.centos.org/centos/9-stream/x86_64/images/`
+
+**Important**: Only QCOW2-format images are supported. The role validates the format and fails if a non-QCOW2 file is downloaded.
+
+### Security considerations
+
+- **Checksums**: Always use `disk_image_checksum` for production to verify image integrity
+- **HTTPS**: Prefer HTTPS URLs to prevent man-in-the-middle attacks
+- **Trusted sources**: Only download images from trusted, official repositories
+
+## Example Playbook
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - maglo.qemu.host
+    - role: maglo.qemu.vms
+      vars:
+        vms_list:
+          - name: web01
+            disk_size: 40G
+            memory: 4G
+            cpus: 4
+            vnc: 1
+          - name: db01
+            disk_size: 100G
+            disk_format: raw
+            net_mode: bridge
+            net_bridge: br-lan
+            memory: 8G
+            cpus: 8
+          - name: worker01
+            uefi: false
+            mac_address: "52:54:00:aa:bb:cc"
+            state: stopped
+```
+
+### TPM 2.0 emulation
+
+To start a per-VM `swtpm` instance, set `tpm: true` on the VM entry:
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - maglo.qemu.host
+    - role: maglo.qemu.vms
+      vars:
+        vms_list:
+          - name: secure-vm
+            disk_size: 40G
+            tpm: true
+```
+
+This starts the `swtpm@secure-vm.service` instance (using the `swtpm@.service` template deployed by the `host` role), creating a per-VM state directory under `vms_swtpm_state_dir`.
+
+### noVNC web console
+
+To enable browser-based console access with noVNC:
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - role: maglo.qemu.host
+      vars:
+        host_novnc_enabled: true  # Install novnc package
+    - role: maglo.qemu.vms
+      vars:
+        vms_list:
+          - name: web01
+            disk_size: 40G
+            novnc_enabled: true
+            novnc_port: 6080  # Optional, auto-assigned if omitted
+          - name: db01
+            disk_size: 100G
+            novnc_enabled: true  # Port auto-assigned (6081 based on VNC display)
+```
+
+Access the web console at `http://<host>:6080/vnc.html` (for web01) and `http://<host>:6081/vnc.html` (for db01).
+
+### VM lifecycle operations
+
+Manage VM lifecycle states with the `state` parameter:
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - maglo.qemu.host
+    - role: maglo.qemu.vms
+      vars:
+        vms_list:
+          # Create but don't start
+          - name: vm01
+            disk_size: 20G
+            state: present
+
+          # Create and start
+          - name: vm02
+            disk_size: 20G
+            state: started
+
+          # Graceful restart (ACPI shutdown + start)
+          - name: vm03
+            disk_size: 20G
+            state: restarted
+            shutdown_timeout: 180  # Wait up to 3 minutes for graceful shutdown
+
+          # Destroy VM and remove all artifacts
+          - name: old-vm
+            state: absent
+            force_destroy: true  # Required safety flag
+```
+
+The `restarted` state performs a graceful stop followed by a start. The VM receives an ACPI shutdown signal and is given `shutdown_timeout` seconds to shut down cleanly before being forcefully stopped.
+
+The `absent` state completely removes the VM including disk images, NVRAM, TPM state, and configuration files. This operation requires `force_destroy: true` to prevent accidental data loss.
+
+## License
+
+GPL-3.0-only

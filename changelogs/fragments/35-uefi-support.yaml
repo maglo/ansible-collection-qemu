@@ -1,3 +1,3 @@
 ---
 minor_changes:
-  - "create_vm - Add UEFI firmware (OVMF) boot support (PR #35)."
+  - "vms - Add UEFI firmware (OVMF) boot support (PR #35)."

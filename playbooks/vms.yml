@@ -1,0 +1,18 @@
+---
+# Playbook that sets up a QEMU/KVM host and creates VM disk images.
+# Usage:
+#   ansible-playbook -i inventory.yml vms.yml
+- name: Set up QEMU host and create VM disk images
+  hosts: qemu_hosts
+  become: true
+  roles:
+    - maglo.qemu.host
+    - role: maglo.qemu.vms
+      vars:
+        vms_list:
+          - name: web01
+            disk_size: 40G
+          - name: db01
+            disk_size: 100G
+            disk_format: raw
+            uefi: false

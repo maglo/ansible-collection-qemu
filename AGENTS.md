@@ -42,7 +42,7 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 ## Roles
 
 - Every role variable used in tasks **must** be declared in `meta/argument_specs.yml` with correct type, description, and default.
-- Per-VM dictionary keys (e.g. inside `create_vm_vms` items) must also be declared in the `options` block of the list variable's argument spec.
+- Per-VM dictionary keys (e.g. inside `vms_list` items) must also be declared in the `options` block of the list variable's argument spec.
 - Role `defaults/main.yml` and `meta/argument_specs.yml` must stay in sync — adding a default without a matching argument spec (or vice versa) will cause validation failures in CI.
 
 ## Releases
@@ -76,7 +76,7 @@ To publish to Ansible Galaxy: set `GALAXY_API_KEY` in the environment and uncomm
 | Target    | Description                                                         |
 |-----------|---------------------------------------------------------------------|
 | `build`   | Build the collection tarball with `ansible-galaxy`                  |
-| `clean`   | Remove built tarballs (`basalt-qemu-*.tar.gz`)                      |
+| `clean`   | Remove built tarballs (`maglo-qemu-*.tar.gz`)                       |
 | `release` | Compile changelog, bump version, build. Usage: `make release VERSION=x.y.z` |
 | `publish` | (Commented out) Publish to Galaxy with `GALAXY_API_KEY`             |
 

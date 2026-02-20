@@ -1,3 +1,3 @@
 ---
 minor_changes:
-  - "create_vm - Add VM networking configuration supporting bridge/tap and user-mode (NAT) networking (PR #43)."
+  - "vms - Add VM networking configuration supporting bridge/tap and user-mode (NAT) networking (PR #43)."

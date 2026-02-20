@@ -1,0 +1,13 @@
+---
+# Configure QEMU monitor sockets for VM lifecycle management
+- name: Create per-VM runtime directories for monitor sockets
+  ansible.builtin.file:
+    path: /var/lib/qemu/{{ item.name }}
+    state: directory
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0755"
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) in ['started', 'stopped', 'restarted']

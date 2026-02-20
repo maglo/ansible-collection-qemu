@@ -1,0 +1,346 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    # ── Disk image exists with correct properties ────────────
+    - name: Stat disk image
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm.qcow2
+      register: disk_image
+
+    - name: Assert disk image properties
+      ansible.builtin.assert:
+        that:
+          - disk_image.stat.exists
+          - disk_image.stat.pw_name == 'qemu'
+          - disk_image.stat.gr_name == 'qemu'
+          - disk_image.stat.mode == '0644'
+
+    - name: Check disk image is valid qcow2
+      ansible.builtin.command:
+        cmd: qemu-img info /var/lib/qemu/images/testvm.qcow2
+      register: qemu_img_info
+      changed_when: false
+
+    - name: Assert qcow2 format
+      ansible.builtin.assert:
+        that:
+          - "'file format: qcow2' in qemu_img_info.stdout"
+
+    # ── UEFI firmware ──────────────────────────────────────────
+    - name: Check edk2-ovmf is installed
+      ansible.builtin.dnf:
+        name: edk2-ovmf
+        state: present
+      register: ovmf_pkg
+      check_mode: true
+
+    - name: Assert edk2-ovmf is installed
+      ansible.builtin.assert:
+        that:
+          - not ovmf_pkg.changed
+
+    - name: Stat OVMF_CODE.fd
+      ansible.builtin.stat:
+        path: /usr/share/edk2/ovmf/OVMF_CODE.fd
+      register: ovmf_code
+
+    - name: Assert OVMF_CODE.fd exists
+      ansible.builtin.assert:
+        that:
+          - ovmf_code.stat.exists
+
+    - name: Stat per-VM NVRAM file
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm_VARS.fd
+      register: nvram_file
+
+    - name: Assert NVRAM file properties
+      ansible.builtin.assert:
+        that:
+          - nvram_file.stat.exists
+          - nvram_file.stat.pw_name == 'qemu'
+          - nvram_file.stat.gr_name == 'qemu'
+          - nvram_file.stat.mode == '0644'
+
+    # ── TPM emulation ────────────────────────────────────────
+    - name: Stat swtpm@.service unit file
+      ansible.builtin.stat:
+        path: /etc/systemd/system/swtpm@.service
+      register: swtpm_unit
+
+    - name: Assert swtpm@.service exists
+      ansible.builtin.assert:
+        that:
+          - swtpm_unit.stat.exists
+
+    - name: Stat per-VM swtpm state directory
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm
+      register: swtpm_state_dir
+
+    - name: Assert swtpm state directory properties
+      ansible.builtin.assert:
+        that:
+          - swtpm_state_dir.stat.exists
+          - swtpm_state_dir.stat.isdir
+          - swtpm_state_dir.stat.pw_name == 'qemu'
+          - swtpm_state_dir.stat.gr_name == 'qemu'
+          - swtpm_state_dir.stat.mode == '0755'
+
+    - name: Check swtpm@testvm-tpm.service is active
+      ansible.builtin.systemd_service:
+        name: swtpm@testvm-tpm.service
+      register: swtpm_service
+
+    - name: Assert swtpm service is running
+      ansible.builtin.assert:
+        that:
+          - swtpm_service.status.ActiveState == 'active'
+
+    - name: Stat swtpm socket
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm/swtpm.sock
+      register: swtpm_socket
+
+    - name: Assert swtpm socket exists
+      ansible.builtin.assert:
+        that:
+          - swtpm_socket.stat.exists
+
+    - name: Verify no swtpm state directory for non-TPM VM
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm
+      register: swtpm_no_tpm_dir
+
+    - name: Assert non-TPM VM has no swtpm state
+      ansible.builtin.assert:
+        that:
+          - not swtpm_no_tpm_dir.stat.exists
+
+    # ── VM config — testvm (UEFI + user-mode, default memory/cpus) ──
+    - name: Read testvm config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm.conf
+      register: testvm_conf
+
+    - name: Assert testvm config has full QEMU_ARGS
+      vars:
+        _content: "{{ testvm_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-name testvm' in _content"
+          - "'-machine q35,accel=kvm' in _content"
+          - "'-m 2G' in _content"
+          - "'-smp 2' in _content"
+          - "'-nographic' in _content"
+          - "'-vnc :' in _content"
+          - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
+          - "'-drive if=pflash,format=raw,readonly=on,file=' in _content"
+          - "'testvm_VARS.fd' in _content"
+          - "'-nic user,model=virtio-net-pci,mac=52:54:00' in _content"
+
+    # ── VM config — testvm-tpm (TPM + default UEFI + default networking) ──
+    - name: Read testvm-tpm config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-tpm.conf
+      register: testvm_tpm_conf
+
+    - name: Assert testvm-tpm config has TPM args
+      vars:
+        _content: "{{ testvm_tpm_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-name testvm-tpm' in _content"
+          - "'-vnc :' in _content"
+          - "'-chardev socket,id=chrtpm,path=/var/lib/swtpm/testvm-tpm/swtpm.sock' in _content"
+          - "'-tpmdev emulator,id=tpm0,chardev=chrtpm' in _content"
+          - "'-device tpm-tis,tpmdev=tpm0' in _content"
+
+    # ── VM config — testvm-bridge (bridge mode, no UEFI, custom memory/cpus) ──
+    - name: Read testvm-bridge config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-bridge.conf
+      register: testvm_bridge_conf
+
+    - name: Assert testvm-bridge config has bridge networking and custom resources
+      vars:
+        _content: "{{ testvm_bridge_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-name testvm-bridge' in _content"
+          - "'-m 4G' in _content"
+          - "'-smp 4' in _content"
+          - "'-vnc :10' in _content"
+          - "'-netdev bridge,id=net0,br=br-test' in _content"
+          - "'-device virtio-net-pci,netdev=net0' in _content"
+          - "'mac=52:54:00' in _content"
+          - "'-drive if=pflash' not in _content"
+
+    # ── VM config — testvm-mac (custom MAC) ────────────────────
+    - name: Read testvm-mac config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-mac.conf
+      register: testvm_mac_conf
+
+    - name: Assert testvm-mac config has custom MAC
+      vars:
+        _content: "{{ testvm_mac_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-vnc :' in _content"
+          - "'mac=52:54:00:aa:bb:cc' in _content"
+
+    # ── VM config — USB disk attachment ─────────────────────
+    - name: Read testvm-usb config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-usb.conf
+      register: testvm_usb_conf
+
+    - name: Assert testvm-usb config has USB image and boot priority
+      vars:
+        _content: "{{ testvm_usb_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device qemu-xhci,id=xhci' in _content"
+          - "'-drive if=none,id=usb0,format=raw,file=/tmp/test-usb-installer.iso' in _content"
+          - "'-device usb-storage,drive=usb0,bootindex=1' in _content"
+
+    - name: Read testvm-usb-noboot config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-usb-noboot.conf
+      register: testvm_usb_noboot_conf
+
+    - name: Assert testvm-usb-noboot config disables USB boot priority
+      vars:
+        _content: "{{ testvm_usb_noboot_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device qemu-xhci,id=xhci' in _content"
+          - "'-drive if=none,id=usb0,format=raw,file=/tmp/test-usb-installer.iso' in _content"
+          - "'-device usb-storage,drive=usb0' in _content"
+          - "'bootindex=1' not in _content"
+
+    # ── bridge.conf ──────────────────────────────────────────
+    - name: Stat bridge.conf
+      ansible.builtin.stat:
+        path: /etc/qemu/bridge.conf
+      register: bridge_conf_stat
+
+    - name: Assert bridge.conf properties
+      ansible.builtin.assert:
+        that:
+          - bridge_conf_stat.stat.exists
+          - bridge_conf_stat.stat.pw_name == 'root'
+          - bridge_conf_stat.stat.gr_name == 'root'
+          - bridge_conf_stat.stat.mode == '0644'
+
+    - name: Read bridge.conf
+      ansible.builtin.slurp:
+        src: /etc/qemu/bridge.conf
+      register: bridge_conf_content
+
+    - name: Assert bridge.conf contains allowed bridge
+      ansible.builtin.assert:
+        that:
+          - "'allow br-test' in bridge_conf_content.content | b64decode"
+
+    # ── Idempotency ──────────────────────────────────────────
+    - name: Record image modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm.qcow2
+      register: before_rerun
+
+    - name: Record NVRAM modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm_VARS.fd
+      register: nvram_before_rerun
+
+    - name: Record swtpm state directory modification time
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm
+      register: swtpm_before_rerun
+
+    - name: Record testvm config modification time
+      ansible.builtin.stat:
+        path: /etc/qemu/vms/testvm.conf
+      register: conf_before_rerun
+
+    - name: Re-run vms role
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - name: testvm
+            disk_size: 1G
+            uefi: true
+            state: present
+          - name: testvm-tpm
+            disk_size: 1G
+            tpm: true
+            state: present
+          - name: testvm-bridge
+            disk_size: 1G
+            uefi: false
+            net_mode: bridge
+            net_bridge: br-test
+            memory: 4G
+            cpus: 4
+            vnc: 10
+            state: present
+          - name: testvm-mac
+            disk_size: 1G
+            uefi: false
+            net_mode: user
+            mac_address: "52:54:00:aa:bb:cc"
+            state: present
+          - name: testvm-usb
+            disk_size: 1G
+            usb_disk_image: /tmp/test-usb-installer.iso
+            state: present
+          - name: testvm-usb-noboot
+            disk_size: 1G
+            usb_disk_image: /tmp/test-usb-installer.iso
+            usb_boot_priority: false
+            state: present
+
+    - name: Record image modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm.qcow2
+      register: after_rerun
+
+    - name: Record NVRAM modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm_VARS.fd
+      register: nvram_after_rerun
+
+    - name: Record swtpm state directory modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm
+      register: swtpm_after_rerun
+
+    - name: Record testvm config modification time after re-run
+      ansible.builtin.stat:
+        path: /etc/qemu/vms/testvm.conf
+      register: conf_after_rerun
+
+    - name: Assert image was not recreated
+      ansible.builtin.assert:
+        that:
+          - before_rerun.stat.mtime == after_rerun.stat.mtime
+
+    - name: Assert NVRAM was not overwritten
+      ansible.builtin.assert:
+        that:
+          - nvram_before_rerun.stat.mtime == nvram_after_rerun.stat.mtime
+
+    - name: Assert swtpm state directory was not recreated
+      ansible.builtin.assert:
+        that:
+          - swtpm_before_rerun.stat.mtime == swtpm_after_rerun.stat.mtime
+
+    - name: Assert config was not rewritten
+      ansible.builtin.assert:
+        that:
+          - conf_before_rerun.stat.mtime == conf_after_rerun.stat.mtime

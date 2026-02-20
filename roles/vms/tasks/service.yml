@@ -1,0 +1,46 @@
+---
+- name: Ensure VM config directory exists
+  ansible.builtin.file:
+    path: "{{ vms_vm_config_dir }}"
+    state: directory
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0755"
+
+- name: Write per-VM config
+  ansible.builtin.template:
+    src: vm.conf.j2
+    dest: "{{ vms_vm_config_dir }}/{{ item.name }}.conf"
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0644"
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Enable and start VM service
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
+    state: "{{ item.state }}"
+    enabled: true
+    daemon_reload: true
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) in ['started', 'stopped']
+
+# ── Handle restart state ──────────────────────────────────
+- name: Restart VMs with state=restarted
+  ansible.builtin.include_tasks: restart.yml
+  loop: "{{ vms_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) == 'restarted'
+
+# ── Handle destroy state ────────────────────────────────
+- name: Destroy VMs with state=absent
+  ansible.builtin.include_tasks: destroy.yml
+  loop: "{{ vms_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) == 'absent'

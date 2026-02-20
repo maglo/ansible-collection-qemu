@@ -1,0 +1,37 @@
+---
+# DEPRECATED: This playbook is deprecated as of the noVNC refactoring.
+# Per-VM noVNC configuration is now managed by the vms role.
+# See: playbooks/vms_with_novnc.yml for the updated pattern.
+#
+# For legacy support: this playbook now only installs the noVNC package.
+# To configure per-VM noVNC services, use the vms role with novnc_enabled.
+- name: Configure QEMU/KVM hosts with noVNC package (DEPRECATED)
+  hosts: qemu_hosts_novnc
+  become: true
+  roles:
+    - role: maglo.qemu.host
+      vars:
+        host_novnc_enabled: true
+
+  post_tasks:
+    - name: Display deprecation notice
+      ansible.builtin.debug:
+        msg: |
+          DEPRECATION NOTICE
+          This playbook is deprecated. Per-VM noVNC configuration has moved to the vms role.
+
+          Please use: playbooks/vms_with_novnc.yml
+
+          Example:
+            - role: maglo.qemu.host
+              vars:
+                host_novnc_enabled: true
+
+            - role: maglo.qemu.vms
+              vars:
+                vms_list:
+                  - name: web01
+                    novnc_enabled: true
+                    novnc_port: 6080
+
+          See roles/vms/README.md for full documentation.

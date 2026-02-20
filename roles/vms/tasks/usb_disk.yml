@@ -1,0 +1,34 @@
+---
+- name: Determine VMs with USB disk image attachment
+  ansible.builtin.set_fact:
+    _vms_usb_vms: >-
+      {{ _vms_active_vms | selectattr('usb_disk_image', 'defined') | list }}
+
+- name: Validate USB disk image configuration
+  ansible.builtin.assert:
+    that:
+      - item.usb_disk_image | length > 0
+      - (item.usb_disk_image | lower | regex_search('\\.(iso|raw|img|qcow2)$')) is not none
+    fail_msg: >-
+      VM {{ item.name }}: usb_disk_image must end with .iso, .raw, .img, or .qcow2
+  loop: "{{ _vms_usb_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Check USB disk image exists
+  ansible.builtin.stat:
+    path: "{{ item.usb_disk_image }}"
+  register: _vms_usb_image_stats
+  loop: "{{ _vms_usb_vms }}"
+  loop_control:
+    label: "{{ item.name }} -> {{ item.usb_disk_image }}"
+
+- name: Assert USB disk image file exists
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+    fail_msg: "VM {{ item.item.name }}: usb_disk_image '{{ item.item.usb_disk_image }}' does not exist"
+  loop: "{{ _vms_usb_image_stats.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
