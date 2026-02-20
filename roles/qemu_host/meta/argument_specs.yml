@@ -38,7 +38,8 @@ argument_specs:
         default: qemu
       qemu_host_novnc_enabled:
         description: >-
-          Whether to install the noVNC package for browser-based VNC console access.
-          Per-VM noVNC configuration is now managed by the C(create_vm) role.
+          Whether to install the noVNC package and deploy the C(novnc@.service) systemd template
+          for browser-based VNC console access.
+          Per-VM noVNC service instances are managed by the C(create_vm) role.
         type: bool
         default: false

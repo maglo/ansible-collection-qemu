@@ -2,6 +2,9 @@
 - name: Converge
   hosts: all
   roles:
+    - role: qemu_host
+      qemu_host_libvirtd_enabled: false
+      qemu_host_novnc_enabled: true
     - role: create_vm
       create_vm_vms:
         - name: web01
