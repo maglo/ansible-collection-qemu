@@ -9,7 +9,7 @@ Ansible collection for managing QEMU/KVM hosts on Enterprise Linux (RHEL, Rocky,
 | Role | Description |
 |------|-------------|
 | [`basalt.qemu.qemu_host`](roles/qemu_host/README.md) | Install QEMU/KVM packages, deploy a systemd template unit for VMs, and optionally set up noVNC |
-| [`basalt.qemu.create_vm`](roles/create_vm/README.md) | Create QEMU/KVM virtual machine disk images |
+| [`basalt.qemu.create_vm`](roles/create_vm/README.md) | Create QEMU/KVM virtual machine disk images and manage per-VM runtime options (UEFI/TPM/network/noVNC/USB image attach) |
 
 ## Supported Platforms
 
@@ -50,6 +50,10 @@ collections:
             disk_size: 100G
             disk_format: raw
             uefi: false
+          - name: installer
+            disk_size: 40G
+            usb_disk_image: /var/lib/qemu/images/installer.iso
+            usb_boot_priority: true
 ```
 
 `qemu_host` installs QEMU/KVM packages and deploys the `qemu-vm@.service` systemd

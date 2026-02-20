@@ -5,6 +5,8 @@
 #     - name: myvm
 #       disk_size: 20G
 #       disk_format: qcow2
+#       usb_disk_image: /var/lib/qemu/images/installer.iso
+#       usb_boot_priority: true
 create_vm_vms: []
 
 # Default disk size for VMs (used when a VM does not specify disk_size)

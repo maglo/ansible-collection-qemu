@@ -11,7 +11,8 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 
 ## Dependencies
 
-- `basalt.qemu.qemu_host` — must be applied first to install QEMU and create the image directory.
+- No automatic role dependencies.
+- Prerequisite: apply `basalt.qemu.qemu_host` first (or provide equivalent host setup) so QEMU binaries, directories, and systemd templates exist.
 
 ## Role Variables
 
@@ -59,6 +60,8 @@ Each entry in `create_vm_vms` is a dictionary with the following keys:
 | `memory` | no | `create_vm_default_memory` | Memory allocation (e.g. `2G`, `4G`) |
 | `cpus` | no | `create_vm_default_cpus` | Number of virtual CPUs |
 | `vnc` | no | hash-based | VNC display number (port = 5900+N) |
+| `usb_disk_image` | no | — | Path to USB disk image to attach (`.iso`, `.raw`, `.img`, `.qcow2`) |
+| `usb_boot_priority` | no | `true` when `usb_disk_image` is set | Boot from USB first |
 | `novnc_enabled` | no | `create_vm_default_novnc_enabled` | Enable noVNC web console for this VM |
 | `novnc_port` | no | `6080 + vnc` | Port for noVNC web console (auto-assigned if not specified) |
 | `state` | no | `present` | Desired service state: `started`, `stopped`, `present`, `restarted`, or `absent` |
@@ -134,6 +137,30 @@ vncviewer <host>:<5900+display>
 ```
 
 **Security note:** VNC is unauthenticated by default. Consider firewall rules or VNC password authentication for production use.
+
+## USB Disk Image Attachment
+
+You can attach one pre-provisioned USB disk image per VM (for example installer or rescue media).
+When `usb_disk_image` is set, the role adds a USB 3.0 XHCI controller and USB storage device to QEMU.
+
+Supported image formats:
+- `.iso`
+- `.raw`
+- `.img`
+- `.qcow2`
+
+By default, USB is given boot priority when attached. You can disable this with `usb_boot_priority: false`.
+
+Example:
+
+```yaml
+create_vm_vms:
+  - name: installer-vm
+    disk_size: 40G
+    usb_disk_image: /var/lib/qemu/images/installer.iso
+    usb_boot_priority: true
+    state: started
+```
 
 ## noVNC Web Console
 

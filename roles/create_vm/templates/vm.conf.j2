@@ -16,6 +16,23 @@
 {% set _ = _args.append('-vnc :' ~ _vnc) %}
 {% set _ = _args.append('-monitor unix:/var/lib/qemu/' ~ item.name ~ '/monitor.sock,server,nowait') %}
 {% set _ = _args.append('-drive if=virtio,format=' ~ _fmt ~ ',file=' ~ create_vm_image_dir ~ '/' ~ item.name ~ '.' ~ _fmt) %}
+{% if item.usb_disk_image is defined and item.usb_disk_image %}
+{% set _usb_image = item.usb_disk_image %}
+{% set _usb_image_lower = _usb_image | lower %}
+{% if _usb_image_lower.endswith('.qcow2') %}
+{% set _usb_fmt = 'qcow2' %}
+{% else %}
+{% set _usb_fmt = 'raw' %}
+{% endif %}
+{% set _usb_boot_priority = item.usb_boot_priority | default(true) %}
+{% set _ = _args.append('-device qemu-xhci,id=xhci') %}
+{% set _ = _args.append('-drive if=none,id=usb0,format=' ~ _usb_fmt ~ ',file=' ~ _usb_image) %}
+{% if _usb_boot_priority %}
+{% set _ = _args.append('-device usb-storage,drive=usb0,bootindex=1') %}
+{% else %}
+{% set _ = _args.append('-device usb-storage,drive=usb0') %}
+{% endif %}
+{% endif %}
 {% if _uefi %}
 {% set _ = _args.append('-drive if=pflash,format=raw,readonly=on,file=' ~ create_vm_ovmf_code) %}
 {% set _ = _args.append('-drive if=pflash,format=raw,file=' ~ create_vm_image_dir ~ '/' ~ item.name ~ '_VARS.fd') %}
