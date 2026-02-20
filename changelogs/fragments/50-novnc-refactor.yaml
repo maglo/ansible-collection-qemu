@@ -1,5 +1,5 @@
 ---
-breaking_changes:
+major_changes:
   - >-
     qemu_host - noVNC configuration refactored (issue #50). Per-VM noVNC
     configuration moved from ``qemu_host`` role to ``create_vm`` role for better

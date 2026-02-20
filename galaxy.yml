@@ -22,6 +22,7 @@ build_ignore:
   - .ansible-lint
   - CLAUDE.md
   - AGENTS.md
+  - Makefile
   - molecule
   - tests
   - playbooks

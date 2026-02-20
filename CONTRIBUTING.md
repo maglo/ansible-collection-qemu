@@ -92,6 +92,37 @@ molecule test -s novnc
 3. Add the role to the CI matrix in `.github/workflows/ci.yml`.
 4. Add the role to the table in the root `README.md`.
 
+## Releasing
+
+Only maintainers with push access to the repository can cut releases.
+
+1. Ensure all planned changes are merged to `main` and CI is green.
+2. Run `make release VERSION=x.y.z`. This compiles changelog fragments, bumps the
+   version in `galaxy.yml`, and builds the collection tarball.
+3. Review the diff and commit:
+   ```bash
+   git diff
+   git add CHANGELOG.rst changelogs/changelog.yaml galaxy.yml
+   git commit -m "Release vX.Y.Z"
+   ```
+4. Open a PR for the release commit. Merge it.
+5. Tag and push from `main`:
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+   The `release` GitHub Actions workflow fires automatically and creates a GitHub Release
+   with the tarball attached.
+
+### Makefile
+
+```bash
+make build                   # build the collection tarball
+make clean                   # remove built tarballs
+make release VERSION=x.y.z  # compile changelog, bump version, build
+make help                    # list all targets
+```
+
 ## Reporting Issues
 
 Open an issue on [GitHub](https://github.com/maglo/ansible-collection-qemu/issues) with a clear description and, if applicable, steps to reproduce.
