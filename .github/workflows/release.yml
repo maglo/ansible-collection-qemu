@@ -37,5 +37,4 @@ jobs:
             See [CHANGELOG.rst](https://github.com/maglo/ansible-collection-qemu/blob/${{ github.ref_name }}/CHANGELOG.rst) for release notes.
 
       - name: Publish to Ansible Galaxy
-        run: ansible-galaxy collection publish maglo-qemu-*.tar.gz \
-          --token "${{ secrets.GALAXY_API_KEY }}"
+        run: ansible-galaxy collection publish --token "${{ secrets.GALAXY_API_KEY }}" maglo-qemu-*.tar.gz
