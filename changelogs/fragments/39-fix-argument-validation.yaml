@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - "create_vm - Fix argument validation for ``create_vm_vms`` items (PR #39)."

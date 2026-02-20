@@ -1,0 +1,4 @@
+---
+minor_changes:
+  - "qemu_host - Refactor ``swtpm@.service`` template deployment to ``qemu_host`` role."
+  - "create_vm - Add systemd dependency between ``qemu-vm@`` and ``swtpm@`` services for TPM-enabled VMs."
