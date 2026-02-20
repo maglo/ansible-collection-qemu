@@ -1,0 +1,4 @@
+---
+release_summary: "Initial release of the ``basalt.qemu`` collection."
+major_changes:
+  - "qemu_host - Add ``qemu_host`` role for managing QEMU/KVM hosts on Enterprise Linux."

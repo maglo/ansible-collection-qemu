@@ -1,0 +1,43 @@
+---
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ansible-core
+        run: pip install ansible-core
+
+      - name: Build collection tarball
+        run: ansible-galaxy collection build --force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: basalt-qemu-*.tar.gz
+          generate_release_notes: false
+          body: |
+            See [CHANGELOG.rst](https://github.com/maglo/ansible-collection-qemu/blob/${{ github.ref_name }}/CHANGELOG.rst) for release notes.
+
+      # Uncomment to publish to Ansible Galaxy.
+      # Requires GALAXY_API_KEY to be set as a repository secret.
+      # - name: Publish to Ansible Galaxy
+      #   run: ansible-galaxy collection publish basalt-qemu-*.tar.gz \
+      #     --api-key "${{ secrets.GALAXY_API_KEY }}"

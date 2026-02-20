@@ -45,6 +45,43 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 - Per-VM dictionary keys (e.g. inside `create_vm_vms` items) must also be declared in the `options` block of the list variable's argument spec.
 - Role `defaults/main.yml` and `meta/argument_specs.yml` must stay in sync — adding a default without a matching argument spec (or vice versa) will cause validation failures in CI.
 
+## Releases
+
+### Release checklist
+
+1. Ensure all planned changes are merged to `main` and CI is green.
+2. Run `make release VERSION=x.y.z`. This will:
+   - Compile all changelog fragments into `CHANGELOG.rst` via `antsibull-changelog`.
+   - Bump `version` in `galaxy.yml`.
+   - Build the collection tarball.
+3. Review the diff (`git diff`) and commit:
+   ```
+   git add CHANGELOG.rst changelogs/changelog.yaml galaxy.yml
+   git commit -m "Release vX.Y.Z"
+   ```
+4. Open a PR for the release commit. Merge it.
+5. Tag the release from `main`:
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+6. The `.github/workflows/release.yml` workflow fires automatically, creates a GitHub
+   Release, and attaches the tarball.
+
+To publish to Ansible Galaxy: set `GALAXY_API_KEY` in the environment and uncomment the
+`publish` target in `Makefile` (and the corresponding step in `release.yml`).
+
+### Makefile targets
+
+| Target    | Description                                                         |
+|-----------|---------------------------------------------------------------------|
+| `build`   | Build the collection tarball with `ansible-galaxy`                  |
+| `clean`   | Remove built tarballs (`basalt-qemu-*.tar.gz`)                      |
+| `release` | Compile changelog, bump version, build. Usage: `make release VERSION=x.y.z` |
+| `publish` | (Commented out) Publish to Galaxy with `GALAXY_API_KEY`             |
+
+Run `make help` for a quick reference.
+
 ## Changelog
 
 This project uses [antsibull-changelog](https://github.com/ansible-community/antsibull-changelog) to manage release notes via changelog fragments.
