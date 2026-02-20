@@ -5,7 +5,7 @@ dependency:
     requirements-file: ../../molecule_requirements.yml
 
 driver:
-  name: docker
+  name: ${DRIVER:-docker}
 
 platforms:
   - name: el9-lifecycle
