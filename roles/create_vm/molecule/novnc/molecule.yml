@@ -1,6 +1,6 @@
 ---
 driver:
-  name: docker
+  name: ${DRIVER:-docker}
 platforms:
   - name: create-vm-novnc
     image: "geerlingguy/docker-rockylinux${EL_VERSION:-9}-ansible:latest"
