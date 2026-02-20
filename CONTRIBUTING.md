@@ -6,7 +6,7 @@ Contributions are welcome! This document covers how to set up a development envi
 
 - Python >= 3.9
 - Ansible >= 2.15
-- Docker (for Molecule tests)
+- Docker or Podman (for Molecule tests)
 - Git
 
 ## Development Setup
@@ -21,7 +21,11 @@ cd ansible-collection-qemu
 Install the required Python packages:
 
 ```bash
-pip install ansible-core ansible-lint molecule molecule-plugins[docker]
+# Docker (default):
+pip install ansible-core ansible-lint molecule "molecule-plugins[docker]"
+
+# Podman (alternative):
+pip install ansible-core ansible-lint molecule "molecule-plugins[podman]"
 ```
 
 ## Running Tests
@@ -44,6 +48,12 @@ ansible-test sanity --color -v
 ```
 
 ### Molecule tests
+
+Molecule uses Docker by default. To use Podman instead, set `DRIVER` before running any `molecule` command:
+
+```bash
+export DRIVER=podman
+```
 
 Run all scenarios for a role:
 
