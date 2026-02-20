@@ -1,0 +1,14 @@
+---
+- name: Write bridge.conf
+  ansible.builtin.template:
+    src: bridge.conf.j2
+    dest: "{{ vms_bridge_conf }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: >-
+    _vms_active_vms | selectattr('net_mode', 'defined')
+                          | selectattr('net_mode', 'equalto', 'bridge')
+                          | list | length > 0
+    or (_vms_active_vms | rejectattr('net_mode', 'defined') | list | length > 0
+        and vms_default_net_mode == 'bridge')

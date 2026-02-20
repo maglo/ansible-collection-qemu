@@ -1,3 +1,3 @@
 ---
 minor_changes:
-  - "create_vm - Add USB disk image attachment support via ``usb_disk_image`` and ``usb_boot_priority`` parameters (closes #47, PR #59)."
+  - "vms - Add USB disk image attachment support via ``usb_disk_image`` and ``usb_boot_priority`` parameters (closes #47, PR #59)."

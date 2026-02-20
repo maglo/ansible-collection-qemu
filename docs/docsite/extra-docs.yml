@@ -2,5 +2,6 @@
 sections:
   - title: Guides
     toctree:
-      - guide_qemu_host
+      - guide_host
       - guide_vm_management
+      - guide_manual_testing

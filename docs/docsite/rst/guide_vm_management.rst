@@ -1,23 +1,23 @@
-.. _ansible_collections.basalt.qemu.docsite.guide_vm_management:
+.. _ansible_collections.maglo.qemu.docsite.guide_vm_management:
 
 VM management
 =============
 
-This guide covers creating and managing QEMU/KVM virtual machines with the ``basalt.qemu`` collection.
+This guide covers creating and managing QEMU/KVM virtual machines with the ``maglo.qemu`` collection.
 
 Creating disk images
 --------------------
 
-Use the ``basalt.qemu.create_vm`` role to create disk images for your VMs:
+Use the ``maglo.qemu.vms`` role to create disk images for your VMs:
 
 .. code-block:: yaml
 
    - hosts: hypervisors
      roles:
-       - basalt.qemu.qemu_host
-       - role: basalt.qemu.create_vm
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
          vars:
-           create_vm_vms:
+           vms_list:
              - name: web01
                disk_size: 40G
              - name: db01
@@ -27,8 +27,8 @@ Use the ``basalt.qemu.create_vm`` role to create disk images for your VMs:
 
 Each VM entry requires a ``name`` key. Optional keys:
 
-- ``disk_size`` — overrides ``create_vm_default_disk_size`` (default ``20G``)
-- ``disk_format`` — overrides ``create_vm_default_disk_format`` (default ``qcow2``)
+- ``disk_size`` — overrides ``vms_default_disk_size`` (default ``20G``)
+- ``disk_format`` — overrides ``vms_default_disk_format`` (default ``qcow2``)
 
 The role is idempotent — existing images are not recreated.
 
@@ -43,10 +43,10 @@ entry to start a dedicated ``swtpm`` process:
 
    - hosts: hypervisors
      roles:
-       - basalt.qemu.qemu_host
-       - role: basalt.qemu.create_vm
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
          vars:
-           create_vm_vms:
+           vms_list:
              - name: secure-vm
                disk_size: 40G
                tpm: true
@@ -54,7 +54,7 @@ entry to start a dedicated ``swtpm`` process:
 The role deploys an ``swtpm@.service`` systemd template unit. For each
 TPM-enabled VM, it:
 
-1. Creates a per-VM state directory under ``create_vm_swtpm_state_dir``
+1. Creates a per-VM state directory under ``vms_swtpm_state_dir``
    (default ``/var/lib/swtpm``).
 2. Enables and starts ``swtpm@<vmname>.service``, which listens on a Unix
    socket at ``/var/lib/swtpm/<vmname>/swtpm.sock``.
@@ -62,7 +62,7 @@ TPM-enabled VM, it:
 The ``swtpm@.service`` unit is ordered ``Before=qemu-vm@%i.service``, so the
 TPM is ready before the VM starts.
 
-To enable TPM for all VMs by default, set ``create_vm_default_tpm: true``.
+To enable TPM for all VMs by default, set ``vms_default_tpm: true``.
 Individual VMs can still opt out with ``tpm: false``.
 
 Starting a VM

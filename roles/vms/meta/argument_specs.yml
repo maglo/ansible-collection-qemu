@@ -1,0 +1,231 @@
+---
+argument_specs:
+  main:
+    short_description: Create QEMU/KVM virtual machine disk images.
+    description:
+      - Creates qcow2 (or raw) disk images for QEMU/KVM virtual machines
+        and sets the correct ownership and permissions.
+      - "Prerequisite: apply C(maglo.qemu.host) first (or provide equivalent host setup)
+        to ensure QEMU binaries and required directories already exist."
+    options:
+      vms_list:
+        description:
+          - List of VMs to create. Each entry is a dictionary with at least a C(name) key.
+          - "Optional per-VM keys: C(disk_size) (overrides C(vms_default_disk_size)),
+            C(disk_format) (overrides C(vms_default_disk_format)),
+            C(disk_image_url) (URL to qcow2 image to use as backing file),
+            C(disk_image_checksum) (SHA256 checksum for image verification),
+            C(uefi) (overrides C(vms_default_uefi)),
+            C(tpm) (overrides C(vms_default_tpm)),
+            C(net_mode) (overrides C(vms_default_net_mode)),
+            C(net_bridge) (overrides C(vms_default_net_bridge)),
+            C(mac_address) (overrides the auto-generated MAC),
+            C(memory) (overrides C(vms_default_memory)),
+            C(cpus) (overrides C(vms_default_cpus)),
+            C(vnc) (VNC display number, auto-generated from VM name if not specified),
+            C(usb_disk_image) (path to USB disk image: iso/raw/img/qcow2),
+            C(usb_boot_priority) (boot from attached USB first; defaults to true when usb image is set),
+            C(novnc_enabled) (enable noVNC web console for this VM),
+            C(novnc_port) (noVNC port, auto-assigned if not specified),
+            C(state) (C(started), C(stopped), or C(present))."
+        type: list
+        elements: dict
+        default: []
+        options:
+          name:
+            description: Name of the VM. Used as the disk image filename.
+            type: str
+            required: true
+          disk_size:
+            description: Disk image size (e.g. C(20G), C(100G)). Overrides C(vms_default_disk_size).
+            type: str
+          disk_format:
+            description: Disk image format. Overrides C(vms_default_disk_format).
+            type: str
+            choices:
+              - qcow2
+              - raw
+          disk_image_url:
+            description: >-
+              URL to a qcow2 disk image to download and use as a backing file.
+              When specified, creates an overlay image instead of a blank disk.
+              The downloaded image is cached in C(vms_image_cache_dir).
+            type: str
+          disk_image_checksum:
+            description: >-
+              SHA256 checksum for the downloaded image (format: C(sha256:abc123...)).
+              When specified with C(disk_image_url), verifies the downloaded file.
+              Download fails if checksum doesn't match.
+            type: str
+          uefi:
+            description: Whether to enable UEFI boot for this VM. Overrides C(vms_default_uefi).
+            type: bool
+          tpm:
+            description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(vms_default_tpm).
+            type: bool
+          net_mode:
+            description: Networking mode for this VM. Overrides C(vms_default_net_mode).
+            type: str
+            choices:
+              - user
+              - bridge
+          net_bridge:
+            description: Bridge device for this VM. Overrides C(vms_default_net_bridge).
+            type: str
+          mac_address:
+            description: MAC address for this VM. Overrides the auto-generated deterministic MAC.
+            type: str
+          memory:
+            description: Memory allocation for this VM (e.g. C(2G), C(4G)). Overrides C(vms_default_memory).
+            type: str
+          cpus:
+            description: Number of virtual CPUs for this VM. Overrides C(vms_default_cpus).
+            type: int
+          vnc:
+            description: >-
+              VNC display number for this VM (maps to port 5900+N).
+              If not specified, calculated from hash of VM name.
+            type: int
+          usb_disk_image:
+            description: >-
+              Path to a pre-provisioned USB disk image to attach to the VM.
+              Supported formats: C(.iso), C(.raw), C(.img), C(.qcow2).
+            type: path
+          usb_boot_priority:
+            description: >-
+              Whether to boot from attached USB storage first.
+              Defaults to C(true) when C(usb_disk_image) is set.
+            type: bool
+          novnc_enabled:
+            description: >-
+              Enable noVNC web console for this VM. Overrides C(vms_default_novnc_enabled).
+              Requires novnc package to be installed (via host role with host_novnc_enabled: true).
+            type: bool
+          novnc_port:
+            description: >-
+              Port number for the noVNC web console.
+              If not specified, auto-assigned as 6080 + VNC display number.
+            type: int
+          state:
+            description: >-
+              Desired state of the VM service. C(started) enables and starts the service,
+              C(stopped) enables but stops the service, C(present) only writes config without managing the service,
+              C(restarted) performs a graceful stop and start, C(absent) destroys the VM and all artifacts.
+            type: str
+            choices:
+              - started
+              - stopped
+              - present
+              - restarted
+              - absent
+          force_destroy:
+            description: >-
+              Safety flag required to destroy a VM with C(state: absent).
+              Must be explicitly set to C(true) to prevent accidental data loss.
+            type: bool
+            default: false
+          shutdown_timeout:
+            description: >-
+              Timeout in seconds to wait for graceful ACPI shutdown before forcing stop.
+              Used by C(state: restarted) and C(state: absent).
+            type: int
+            default: 120
+      vms_default_disk_size:
+        description: Default disk size for VMs that do not specify C(disk_size).
+        type: str
+        default: "20G"
+      vms_default_disk_format:
+        description: Default disk image format.
+        type: str
+        default: qcow2
+        choices:
+          - qcow2
+          - raw
+      vms_image_dir:
+        description: Directory for VM disk images. Should match C(host_vm_image_dir).
+        type: path
+        default: /var/lib/qemu/images
+      vms_image_cache_dir:
+        description: >-
+          Directory for caching downloaded disk images.
+          Images are shared across VMs and used as backing files.
+        type: path
+        default: /var/lib/qemu/images/cache
+      vms_verify_checksums:
+        description: >-
+          Whether to verify checksums for downloaded images.
+          Currently unused but reserved for future enhancement.
+        type: bool
+        default: true
+      vms_service_user:
+        description: Owner of the created disk image files.
+        type: str
+        default: qemu
+      vms_service_group:
+        description: Group of the created disk image files.
+        type: str
+        default: qemu
+      vms_default_uefi:
+        description: Whether VMs default to UEFI boot when not specified per-VM.
+        type: bool
+        default: true
+      vms_ovmf_code:
+        description: Path to the OVMF firmware code file (read-only, shared across VMs).
+        type: path
+        default: /usr/share/edk2/ovmf/OVMF_CODE.fd
+      vms_ovmf_vars_template:
+        description: Path to the OVMF vars template file (copied per-VM for writable NVRAM).
+        type: path
+        default: /usr/share/edk2/ovmf/OVMF_VARS.fd
+      vms_default_tpm:
+        description: Whether VMs default to TPM 2.0 emulation. Can be overridden per VM with C(tpm) key.
+        type: bool
+        default: false
+      vms_swtpm_state_dir:
+        description: Base directory for per-VM swtpm state directories.
+        type: path
+        default: /var/lib/swtpm
+      vms_default_net_mode:
+        description: Default networking mode for VMs that do not specify C(net_mode).
+        type: str
+        default: user
+        choices:
+          - user
+          - bridge
+      vms_default_net_bridge:
+        description: Default bridge device for bridge-mode VMs that do not specify C(net_bridge).
+        type: str
+        default: br0
+      vms_bridge_conf:
+        description: Path to the QEMU bridge helper ACL file.
+        type: path
+        default: /etc/qemu/bridge.conf
+      vms_vm_config_dir:
+        description: Directory for per-VM QEMU configuration files.
+        type: path
+        default: /etc/qemu/vms
+      vms_default_memory:
+        description: Default memory allocation for VMs that do not specify C(memory).
+        type: str
+        default: "2G"
+      vms_default_cpus:
+        description: Default number of virtual CPUs for VMs that do not specify C(cpus).
+        type: int
+        default: 2
+      vms_default_novnc_enabled:
+        description: >-
+          Whether VMs default to noVNC web console when not specified per-VM.
+          Requires novnc package to be installed (via host role).
+        type: bool
+        default: false
+      vms_default_novnc_port:
+        description: >-
+          Default noVNC port for VMs that do not specify C(novnc_port).
+          If null, ports are auto-assigned as 6080 + VNC display number.
+        type: int
+      vms_default_shutdown_timeout:
+        description: >-
+          Default timeout in seconds for graceful ACPI shutdown before forcing stop.
+          Used when VMs do not specify C(shutdown_timeout).
+        type: int
+        default: 120

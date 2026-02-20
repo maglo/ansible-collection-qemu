@@ -1,0 +1,29 @@
+---
+# Packages to install for QEMU/KVM host
+host_packages:
+  - qemu-kvm
+  - qemu-img
+  - libvirt
+  - swtpm
+  - swtpm-tools
+  - socat
+
+# Whether to enable and start libvirtd
+host_libvirtd_enabled: true
+
+# Directory containing QEMU VM configuration files (one per VM)
+host_vm_config_dir: /etc/qemu/vms
+
+# Directory containing QEMU VM disk images
+host_vm_image_dir: /var/lib/qemu/images
+
+# User and group for the QEMU systemd service
+host_service_user: qemu
+host_service_group: qemu
+
+# Whether to install the noVNC package and deploy the novnc@.service systemd template
+# Per-VM noVNC service instances are managed by the vms role
+host_novnc_enabled: false
+
+# Base directory for per-VM swtpm state
+host_swtpm_state_dir: /var/lib/swtpm

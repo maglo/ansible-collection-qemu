@@ -1,5 +1,5 @@
 VERSION  := $(shell grep '^version:' galaxy.yml | awk '{print $$2}')
-TARBALL  := basalt-qemu-$(VERSION).tar.gz
+TARBALL  := maglo-qemu-$(VERSION).tar.gz
 
 .PHONY: build clean release help
 
@@ -7,7 +7,7 @@ build: ## Build the collection tarball
 	ansible-galaxy collection build --force
 
 clean: ## Remove built tarballs
-	rm -f basalt-qemu-*.tar.gz
+	rm -f maglo-qemu-*.tar.gz
 
 # Usage: make release VERSION=x.y.z
 release: ## Compile changelog and prepare a release. Usage: make release VERSION=x.y.z

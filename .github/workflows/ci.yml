@@ -38,7 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: ansible_collections/basalt/qemu
+          path: ansible_collections/maglo/qemu
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -50,7 +50,7 @@ jobs:
 
       - name: Run sanity tests
         run: ansible-test sanity --color yes -v
-        working-directory: ansible_collections/basalt/qemu
+        working-directory: ansible_collections/maglo/qemu
 
   docs:
     name: Docs
@@ -59,7 +59,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: ansible_collections/basalt/qemu
+          path: ansible_collections/maglo/qemu
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -71,7 +71,7 @@ jobs:
 
       - name: Verify role READMEs exist
         run: |
-          for role in ansible_collections/basalt/qemu/roles/*/; do
+          for role in ansible_collections/maglo/qemu/roles/*/; do
             role_name=$(basename "$role")
             if [ ! -f "$role/README.md" ]; then
               echo "ERROR: Missing README.md for role $role_name"
@@ -82,16 +82,16 @@ jobs:
 
       - name: Verify argument_specs with ansible-doc
         run: |
-          for role in ansible_collections/basalt/qemu/roles/*/; do
+          for role in ansible_collections/maglo/qemu/roles/*/; do
             role_name=$(basename "$role")
-            echo "Checking basalt.qemu.$role_name..."
-            ansible-doc -t role "basalt.qemu.$role_name"
+            echo "Checking maglo.qemu.$role_name..."
+            ansible-doc -t role "maglo.qemu.$role_name"
           done
         env:
           ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
 
       - name: Lint collection docs
-        run: antsibull-docs lint-collection-docs --plugin-docs ansible_collections/basalt/qemu
+        run: antsibull-docs lint-collection-docs --plugin-docs ansible_collections/maglo/qemu
 
   molecule:
     name: Molecule - ${{ matrix.role }} (${{ matrix.scenario }}) - EL${{ matrix.el_version }}
@@ -101,11 +101,11 @@ jobs:
       matrix:
         el_version: [9, 10]
         include:
-          - role: qemu_host
+          - role: host
             scenario: default
-          - role: qemu_host
+          - role: host
             scenario: novnc
-          - role: create_vm
+          - role: vms
             scenario: default
     steps:
       - name: Checkout

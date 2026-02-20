@@ -1,5 +1,5 @@
 ---
-# Example inventory for the basalt.qemu collection.
+# Example inventory for the maglo.qemu collection.
 # Copy this file, adjust hostnames/IPs, and pass it to ansible-playbook
 # with -i inventory.yml.
 all:

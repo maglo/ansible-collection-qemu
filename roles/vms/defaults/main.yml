@@ -1,0 +1,72 @@
+---
+# List of VMs to create. Each entry is a dict with at least a `name` key.
+# Example:
+#   vms_list:
+#     - name: myvm
+#       disk_size: 20G
+#       disk_format: qcow2
+#       usb_disk_image: /var/lib/qemu/images/installer.iso
+#       usb_boot_priority: true
+vms_list: []
+
+# Default disk size for VMs (used when a VM does not specify disk_size)
+vms_default_disk_size: "20G"
+
+# Default disk format
+vms_default_disk_format: qcow2
+
+# Directory for VM disk images (must match host_vm_image_dir)
+vms_image_dir: /var/lib/qemu/images
+
+# Cache directory for downloaded disk images (shared across VMs)
+vms_image_cache_dir: /var/lib/qemu/images/cache
+
+# Whether to verify checksums for downloaded images
+vms_verify_checksums: true
+
+# Owner/group for created images
+vms_service_user: qemu
+vms_service_group: qemu
+
+# Whether VMs default to UEFI boot (can be overridden per VM with `uefi` key)
+vms_default_uefi: true
+
+# Path to OVMF firmware code (read-only, shared across VMs)
+vms_ovmf_code: /usr/share/edk2/ovmf/OVMF_CODE.fd
+
+# Path to OVMF vars template (copied per-VM for writable NVRAM)
+vms_ovmf_vars_template: /usr/share/edk2/ovmf/OVMF_VARS.fd
+
+# Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key)
+vms_default_tpm: false
+
+# Base directory for per-VM swtpm state
+# NOTE: This must match host_swtpm_state_dir (used by swtpm@.service template)
+vms_swtpm_state_dir: /var/lib/swtpm
+
+# Default networking mode for VMs (user or bridge)
+vms_default_net_mode: user
+
+# Default bridge device for bridge-mode networking
+vms_default_net_bridge: br0
+
+# Path to QEMU bridge helper ACL file
+vms_bridge_conf: /etc/qemu/bridge.conf
+
+# Directory for per-VM QEMU configuration files
+vms_vm_config_dir: /etc/qemu/vms
+
+# Default memory allocation for VMs (used when a VM does not specify memory)
+vms_default_memory: 2G
+
+# Default number of virtual CPUs (used when a VM does not specify cpus)
+vms_default_cpus: 2
+
+# Whether VMs default to noVNC web console (per-VM override with `novnc_enabled` key)
+vms_default_novnc_enabled: false
+
+# Default noVNC port (null means auto-assign: 6080 + VNC display number)
+vms_default_novnc_port: null
+
+# Default shutdown timeout for graceful ACPI powerdown (seconds)
+vms_default_shutdown_timeout: 120

@@ -1,4 +1,4 @@
-# Contributing to basalt.qemu
+# Contributing to maglo.qemu
 
 Contributions are welcome! This document covers how to set up a development environment, run tests, and submit changes.
 
@@ -41,9 +41,9 @@ ansible-lint
 Sanity tests must run from within the expected collection path:
 
 ```bash
-mkdir -p /tmp/collections/ansible_collections/basalt
-ln -s "$(pwd)" /tmp/collections/ansible_collections/basalt/qemu
-cd /tmp/collections/ansible_collections/basalt/qemu
+mkdir -p /tmp/collections/ansible_collections/maglo
+ln -s "$(pwd)" /tmp/collections/ansible_collections/maglo/qemu
+cd /tmp/collections/ansible_collections/maglo/qemu
 ansible-test sanity --color -v
 ```
 
@@ -58,19 +58,19 @@ export DRIVER=podman
 Run all scenarios for a role:
 
 ```bash
-cd roles/qemu_host
+cd roles/host
 molecule test
 ```
 
 ```bash
-cd roles/create_vm
+cd roles/vms
 molecule test
 ```
 
 Run a specific scenario:
 
 ```bash
-cd roles/qemu_host
+cd roles/host
 molecule test -s novnc
 ```
 

@@ -1,0 +1,70 @@
+---
+- name: Determine TPM-enabled VMs
+  ansible.builtin.set_fact:
+    _vms_tpm_vms: >-
+      {{ _vms_active_vms | selectattr('tpm', 'defined') | selectattr('tpm') | list
+         + (_vms_active_vms | rejectattr('tpm', 'defined') | list if vms_default_tpm else []) }}
+
+- name: Verify swtpm systemd template exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/swtpm@.service
+  register: _vms_swtpm_template
+  failed_when: not _vms_swtpm_template.stat.exists
+  when: _vms_tpm_vms | length > 0
+
+- name: Create swtpm base state directory
+  ansible.builtin.file:
+    path: "{{ vms_swtpm_state_dir }}"
+    state: directory
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0755"
+  when: _vms_tpm_vms | length > 0
+
+- name: Create per-VM swtpm state directories
+  ansible.builtin.file:
+    path: "{{ vms_swtpm_state_dir }}/{{ item.name }}"
+    state: directory
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0755"
+  loop: "{{ _vms_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Enable and start swtpm for TPM-enabled VMs
+  ansible.builtin.systemd_service:
+    name: "swtpm@{{ item.name }}.service"
+    state: started
+    enabled: true
+  loop: "{{ _vms_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create systemd drop-in directory for qemu-vm@{{ item.name }}
+  ansible.builtin.file:
+    path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop: "{{ _vms_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy swtpm dependency override for TPM-enabled VMs
+  ansible.builtin.template:
+    src: qemu-vm-tpm-dependency.conf.j2
+    dest: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/tpm-dependency.conf"
+    mode: '0644'
+    owner: root
+    group: root
+  loop: "{{ _vms_tpm_vms }}"
+  notify: Reload systemd
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: _vms_tpm_vms | length > 0

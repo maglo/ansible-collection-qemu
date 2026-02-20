@@ -31,7 +31,7 @@ sections:
   - Bugfixes
 - - known_issues
   - Known Issues
-title: basalt.qemu
+title: maglo.qemu
 trivial_section_name: trivial
 use_fqcn: true
 vcs: auto
