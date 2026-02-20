@@ -4,6 +4,21 @@
 
 Ansible collection for managing QEMU/KVM hosts and virtual machines on Enterprise Linux (RHEL, Rocky, Alma, CentOS).
 
+## Use Case
+
+This collection is for **developers** who need repeatable, idempotent provisioning of QEMU/KVM virtual machines on Enterprise Linux hosts — without the overhead of a full virtualization management stack.
+
+### Design philosophy
+
+| Principle | Detail |
+|-----------|--------|
+| **Libvirt-free** | VMs are driven directly by `qemu-system-*` — no libvirtd, no XML, no virsh |
+| **Systemd-native** | VM lifecycle is managed via `qemu-vm@<name>.service` template units |
+| **Enterprise Linux focused** | Targets RHEL, Rocky, Alma, and CentOS 9+ exclusively |
+| **Minimal footprint** | No heavy infrastructure dependencies; only QEMU, swtpm, and optionally noVNC |
+
+If you need an Ansible-driven, version-controlled alternative to manually running QEMU commands or heavyweight platforms (Proxmox, oVirt, VMware), this collection is for you.
+
 ## Included Roles
 
 | Role | Description |
@@ -31,6 +46,22 @@ Or add to `requirements.yml`:
 collections:
   - name: maglo.qemu
 ```
+
+## Prerequisites
+
+### Verify hardware virtualization
+
+Before running the collection, confirm that your target host supports KVM hardware virtualization:
+
+```bash
+# Must return a non-zero number
+grep -c -E '(vmx|svm)' /proc/cpuinfo
+
+# Alternatively, check for the KVM kernel module
+lsmod | grep kvm
+```
+
+If the command returns `0` or the module is missing, check your BIOS/UEFI settings and ensure Intel VT-x / AMD-V is enabled. Nested virtualization (VMs inside VMs) also requires this flag to be exposed to the guest.
 
 ## Quick Start
 
@@ -219,3 +250,12 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 ## License
 
 GPL-3.0-only
+
+## AI Assistance
+
+This collection was developed with AI assistance. AI tools were used for issue triage, architecture decisions, engineering, and release practices. Human intervention was limited to **reviewing, commenting, and merging** contributions.
+
+AI tools used:
+- [Grok](https://x.ai) (xAI)
+- [OpenAI Codex](https://openai.com/codex)
+- [Claude](https://claude.ai) (Anthropic)
