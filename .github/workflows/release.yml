@@ -38,4 +38,4 @@ jobs:
 
       - name: Publish to Ansible Galaxy
         run: ansible-galaxy collection publish maglo-qemu-*.tar.gz \
-          --api-key "${{ secrets.GALAXY_API_KEY }}"
+          --token "${{ secrets.GALAXY_API_KEY }}"
