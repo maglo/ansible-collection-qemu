@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "vms - Add UEFI firmware (OVMF) boot support (PR #35)."

@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "host - Add per-VM ``novnc@.service`` systemd template, replacing the previous shared service (PR #38)."

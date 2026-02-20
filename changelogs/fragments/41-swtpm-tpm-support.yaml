@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "vms - Add per-VM ``swtpm`` service for TPM 2.0 emulation (PR #41)."

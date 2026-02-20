@@ -1,4 +1,0 @@
----
-release_summary: "Initial release of the ``maglo.qemu`` collection."
-major_changes:
-  - "host - Add ``host`` role for managing QEMU/KVM hosts on Enterprise Linux."

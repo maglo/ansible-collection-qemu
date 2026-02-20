@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "vms - Generate full VM configuration and manage ``qemu-vm@`` systemd service lifecycle (PR #44)."
