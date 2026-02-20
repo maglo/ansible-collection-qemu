@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "vms - Add VM networking configuration supporting bridge/tap and user-mode (NAT) networking (PR #43)."

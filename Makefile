@@ -26,10 +26,8 @@ release: ## Compile changelog and prepare a release. Usage: make release VERSION
 	@echo "     The GitHub Actions release workflow will create a GitHub Release"
 	@echo "     and attach $(TARBALL) automatically."
 
-# Uncomment to publish to Ansible Galaxy.
-# Requires GALAXY_API_KEY to be set in the environment.
-# publish: build ## Publish to Ansible Galaxy (requires GALAXY_API_KEY)
-# 	ansible-galaxy collection publish $(TARBALL) --api-key $(GALAXY_API_KEY)
+publish: build ## Publish to Ansible Galaxy (requires GALAXY_API_KEY)
+	ansible-galaxy collection publish $(TARBALL) --api-key $(GALAXY_API_KEY)
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

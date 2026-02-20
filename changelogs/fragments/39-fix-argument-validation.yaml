@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "vms - Add argument validation for ``vms_list`` items (PR #39)."

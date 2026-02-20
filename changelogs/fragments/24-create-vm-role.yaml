@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "Added ``vms`` role for declarative VM creation with qcow2 disk support (PR #24)."

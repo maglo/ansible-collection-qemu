@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "Add Enterprise Linux 10 support; drop EL 8 (PR #53)."

@@ -36,8 +36,6 @@ jobs:
           body: |
             See [CHANGELOG.rst](https://github.com/maglo/ansible-collection-qemu/blob/${{ github.ref_name }}/CHANGELOG.rst) for release notes.
 
-      # Uncomment to publish to Ansible Galaxy.
-      # Requires GALAXY_API_KEY to be set as a repository secret.
-      # - name: Publish to Ansible Galaxy
-      #   run: ansible-galaxy collection publish maglo-qemu-*.tar.gz \
-      #     --api-key "${{ secrets.GALAXY_API_KEY }}"
+      - name: Publish to Ansible Galaxy
+        run: ansible-galaxy collection publish maglo-qemu-*.tar.gz \
+          --api-key "${{ secrets.GALAXY_API_KEY }}"

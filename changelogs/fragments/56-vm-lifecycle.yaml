@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "vms - Add VM lifecycle management (start, stop, restart) support (PR #56)."
