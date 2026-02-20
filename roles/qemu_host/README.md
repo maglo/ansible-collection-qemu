@@ -20,7 +20,7 @@ The role installs QEMU/KVM packages, deploys systemd template units for managing
 | `qemu_host_service_user` | `qemu` | User for the QEMU systemd service |
 | `qemu_host_service_group` | `qemu` | Group for the QEMU systemd service |
 | `qemu_host_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state (used by `swtpm@.service` template) |
-| `qemu_host_novnc_enabled` | `false` | Install the noVNC package from EPEL (per-VM configuration managed by `basalt.qemu.create_vm` role) |
+| `qemu_host_novnc_enabled` | `false` | Install the noVNC package from EPEL and deploy the `novnc@.service` systemd template (per-VM service instances managed by `basalt.qemu.create_vm` role) |
 
 ## Dependencies
 
@@ -46,7 +46,7 @@ With noVNC package installation (for browser-based console access):
         qemu_host_novnc_enabled: true
 ```
 
-**Note:** This installs the `novnc` package from EPEL. To configure per-VM noVNC services, use the `basalt.qemu.create_vm` role with the `novnc_enabled` parameter for each VM.
+**Note:** This installs the `novnc` package from EPEL and deploys the `novnc@.service` systemd template unit. Per-VM noVNC service instances (`novnc@<vmname>.service`) are enabled by the `basalt.qemu.create_vm` role when `novnc_enabled: true` is set for a VM.
 
 ## Managing VMs
 

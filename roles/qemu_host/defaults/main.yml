@@ -21,8 +21,8 @@ qemu_host_vm_image_dir: /var/lib/qemu/images
 qemu_host_service_user: qemu
 qemu_host_service_group: qemu
 
-# Whether to install the noVNC package
-# Per-VM noVNC configuration is now managed by the create_vm role
+# Whether to install the noVNC package and deploy the novnc@.service systemd template
+# Per-VM noVNC service instances are managed by the create_vm role
 qemu_host_novnc_enabled: false
 
 # Base directory for per-VM swtpm state

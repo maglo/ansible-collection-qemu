@@ -12,15 +12,6 @@
 - name: Configure noVNC for VMs
   when: _create_vm_novnc_vms | length > 0
   block:
-    - name: Install noVNC systemd template unit
-      ansible.builtin.template:
-        src: novnc@.service.j2
-        dest: /etc/systemd/system/novnc@.service
-        owner: root
-        group: root
-        mode: '0644'
-      notify: Reload systemd
-
     - name: Deploy per-VM noVNC environment files
       ansible.builtin.template:
         src: novnc-env.conf.j2

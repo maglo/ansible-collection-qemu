@@ -104,15 +104,32 @@
         that:
           - not legacy_novnc_unit.stat.exists
 
-    # ── noVNC template unit removed ──────────────────────────
-    # Per-VM noVNC configuration is now managed by create_vm role
+    # ── noVNC template unit ───────────────────────────────────
     - name: Stat novnc@.service template unit
       ansible.builtin.stat:
         path: /etc/systemd/system/novnc@.service
       register: novnc_template_unit
 
-    - name: Assert novnc@.service template is absent
+    - name: Assert novnc@.service template unit file exists
       ansible.builtin.assert:
         that:
-          - not novnc_template_unit.stat.exists
-        fail_msg: "novnc@.service should not be present - per-VM noVNC is now managed by create_vm role"
+          - novnc_template_unit.stat.exists
+          - novnc_template_unit.stat.pw_name == 'root'
+          - novnc_template_unit.stat.gr_name == 'root'
+          - novnc_template_unit.stat.mode == '0644'
+
+    - name: Read novnc@.service template unit content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/novnc@.service
+      register: novnc_template_content
+
+    - name: Assert novnc@.service template unit content
+      vars:
+        content: "{{ novnc_template_content.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'Ansible managed' in content"
+          - "'/usr/bin/novnc_proxy' in content"
+          - "'--listen ${NOVNC_PORT}' in content"
+          - "'--vnc ${VNC_TARGET}' in content"
+          - "'EnvironmentFile=/etc/qemu/vms/novnc-%i.conf' in content"

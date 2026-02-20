@@ -4,14 +4,16 @@
     name: novnc
     state: present
 
-- name: Remove legacy configurations
-  block:
-    - name: Remove legacy single-instance noVNC service
-      ansible.builtin.file:
-        path: /etc/systemd/system/novnc.service
-        state: absent
+- name: Remove legacy single-instance noVNC service
+  ansible.builtin.file:
+    path: /etc/systemd/system/novnc.service
+    state: absent
 
-    - name: Remove old novnc@.service template (now managed by create_vm)
-      ansible.builtin.file:
-        path: /etc/systemd/system/novnc@.service
-        state: absent
+- name: Install noVNC systemd template unit
+  ansible.builtin.template:
+    src: novnc@.service.j2
+    dest: /etc/systemd/system/novnc@.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
