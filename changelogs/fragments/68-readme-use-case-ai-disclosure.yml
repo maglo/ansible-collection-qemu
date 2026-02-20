@@ -1,0 +1,4 @@
+minor_changes:
+  - "README: add Use Case and design philosophy section targeting developers needing repeatable VM provisioning (https://github.com/maglo/ansible-collection-qemu/issues/68)"
+  - "README: add Prerequisites section with hardware virtualization verification steps (https://github.com/maglo/ansible-collection-qemu/issues/68)"
+  - "README: add AI Assistance disclosure for Grok, OpenAI Codex, and Claude (https://github.com/maglo/ansible-collection-qemu/issues/68)"
