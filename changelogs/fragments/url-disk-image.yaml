@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - "create_vm - Add URL-based disk image provisioning with backing file support."

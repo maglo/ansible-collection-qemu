@@ -44,3 +44,38 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 - Every role variable used in tasks **must** be declared in `meta/argument_specs.yml` with correct type, description, and default.
 - Per-VM dictionary keys (e.g. inside `create_vm_vms` items) must also be declared in the `options` block of the list variable's argument spec.
 - Role `defaults/main.yml` and `meta/argument_specs.yml` must stay in sync — adding a default without a matching argument spec (or vice versa) will cause validation failures in CI.
+
+## Changelog
+
+This project uses [antsibull-changelog](https://github.com/ansible-community/antsibull-changelog) to manage release notes via changelog fragments.
+
+**Every PR that introduces a user-visible change must include a changelog fragment.**
+
+- Place fragments in `changelogs/fragments/`.
+- Name files `<pr-number>-<short-slug>.yaml` (e.g. `42-fix-validation.yaml`). Use a descriptive slug without a PR number for changes that span multiple commits.
+- Fragment format:
+
+  ```yaml
+  ---
+  minor_changes:
+    - "role_name - Description of the change (closes #N)."
+  ```
+
+- Valid top-level keys:
+
+  | Key | When to use |
+  |-----|-------------|
+  | `major_changes` | Significant new functionality |
+  | `minor_changes` | Small new features, enhancements |
+  | `breaking_changes` | Backwards-incompatible changes |
+  | `bugfixes` | Bug fixes |
+  | `deprecated_features` | Features that will be removed |
+  | `removed_features` | Features removed in this release |
+  | `security_fixes` | Security-related fixes |
+  | `trivial` | CI, tooling, docs changes invisible to end users |
+  | `release_summary` | One-line release headline (at most one per release) |
+
+- A single fragment file may contain multiple keys.
+- Lint your fragment before opening a PR: `antsibull-changelog lint`
+- **Do not edit `CHANGELOG.rst` or `changelogs/changelog.yaml` directly.** Both files are managed by `antsibull-changelog`.
+- At release time the maintainer runs `antsibull-changelog release --version X.Y.Z` to compile all fragments into `CHANGELOG.rst` and update `changelogs/changelog.yaml`.

@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - "Add ``meta/argument_specs.yml`` and role-level READMEs for all roles (PR #33)."
