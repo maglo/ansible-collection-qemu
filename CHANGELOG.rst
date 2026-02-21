@@ -4,28 +4,6 @@ maglo.qemu Release Notes
 
 .. contents:: Topics
 
-v0.1.1
-======
-
-Release Summary
----------------
-
-Bug-fix release addressing 10 issues found during manual testing of v0.1.0 on AlmaLinux 8 and EL9 with SELinux enforcing. See `#84 <https://github.com/maglo/ansible-collection-qemu/issues/84>`_ for the full test report.
-
-Bugfixes
---------
-
-- host role - Add ``become: true`` to all privileged tasks (package installation, directory creation, systemd service management) so the role can be used without ``become: true`` at playbook level (`#74 <https://github.com/maglo/ansible-collection-qemu/issues/74>`_).
-- host role - Change ``host_libvirtd_enabled`` default from ``true`` to ``false`` to honour the Libvirt-free design principle and prevent libvirtd from blocking plays when it fails to start (`#75 <https://github.com/maglo/ansible-collection-qemu/issues/75>`_).
-- host role - Rename task ``"Enable and start libvirtd"`` to ``"Manage state of libvirtd service"`` to accurately reflect its conditional behaviour (`#76 <https://github.com/maglo/ansible-collection-qemu/issues/76>`_).
-- host role - Remove dead ``"Remove legacy single-instance noVNC service"`` task; v0.1.0 is the first release and has no legacy service to clean up (`#77 <https://github.com/maglo/ansible-collection-qemu/issues/77>`_).
-- vms role - Make OVMF firmware paths configurable with per-OS defaults using ``ansible_distribution_major_version``; fixes hardcoded path that does not exist on EL8 (`#78 <https://github.com/maglo/ansible-collection-qemu/issues/78>`_).
-- vms role - Add ``"Verify VM service is running"`` task after starting ``qemu-vm@<name>.service``; the play now fails with a clear error if the service does not reach active state (`#79 <https://github.com/maglo/ansible-collection-qemu/issues/79>`_).
-- docs - Add EPEL to the Prerequisites section of ``README.md`` and ``roles/host/README.md``; note that the collection intentionally does not manage EPEL to support airgapped deployments (`#80 <https://github.com/maglo/ansible-collection-qemu/issues/80>`_).
-- vms role - Ship a minimal SELinux policy module (``qemu_vm.te``) and tasks to compile and install it on EL9/EL10 hosts with SELinux enforcing; fixes ``"Permission denied"`` when executing ``/usr/libexec/qemu-kvm`` (`#81 <https://github.com/maglo/ansible-collection-qemu/issues/81>`_).
-- vms role - Replace Jinja2-interpolated task names (``"Create blank disk image for {{ item.name }}"``) with static names to comply with Ansible best practices (`#82 <https://github.com/maglo/ansible-collection-qemu/issues/82>`_).
-- vms role - Rename task ``"Enable and start VM service"`` to ``"Manage VM service state"`` to accurately reflect its conditional behaviour (`#83 <https://github.com/maglo/ansible-collection-qemu/issues/83>`_).
-
 v0.1.0
 ======
 

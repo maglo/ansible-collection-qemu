@@ -33,12 +33,11 @@
   when: (item.state | default('present')) in ['started', 'stopped']
 
 - name: Verify VM service is running
-  ansible.builtin.command:
-    cmd: systemctl is-active "qemu-vm@{{ item.name }}.service"
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
   register: _vms_service_check
-  changed_when: false
-  failed_when: _vms_service_check.rc != 0
   become: true
+  failed_when: _vms_service_check.status.ActiveState != 'active'
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"

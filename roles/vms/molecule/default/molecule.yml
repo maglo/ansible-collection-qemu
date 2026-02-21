@@ -17,5 +17,10 @@ provisioner:
   name: ansible
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+  config_options:
+    defaults:
+      # Docker containers run as root; su works reliably root→root without
+      # PAM account management, whereas sudo may fail in minimal containers.
+      become_method: su
 verifier:
   name: ansible
