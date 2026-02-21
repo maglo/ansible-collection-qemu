@@ -7,6 +7,7 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0755"
+  become: true
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"

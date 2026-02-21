@@ -19,6 +19,7 @@
         owner: root
         group: root
         mode: '0644'
+      become: true
       loop: "{{ _vms_novnc_vms }}"
       loop_control:
         label: "{{ item.name }}"
@@ -29,6 +30,7 @@
         state: started
         enabled: true
         daemon_reload: true
+      become: true
       loop: "{{ _vms_novnc_vms }}"
       loop_control:
         label: "{{ item.name }}"

@@ -1,18 +1,19 @@
 ---
 # Create blank disk images for VMs WITHOUT disk_image_url
-- name: Create blank disk image for {{ item.name }}
+- name: Create blank disk image
   ansible.builtin.command:
     cmd: >-
       qemu-img create -f {{ item.disk_format | default(vms_default_disk_format) }}
       {{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}
       {{ item.disk_size | default(vms_default_disk_size) }}
     creates: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}"
+  become: true
   loop: "{{ _vms_active_vms | rejectattr('disk_image_url', 'defined') | list }}"
   loop_control:
     label: "{{ item.name }}"
 
 # Create overlay disk images for VMs WITH disk_image_url (using backing file)
-- name: Create overlay disk image with backing file for {{ item.name }}
+- name: Create overlay disk image with backing file
   ansible.builtin.command:
     cmd: >-
       qemu-img create -f {{ item.disk_format | default(vms_default_disk_format) }}
@@ -21,6 +22,7 @@
       {{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}
       {{ item.disk_size | default(vms_default_disk_size) }}
     creates: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}"
+  become: true
   loop: "{{ _vms_active_vms | selectattr('disk_image_url', 'defined') | list }}"
   loop_control:
     label: "{{ item.name }}"
@@ -32,6 +34,7 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0644"
+  become: true
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"

@@ -38,5 +38,8 @@
   ansible.builtin.import_tasks: usb_disk.yml
   when: _vms_active_vms | length > 0
 
+- name: Apply SELinux policy for QEMU VM service
+  ansible.builtin.import_tasks: selinux.yml
+
 - name: Generate VM config and manage service
   ansible.builtin.import_tasks: service.yml

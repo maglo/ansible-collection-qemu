@@ -13,6 +13,7 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0755"
+  become: true
   when: _vms_image_vms | length > 0
 
 # Download images (with checksum verification)
@@ -25,6 +26,7 @@
     group: "{{ vms_service_group }}"
     mode: "0644"
     force: false  # Don't re-download if file exists
+  become: true
   loop: "{{ _vms_image_vms }}"
   loop_control:
     label: "{{ item.name }} - {{ item.disk_image_url | basename }}"

@@ -63,6 +63,16 @@ lsmod | grep kvm
 
 If the command returns `0` or the module is missing, check your BIOS/UEFI settings and ensure Intel VT-x / AMD-V is enabled. Nested virtualization (VMs inside VMs) also requires this flag to be exposed to the guest.
 
+### Package repositories
+
+The `maglo.qemu.host` role installs packages (`swtpm`, `swtpm-tools`, `socat`, and optionally `novnc`) that are only available from **EPEL** (Extra Packages for Enterprise Linux). Ensure EPEL — or an equivalent mirror — is enabled on the target host before running the collection:
+
+```bash
+dnf install epel-release
+```
+
+> **Note:** The collection intentionally does not manage EPEL setup. Automatically enabling EPEL is unsuitable for airgapped or restricted environments. Enable EPEL yourself or point your hosts at a compatible mirror.
+
 ## Quick Start
 
 ### Set up the host and create VMs
@@ -183,7 +193,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `host_packages` | see defaults | Packages to install |
-| `host_libvirtd_enabled` | `true` | Enable and start libvirtd |
+| `host_libvirtd_enabled` | `false` | Enable and start libvirtd |
 | `host_vm_config_dir` | `/etc/qemu/vms` | VM config files directory |
 | `host_vm_image_dir` | `/var/lib/qemu/images` | VM disk images directory |
 | `host_service_user` | `qemu` | Service user |

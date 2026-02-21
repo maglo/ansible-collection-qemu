@@ -6,6 +6,7 @@
     owner: root
     group: root
     mode: "0644"
+  become: true
   notify:
     - Reload systemd
 
@@ -16,5 +17,6 @@
     owner: root
     group: root
     mode: "0644"
+  become: true
   notify:
     - Reload systemd

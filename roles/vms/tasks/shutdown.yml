@@ -8,6 +8,7 @@
 - name: Check if VM is running
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
+  become: true
   register: vms_vm_service_status
 
 - name: Send ACPI shutdown via QEMU monitor
@@ -16,6 +17,7 @@
       set -o pipefail
       echo "system_powerdown" | socat - UNIX-CONNECT:/var/lib/qemu/{{ item.name }}/monitor.sock
     executable: /bin/bash
+  become: true
   when:
     - vms_vm_service_status.status.ActiveState == 'active'
     - vms_vm_service_status.status.SubState == 'running'
@@ -36,6 +38,7 @@
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
     state: stopped
+  become: true
   when:
     - vms_vm_service_status.status.ActiveState == 'active'
     - (vms_graceful_shutdown_wait is failed or vms_acpi_shutdown is failed or vms_acpi_shutdown is skipped)
@@ -43,5 +46,6 @@
 - name: Verify VM is stopped
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
+  become: true
   register: vms_final_status
   failed_when: vms_final_status.status.ActiveState not in ['inactive', 'failed']
