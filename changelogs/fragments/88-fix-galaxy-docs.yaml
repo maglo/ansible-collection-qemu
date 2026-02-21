@@ -1,0 +1,10 @@
+---
+bugfixes:
+  - >-
+    collection - Include playbooks in the collection tarball so README links
+    resolve on Galaxy
+    (https://github.com/maglo/ansible-collection-qemu/issues/88).
+  - >-
+    collection - Add ``documentation``, ``homepage``, and ``issues`` URLs to
+    ``galaxy.yml`` metadata
+    (https://github.com/maglo/ansible-collection-qemu/issues/88).
