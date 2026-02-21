@@ -170,13 +170,21 @@ argument_specs:
         type: bool
         default: true
       vms_ovmf_code:
-        description: Path to the OVMF firmware code file (read-only, shared across VMs).
+        description: >-
+          Path to the OVMF firmware code file (read-only, shared across VMs).
+          Defaults to the correct path for the detected OS major version:
+          C(/usr/share/OVMF/OVMF_CODE.fd) on EL8,
+          C(/usr/share/edk2/ovmf/OVMF_CODE.fd) on EL9+.
+          Override this variable if your firmware is installed in a non-standard location.
         type: path
-        default: /usr/share/edk2/ovmf/OVMF_CODE.fd
       vms_ovmf_vars_template:
-        description: Path to the OVMF vars template file (copied per-VM for writable NVRAM).
+        description: >-
+          Path to the OVMF vars template file (copied per-VM for writable NVRAM).
+          Defaults to the correct path for the detected OS major version:
+          C(/usr/share/OVMF/OVMF_VARS.fd) on EL8,
+          C(/usr/share/edk2/ovmf/OVMF_VARS.fd) on EL9+.
+          Override this variable if your firmware is installed in a non-standard location.
         type: path
-        default: /usr/share/edk2/ovmf/OVMF_VARS.fd
       vms_default_tpm:
         description: Whether VMs default to TPM 2.0 emulation. Can be overridden per VM with C(tpm) key.
         type: bool

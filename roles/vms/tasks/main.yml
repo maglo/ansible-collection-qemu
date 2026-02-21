@@ -1,4 +1,13 @@
 ---
+# ── Ensure distribution facts are available ────────────────
+# The role needs ansible_distribution_major_version to select OS-specific
+# OVMF firmware paths. Gather minimum facts when called from a play with
+# gather_facts: false (e.g. molecule verify re-runs).
+- name: Gather distribution facts if not already collected
+  ansible.builtin.setup:
+    gather_subset: min
+  when: ansible_distribution_major_version is undefined
+
 # ── Filter VMs for creation (exclude those being destroyed) ──
 - name: Filter VMs for creation
   ansible.builtin.set_fact:
