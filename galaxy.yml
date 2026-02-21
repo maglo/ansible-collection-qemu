@@ -16,6 +16,9 @@ tags:
   - systemd
   - novnc
 repository: https://github.com/maglo/ansible-collection-qemu
+documentation: https://github.com/maglo/ansible-collection-qemu/blob/main/README.md
+homepage: https://github.com/maglo/ansible-collection-qemu
+issues: https://github.com/maglo/ansible-collection-qemu/issues
 dependencies: {}
 build_ignore:
   - .github
@@ -25,5 +28,4 @@ build_ignore:
   - Makefile
   - molecule
   - tests
-  - playbooks
   - "roles/*/molecule"
