@@ -8,6 +8,7 @@ The role installs QEMU/KVM packages, deploys systemd template units for managing
 
 - Ansible >= 2.15
 - Target hosts running Enterprise Linux 9 or 10
+- **EPEL** (or equivalent mirror) enabled on the target host — several packages installed by this role (`swtpm`, `swtpm-tools`, `socat`, and optionally `novnc`) are only available from EPEL. The collection intentionally does not manage EPEL setup to support airgapped deployments.
 
 ## Role Variables
 

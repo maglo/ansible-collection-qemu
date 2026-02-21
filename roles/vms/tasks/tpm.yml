@@ -19,6 +19,7 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0755"
+  become: true
   when: _vms_tpm_vms | length > 0
 
 - name: Create per-VM swtpm state directories
@@ -28,6 +29,7 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0755"
+  become: true
   loop: "{{ _vms_tpm_vms }}"
   loop_control:
     label: "{{ item.name }}"
@@ -37,6 +39,7 @@
     name: "swtpm@{{ item.name }}.service"
     state: started
     enabled: true
+  become: true
   loop: "{{ _vms_tpm_vms }}"
   loop_control:
     label: "{{ item.name }}"
@@ -48,6 +51,7 @@
     mode: '0755'
     owner: root
     group: root
+  become: true
   loop: "{{ _vms_tpm_vms }}"
   loop_control:
     label: "{{ item.name }}"
@@ -59,6 +63,7 @@
     mode: '0644'
     owner: root
     group: root
+  become: true
   loop: "{{ _vms_tpm_vms }}"
   notify: Reload systemd
   loop_control:
@@ -67,4 +72,5 @@
 - name: Reload systemd daemon
   ansible.builtin.systemd_service:
     daemon_reload: true
+  become: true
   when: _vms_tpm_vms | length > 0

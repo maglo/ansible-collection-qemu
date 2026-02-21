@@ -6,6 +6,7 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0755"
+  become: true
 
 - name: Write per-VM config
   ansible.builtin.template:
@@ -14,20 +15,34 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0644"
+  become: true
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Enable and start VM service
+- name: Manage VM service state
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
     state: "{{ item.state }}"
     enabled: true
     daemon_reload: true
+  become: true
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
   when: (item.state | default('present')) in ['started', 'stopped']
+
+- name: Verify VM service is running
+  ansible.builtin.command:
+    cmd: systemctl is-active "qemu-vm@{{ item.name }}.service"
+  register: _vms_service_check
+  changed_when: false
+  failed_when: _vms_service_check.rc != 0
+  become: true
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) == 'started'
 
 # ── Handle restart state ──────────────────────────────────
 - name: Restart VMs with state=restarted

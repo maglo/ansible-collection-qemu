@@ -1,0 +1,45 @@
+---
+# Install a minimal SELinux policy module to allow qemu-vm@.service to
+# execute /usr/libexec/qemu-kvm on EL9/EL10 with SELinux enforcing.
+# Skipped entirely when SELinux is Permissive or Disabled.
+
+- name: Check SELinux enforcement status
+  ansible.builtin.command: getenforce
+  register: _vms_selinux_status
+  changed_when: false
+  failed_when: false
+
+- name: Install SELinux policy utilities
+  ansible.builtin.dnf:
+    name:
+      - checkpolicy
+      - policycoreutils
+    state: present
+  become: true
+  when: _vms_selinux_status.stdout == 'Enforcing'
+
+- name: Copy qemu_vm SELinux policy source to remote
+  ansible.builtin.copy:
+    src: selinux/qemu_vm.te
+    dest: /tmp/qemu_vm.te
+    mode: "0644"
+  when: _vms_selinux_status.stdout == 'Enforcing'
+
+- name: Compile SELinux policy module
+  ansible.builtin.command:
+    cmd: checkmodule -M -m -o /tmp/qemu_vm.mod /tmp/qemu_vm.te
+  changed_when: true
+  when: _vms_selinux_status.stdout == 'Enforcing'
+
+- name: Package SELinux policy module
+  ansible.builtin.command:
+    cmd: semodule_package -o /tmp/qemu_vm.pp -m /tmp/qemu_vm.mod
+  changed_when: true
+  when: _vms_selinux_status.stdout == 'Enforcing'
+
+- name: Install SELinux policy module
+  ansible.builtin.command:
+    cmd: semodule -i /tmp/qemu_vm.pp
+  become: true
+  changed_when: true
+  when: _vms_selinux_status.stdout == 'Enforcing'

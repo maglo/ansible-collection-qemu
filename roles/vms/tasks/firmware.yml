@@ -3,6 +3,7 @@
   ansible.builtin.dnf:
     name: edk2-ovmf
     state: present
+  become: true
   when: _vms_active_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list | length > 0
         or (_vms_active_vms | rejectattr('uefi', 'defined') | list | length > 0 and vms_default_uefi)
 
@@ -15,6 +16,7 @@
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0644"
+  become: true
   loop: "{{ _vms_active_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list
             + (_vms_active_vms | rejectattr('uefi', 'defined') | list if vms_default_uefi else []) }}"
   loop_control:

@@ -9,7 +9,7 @@ host_packages:
   - socat
 
 # Whether to enable and start libvirtd
-host_libvirtd_enabled: true
+host_libvirtd_enabled: false
 
 # Directory containing QEMU VM configuration files (one per VM)
 host_vm_config_dir: /etc/qemu/vms

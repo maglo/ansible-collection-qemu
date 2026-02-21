@@ -4,6 +4,7 @@
   ansible.builtin.systemd_service:
     name: "novnc@{{ item.name }}.service"
     state: stopped
+  become: true
   when: item.novnc_enabled | default(vms_default_novnc_enabled)
   failed_when: false
 
@@ -14,6 +15,7 @@
   ansible.builtin.systemd_service:
     name: "swtpm@{{ item.name }}.service"
     state: stopped
+  become: true
   when: item.tpm | default(vms_default_tpm)
   failed_when: false
 
@@ -21,6 +23,7 @@
   ansible.builtin.systemd_service:
     name: "swtpm@{{ item.name }}.service"
     state: started
+  become: true
   when: item.tpm | default(vms_default_tpm)
 
 - name: Start VM service
@@ -28,9 +31,11 @@
     name: "qemu-vm@{{ item.name }}.service"
     state: started
     daemon_reload: true
+  become: true
 
 - name: Start noVNC service if enabled
   ansible.builtin.systemd_service:
     name: "novnc@{{ item.name }}.service"
     state: started
+  become: true
   when: item.novnc_enabled | default(vms_default_novnc_enabled)

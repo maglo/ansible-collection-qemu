@@ -3,12 +3,14 @@
   ansible.builtin.dnf:
     name: "{{ host_packages }}"
     state: present
+  become: true
 
-- name: Enable and start libvirtd
+- name: Manage state of libvirtd service
   ansible.builtin.systemd_service:
     name: libvirtd
     enabled: "{{ host_libvirtd_enabled }}"
     state: "{{ 'started' if host_libvirtd_enabled else 'stopped' }}"
+  become: true
 
 - name: Create VM config directory
   ansible.builtin.file:
@@ -17,6 +19,7 @@
     owner: "{{ host_service_user }}"
     group: "{{ host_service_group }}"
     mode: "0755"
+  become: true
 
 - name: Create VM image directory
   ansible.builtin.file:
@@ -25,3 +28,4 @@
     owner: "{{ host_service_user }}"
     group: "{{ host_service_group }}"
     mode: "0755"
+  become: true

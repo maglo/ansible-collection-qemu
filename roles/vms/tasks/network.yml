@@ -6,6 +6,7 @@
     owner: root
     group: root
     mode: "0644"
+  become: true
   when: >-
     _vms_active_vms | selectattr('net_mode', 'defined')
                           | selectattr('net_mode', 'equalto', 'bridge')

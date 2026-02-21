@@ -1,0 +1,13 @@
+---
+# OS-specific OVMF firmware paths, keyed by ansible_distribution_major_version.
+# EL8 ships edk2-ovmf under /usr/share/OVMF/; EL9+ uses /usr/share/edk2/ovmf/.
+_vms_ovmf_path_map:
+  "8":
+    code: /usr/share/OVMF/OVMF_CODE.fd
+    vars: /usr/share/OVMF/OVMF_VARS.fd
+  "9":
+    code: /usr/share/edk2/ovmf/OVMF_CODE.fd
+    vars: /usr/share/edk2/ovmf/OVMF_VARS.fd
+  "10":
+    code: /usr/share/edk2/ovmf/OVMF_CODE.fd
+    vars: /usr/share/edk2/ovmf/OVMF_VARS.fd

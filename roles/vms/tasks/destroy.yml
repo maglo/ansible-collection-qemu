@@ -14,6 +14,7 @@
     name: "novnc@{{ item.name }}.service"
     state: stopped
     enabled: false
+  become: true
   when: item.novnc_enabled | default(vms_default_novnc_enabled)
   failed_when: false
 
@@ -24,6 +25,7 @@
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
     enabled: false
+  become: true
   failed_when: false
 
 - name: Stop and disable swtpm service
@@ -31,6 +33,7 @@
     name: "swtpm@{{ item.name }}.service"
     state: stopped
     enabled: false
+  become: true
   when: item.tpm | default(vms_default_tpm)
   failed_when: false
 
@@ -38,40 +41,48 @@
   ansible.builtin.file:
     path: "{{ vms_vm_config_dir }}/{{ item.name }}.conf"
     state: absent
+  become: true
 
 - name: Remove noVNC config file
   ansible.builtin.file:
     path: "{{ vms_vm_config_dir }}/novnc-{{ item.name }}.conf"
     state: absent
+  become: true
   when: item.novnc_enabled | default(vms_default_novnc_enabled)
 
 - name: Remove disk image
   ansible.builtin.file:
     path: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}"
     state: absent
+  become: true
 
 - name: Remove UEFI NVRAM file
   ansible.builtin.file:
     path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd"
     state: absent
+  become: true
   when: item.uefi | default(vms_default_uefi)
 
 - name: Remove per-VM runtime directory
   ansible.builtin.file:
     path: /var/lib/qemu/{{ item.name }}
     state: absent
+  become: true
 
 - name: Remove swtpm state directory
   ansible.builtin.file:
     path: "{{ vms_swtpm_state_dir }}/{{ item.name }}"
     state: absent
+  become: true
   when: item.tpm | default(vms_default_tpm)
 
 - name: Remove systemd drop-in directory
   ansible.builtin.file:
     path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
     state: absent
+  become: true
 
 - name: Reload systemd daemon
   ansible.builtin.systemd_service:
     daemon_reload: true
+  become: true

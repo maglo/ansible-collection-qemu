@@ -1,0 +1,12 @@
+module qemu_vm 1.0;
+
+require {
+    type unconfined_service_t;
+    type qemu_exec_t;
+    class file { execute execute_no_trans getattr map open read };
+}
+
+#============= unconfined_service_t ==============
+# Allow systemd-managed qemu-vm@.service (running as qemu user under
+# unconfined_service_t) to execute /usr/libexec/qemu-kvm (qemu_exec_t).
+allow unconfined_service_t qemu_exec_t:file { execute execute_no_trans getattr map open read };

@@ -31,11 +31,15 @@ vms_service_group: qemu
 # Whether VMs default to UEFI boot (can be overridden per VM with `uefi` key)
 vms_default_uefi: true
 
-# Path to OVMF firmware code (read-only, shared across VMs)
-vms_ovmf_code: /usr/share/edk2/ovmf/OVMF_CODE.fd
+# Path to OVMF firmware code (read-only, shared across VMs).
+# Defaults to the correct path for the detected OS major version (see vars/main.yml).
+# Override this variable if your firmware is installed in a non-standard location.
+vms_ovmf_code: "{{ _vms_ovmf_path_map[ansible_distribution_major_version | string]['code'] }}"
 
-# Path to OVMF vars template (copied per-VM for writable NVRAM)
-vms_ovmf_vars_template: /usr/share/edk2/ovmf/OVMF_VARS.fd
+# Path to OVMF vars template (copied per-VM for writable NVRAM).
+# Defaults to the correct path for the detected OS major version (see vars/main.yml).
+# Override this variable if your firmware is installed in a non-standard location.
+vms_ovmf_vars_template: "{{ _vms_ovmf_path_map[ansible_distribution_major_version | string]['vars'] }}"
 
 # Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key)
 vms_default_tpm: false
