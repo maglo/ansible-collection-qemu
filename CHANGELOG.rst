@@ -4,6 +4,31 @@ maglo.qemu Release Notes
 
 .. contents:: Topics
 
+v0.2.0
+======
+
+Release Summary
+---------------
+
+Add UEFI Secure Boot support, fix Galaxy documentation, and remove the
+legacy libvirtd management from the host role.
+
+Minor Changes
+-------------
+
+- vms role - Add UEFI Secure Boot support via ``secure_boot`` per-VM key and ``vms_default_secure_boot`` global default. When enabled, the role uses OVMF Secure Boot firmware with pre-enrolled keys, adds ``smm=on`` to the QEMU machine line, and sets the ``cfi.pflash01`` secure property (https://github.com/maglo/ansible-collection-qemu/issues/90).
+
+Breaking Changes / Porting Guide
+--------------------------------
+
+- host - Remove ``host_libvirtd_enabled`` variable and ``libvirt`` from default packages. The collection's libvirt-free design means libvirtd was never needed for VM management. Users who need libvirt can add it to ``host_packages`` (closes #91).
+
+Bugfixes
+--------
+
+- collection - Add ``documentation``, ``homepage``, and ``issues`` URLs to ``galaxy.yml`` metadata (https://github.com/maglo/ansible-collection-qemu/issues/88).
+- collection - Include playbooks in the collection tarball so README links resolve on Galaxy (https://github.com/maglo/ansible-collection-qemu/issues/88).
+
 v0.1.1
 ======
 
