@@ -222,6 +222,68 @@
           - "'-device usb-storage,drive=usb0' in _content"
           - "'bootindex=1' not in _content"
 
+    # ── Secure Boot firmware ────────────────────────────────
+    - name: Stat OVMF_CODE.secboot.fd
+      ansible.builtin.stat:
+        path: /usr/share/edk2/ovmf/OVMF_CODE.secboot.fd
+      register: ovmf_code_secboot
+
+    - name: Assert OVMF_CODE.secboot.fd exists
+      ansible.builtin.assert:
+        that:
+          - ovmf_code_secboot.stat.exists
+
+    - name: Stat per-VM secboot NVRAM file
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-secboot_VARS.fd
+      register: secboot_nvram_file
+
+    - name: Assert secboot NVRAM file properties
+      ansible.builtin.assert:
+        that:
+          - secboot_nvram_file.stat.exists
+          - secboot_nvram_file.stat.pw_name == 'qemu'
+          - secboot_nvram_file.stat.gr_name == 'qemu'
+          - secboot_nvram_file.stat.mode == '0644'
+
+    - name: Stat secure boot marker file
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-secboot_VARS.fd.secboot
+      register: secboot_marker
+
+    - name: Assert secure boot marker exists
+      ansible.builtin.assert:
+        that:
+          - secboot_marker.stat.exists
+
+    - name: Verify no secure boot marker for standard UEFI VM
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm_VARS.fd.secboot
+      register: testvm_no_secboot_marker
+
+    - name: Assert standard UEFI VM has no secure boot marker
+      ansible.builtin.assert:
+        that:
+          - not testvm_no_secboot_marker.stat.exists
+
+    # ── VM config — testvm-secboot (Secure Boot + UEFI) ───
+    - name: Read testvm-secboot config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-secboot.conf
+      register: testvm_secboot_conf
+
+    - name: Assert testvm-secboot config has secure boot args
+      vars:
+        _content: "{{ testvm_secboot_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-name testvm-secboot' in _content"
+          - "'-machine q35,accel=kvm,smm=on' in _content"
+          - "'OVMF_CODE.secboot.fd' in _content"
+          - "'testvm-secboot_VARS.fd' in _content"
+          - "'-global driver=cfi.pflash01,property=secure,value=on' in _content"
+          - "'-vnc :' in _content"
+
     # ── bridge.conf ──────────────────────────────────────────
     - name: Stat bridge.conf
       ansible.builtin.stat:
@@ -256,6 +318,11 @@
       ansible.builtin.stat:
         path: /var/lib/qemu/images/testvm_VARS.fd
       register: nvram_before_rerun
+
+    - name: Record secboot NVRAM modification time
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-secboot_VARS.fd
+      register: secboot_nvram_before_rerun
 
     - name: Record swtpm state directory modification time
       ansible.builtin.stat:
@@ -304,6 +371,10 @@
             usb_disk_image: /tmp/test-usb-installer.iso
             usb_boot_priority: false
             state: present
+          - name: testvm-secboot
+            disk_size: 1G
+            secure_boot: true
+            state: present
 
     - name: Record image modification time after re-run
       ansible.builtin.stat:
@@ -314,6 +385,11 @@
       ansible.builtin.stat:
         path: /var/lib/qemu/images/testvm_VARS.fd
       register: nvram_after_rerun
+
+    - name: Record secboot NVRAM modification time after re-run
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-secboot_VARS.fd
+      register: secboot_nvram_after_rerun
 
     - name: Record swtpm state directory modification time after re-run
       ansible.builtin.stat:
@@ -339,6 +415,11 @@
       ansible.builtin.assert:
         that:
           - swtpm_before_rerun.stat.mtime == swtpm_after_rerun.stat.mtime
+
+    - name: Assert secboot NVRAM was not overwritten
+      ansible.builtin.assert:
+        that:
+          - secboot_nvram_before_rerun.stat.mtime == secboot_nvram_after_rerun.stat.mtime
 
     - name: Assert config was not rewritten
       ansible.builtin.assert:

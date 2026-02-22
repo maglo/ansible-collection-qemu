@@ -174,7 +174,30 @@ Verify UEFI boot is configured correctly (enabled by default, disable explicitly
    ls /var/lib/qemu/images/uefi-on_VARS.fd
    ls /var/lib/qemu/images/uefi-off_VARS.fd 2>&1 | grep "No such file"
 
-Test 5: TPM 2.0 emulation
+Test 5: UEFI Secure Boot
+--------------------------
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: secboot-vm
+       disk_size: 5G
+       secure_boot: true
+       state: present
+
+**Verify:**
+
+.. code-block:: bash
+
+   # Config contains SMM and secure pflash args
+   grep "smm=on" /etc/qemu/vms/secboot-vm.conf
+   grep "OVMF_CODE.secboot.fd" /etc/qemu/vms/secboot-vm.conf
+   grep "cfi.pflash01" /etc/qemu/vms/secboot-vm.conf
+
+   # Secure boot marker exists
+   ls /var/lib/qemu/images/secboot-vm_VARS.fd.secboot
+
+Test 6: TPM 2.0 emulation
 ---------------------------
 
 .. code-block:: yaml
@@ -204,7 +227,7 @@ Test 5: TPM 2.0 emulation
    # VM config contains TPM args
    grep chardev /etc/qemu/vms/tpm-vm.conf
 
-Test 6: Networking
+Test 7: Networking
 -------------------
 
 **User-mode (default):**
@@ -242,7 +265,7 @@ Test 6: Networking
    # VM config uses bridge netdev
    grep "netdev bridge" /etc/qemu/vms/bridge-vm.conf
 
-Test 7: noVNC web console
+Test 8: noVNC web console
 --------------------------
 
 .. code-block:: yaml
@@ -275,7 +298,7 @@ Test 7: noVNC web console
 
    # Connect browser to http://<host>:6080/vnc.html
 
-Test 8: URL-based disk image provisioning
+Test 9: URL-based disk image provisioning
 ------------------------------------------
 
 .. code-block:: yaml
@@ -300,8 +323,8 @@ Test 8: URL-based disk image provisioning
    ansible-playbook -i inventory.yml test_url.yml
    # Verify mtime of cache file is unchanged
 
-Test 9: USB disk attachment
-----------------------------
+Test 10: USB disk attachment
+-----------------------------
 
 .. code-block:: bash
 
@@ -324,7 +347,7 @@ Test 9: USB disk attachment
    grep "qemu-xhci" /etc/qemu/vms/usb-vm.conf
    grep "usb-storage,drive=usb0,bootindex=1" /etc/qemu/vms/usb-vm.conf
 
-Test 10: VM lifecycle
+Test 11: VM lifecycle
 ----------------------
 
 Run all lifecycle states on a test VM (requires KVM to be available for ``started``/``stopped``/``restarted``):

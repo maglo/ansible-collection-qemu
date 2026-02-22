@@ -63,6 +63,12 @@
   become: true
   when: item.uefi | default(vms_default_uefi)
 
+- name: Remove secure boot marker file
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
+    state: absent
+  when: item.uefi | default(vms_default_uefi)
+
 - name: Remove per-VM runtime directory
   ansible.builtin.file:
     path: /var/lib/qemu/{{ item.name }}

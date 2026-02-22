@@ -127,6 +127,7 @@ systemctl status qemu-vm@web01
 
 - UEFI boot with OVMF firmware, enabled by default
 - Per-VM writable NVRAM (`OVMF_VARS.fd`) copied automatically
+- **Secure Boot**: Enable per VM with `secure_boot: true` — uses `OVMF_CODE.secboot.fd` with pre-enrolled Microsoft/OVMF keys and SMM
 - Disable per VM with `uefi: false`
 
 ### TPM 2.0 emulation
@@ -208,6 +209,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vms_default_disk_size` | `20G` | Default disk size |
 | `vms_default_disk_format` | `qcow2` | Default disk format |
 | `vms_default_uefi` | `true` | UEFI boot by default |
+| `vms_default_secure_boot` | `false` | UEFI Secure Boot by default |
 | `vms_default_tpm` | `false` | TPM emulation by default |
 | `vms_default_net_mode` | `user` | Default networking mode |
 | `vms_default_memory` | `2G` | Default memory |
@@ -227,6 +229,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `disk_image_url` | no | — | URL to a QCOW2 image (creates overlay) |
 | `disk_image_checksum` | no | — | `sha256:...` checksum for URL image |
 | `uefi` | no | `vms_default_uefi` | UEFI boot |
+| `secure_boot` | no | `vms_default_secure_boot` | UEFI Secure Boot |
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |
 | `net_mode` | no | `vms_default_net_mode` | `user` or `bridge` |
 | `net_bridge` | no | `br0` | Bridge device (bridge mode) |

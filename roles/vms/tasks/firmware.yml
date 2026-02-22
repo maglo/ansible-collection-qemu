@@ -7,17 +7,75 @@
   when: _vms_active_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list | length > 0
         or (_vms_active_vms | rejectattr('uefi', 'defined') | list | length > 0 and vms_default_uefi)
 
+# Build the list of UEFI VMs with resolved secure_boot flag
+- name: Identify UEFI VMs
+  ansible.builtin.set_fact:
+    _vms_uefi_vms: >-
+      {{ _vms_active_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list
+         + (_vms_active_vms | rejectattr('uefi', 'defined') | list if vms_default_uefi else []) }}
+
+- name: Validate secure_boot requires UEFI
+  ansible.builtin.assert:
+    that:
+      - item.uefi | default(vms_default_uefi)
+    fail_msg: >-
+      VM '{{ item.name }}' has secure_boot enabled but uefi is disabled.
+      Secure Boot requires UEFI firmware. Set uefi: true or remove secure_boot: true.
+  loop: "{{ _vms_active_vms | selectattr('secure_boot', 'defined') | selectattr('secure_boot') | list
+            + (_vms_active_vms | rejectattr('secure_boot', 'defined') | list if vms_default_secure_boot else []) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Check secure boot marker files to detect state transitions
+- name: Check secure boot marker files
+  ansible.builtin.stat:
+    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
+  register: _vms_secboot_markers
+  loop: "{{ _vms_uefi_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Copy OVMF_VARS per-VM using the correct template based on secure_boot setting.
+# force=true when the secure boot state changed (marker doesn't match desired state).
 - name: Copy OVMF_VARS per-VM
   ansible.builtin.copy:
-    src: "{{ vms_ovmf_vars_template }}"
-    dest: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd"
+    src: "{{ _vars_template }}"
+    dest: "{{ vms_image_dir }}/{{ item.0.name }}_VARS.fd"
     remote_src: true
-    force: false
+    force: "{{ _state_changed }}"
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0644"
   become: true
-  loop: "{{ _vms_active_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list
-            + (_vms_active_vms | rejectattr('uefi', 'defined') | list if vms_default_uefi else []) }}"
+  vars:
+    _sb: "{{ item.0.secure_boot | default(vms_default_secure_boot) | bool }}"
+    _vars_template: "{{ vms_ovmf_vars_secboot_template if _sb else vms_ovmf_vars_template }}"
+    _marker_exists: "{{ item.1.stat.exists }}"
+    _state_changed: "{{ _sb != _marker_exists }}"
+  loop: "{{ _vms_uefi_vms | zip(_vms_secboot_markers.results) | list }}"
+  loop_control:
+    label: "{{ item.0.name }}"
+
+# Manage secure boot marker files to track state
+- name: Create secure boot marker
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
+    state: touch
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+  loop: "{{ _vms_uefi_vms | selectattr('secure_boot', 'defined') | selectattr('secure_boot') | list
+            + (_vms_uefi_vms | rejectattr('secure_boot', 'defined') | list if vms_default_secure_boot else []) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Remove secure boot marker for standard UEFI VMs
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
+    state: absent
+  loop: "{{ _vms_uefi_vms | selectattr('secure_boot', 'defined') | rejectattr('secure_boot') | list
+            + (_vms_uefi_vms | rejectattr('secure_boot', 'defined') | list if not vms_default_secure_boot else []) }}"
   loop_control:
     label: "{{ item.name }}"

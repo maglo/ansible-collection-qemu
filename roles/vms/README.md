@@ -29,6 +29,9 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `vms_default_uefi` | `true` | Whether VMs default to UEFI boot when not specified per VM |
 | `vms_ovmf_code` | `/usr/share/edk2/ovmf/OVMF_CODE.fd` | Path to OVMF firmware code file |
 | `vms_ovmf_vars_template` | `/usr/share/edk2/ovmf/OVMF_VARS.fd` | Path to OVMF vars template (copied per VM) |
+| `vms_default_secure_boot` | `false` | Whether VMs default to UEFI Secure Boot (per-VM override with `secure_boot` key) |
+| `vms_ovmf_code_secboot` | `/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd` | Path to OVMF Secure Boot firmware code file |
+| `vms_ovmf_vars_secboot_template` | `/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd` | Path to OVMF Secure Boot vars template (pre-enrolled keys) |
 | `vms_default_tpm` | `false` | Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key) |
 | `vms_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state |
 | `vms_default_net_mode` | `user` | Default networking mode (`user` or `bridge`) |
@@ -53,6 +56,7 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `disk_image_url` | no | — | URL to a qcow2 image to download and use as a backing file |
 | `disk_image_checksum` | no | — | SHA256 checksum for the downloaded image (format: `sha256:abc123...`) |
 | `uefi` | no | `vms_default_uefi` | Whether to enable UEFI boot for this VM |
+| `secure_boot` | no | `vms_default_secure_boot` | Enable UEFI Secure Boot (requires UEFI) |
 | `tpm` | no | `vms_default_tpm` | Enable TPM 2.0 emulation via swtpm |
 | `net_mode` | no | `vms_default_net_mode` | Networking mode: `user` or `bridge` |
 | `net_bridge` | no | `vms_default_net_bridge` | Bridge device (only used when `net_mode` is `bridge`) |
