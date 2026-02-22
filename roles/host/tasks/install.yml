@@ -5,13 +5,6 @@
     state: present
   become: true
 
-- name: Manage state of libvirtd service
-  ansible.builtin.systemd_service:
-    name: libvirtd
-    enabled: "{{ host_libvirtd_enabled }}"
-    state: "{{ 'started' if host_libvirtd_enabled else 'stopped' }}"
-  become: true
-
 - name: Create VM config directory
   ansible.builtin.file:
     path: "{{ host_vm_config_dir }}"

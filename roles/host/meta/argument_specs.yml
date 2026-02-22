@@ -13,13 +13,8 @@ argument_specs:
         default:
           - qemu-kvm
           - qemu-img
-          - libvirt
           - swtpm
           - swtpm-tools
-      host_libvirtd_enabled:
-        description: Whether to enable and start libvirtd.
-        type: bool
-        default: true
       host_vm_config_dir:
         description: Directory containing QEMU VM configuration files (one C(.conf) per VM).
         type: path

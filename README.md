@@ -193,7 +193,6 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `host_packages` | see defaults | Packages to install |
-| `host_libvirtd_enabled` | `false` | Enable and start libvirtd |
 | `host_vm_config_dir` | `/etc/qemu/vms` | VM config files directory |
 | `host_vm_image_dir` | `/var/lib/qemu/images` | VM disk images directory |
 | `host_service_user` | `qemu` | Service user |

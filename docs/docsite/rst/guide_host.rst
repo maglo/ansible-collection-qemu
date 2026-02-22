@@ -22,7 +22,7 @@ Installation
 Basic setup
 -----------
 
-The simplest playbook installs QEMU/KVM packages, enables ``libvirtd``, and deploys a systemd template unit for managing VMs:
+The simplest playbook installs QEMU/KVM packages and deploys a systemd template unit for managing VMs:
 
 .. code-block:: yaml
 
@@ -32,11 +32,10 @@ The simplest playbook installs QEMU/KVM packages, enables ``libvirtd``, and depl
 
 This will:
 
-1. Install ``qemu-kvm``, ``qemu-img``, ``libvirt``, ``swtpm``, and ``swtpm-tools``.
-2. Enable and start ``libvirtd``.
-3. Create the VM configuration directory (``/etc/qemu/vms``).
-4. Create the VM image directory (``/var/lib/qemu/images``).
-5. Deploy the ``qemu-vm@.service`` systemd template unit.
+1. Install ``qemu-kvm``, ``qemu-img``, ``swtpm``, ``swtpm-tools``, and ``socat``.
+2. Create the VM configuration directory (``/etc/qemu/vms``).
+3. Create the VM image directory (``/var/lib/qemu/images``).
+4. Deploy the ``qemu-vm@.service`` systemd template unit.
 
 Customising packages
 --------------------
@@ -52,7 +51,6 @@ Override ``host_packages`` to control which packages are installed:
            host_packages:
              - qemu-kvm
              - qemu-img
-             - libvirt
 
 Customising directories
 -----------------------
