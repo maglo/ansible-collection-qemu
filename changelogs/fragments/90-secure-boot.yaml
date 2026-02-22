@@ -1,8 +1,0 @@
-minor_changes:
-  - >-
-    vms role - Add UEFI Secure Boot support via ``secure_boot`` per-VM key
-    and ``vms_default_secure_boot`` global default.
-    When enabled, the role uses OVMF Secure Boot firmware with pre-enrolled
-    keys, adds ``smm=on`` to the QEMU machine line, and sets the
-    ``cfi.pflash01`` secure property
-    (https://github.com/maglo/ansible-collection-qemu/issues/90).
