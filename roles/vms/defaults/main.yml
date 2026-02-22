@@ -41,6 +41,15 @@ vms_ovmf_code: "{{ _vms_ovmf_path_map[(ansible_distribution_major_version | defa
 # Override this variable if your firmware is installed in a non-standard location.
 vms_ovmf_vars_template: "{{ _vms_ovmf_path_map[(ansible_distribution_major_version | default('9')) | string]['vars'] }}"
 
+# Whether VMs default to UEFI Secure Boot (per-VM override with `secure_boot` key)
+vms_default_secure_boot: false
+
+# Path to OVMF Secure Boot firmware code (read-only, shared across VMs)
+vms_ovmf_code_secboot: /usr/share/edk2/ovmf/OVMF_CODE.secboot.fd
+
+# Path to OVMF Secure Boot vars template (pre-enrolled Microsoft/OVMF keys, copied per-VM)
+vms_ovmf_vars_secboot_template: /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd
+
 # Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key)
 vms_default_tpm: false
 

@@ -16,6 +16,7 @@ argument_specs:
             C(disk_image_url) (URL to qcow2 image to use as backing file),
             C(disk_image_checksum) (SHA256 checksum for image verification),
             C(uefi) (overrides C(vms_default_uefi)),
+            C(secure_boot) (overrides C(vms_default_secure_boot)),
             C(tpm) (overrides C(vms_default_tpm)),
             C(net_mode) (overrides C(vms_default_net_mode)),
             C(net_bridge) (overrides C(vms_default_net_bridge)),
@@ -59,6 +60,12 @@ argument_specs:
             type: str
           uefi:
             description: Whether to enable UEFI boot for this VM. Overrides C(vms_default_uefi).
+            type: bool
+          secure_boot:
+            description: >-
+              Enable UEFI Secure Boot for this VM. Overrides C(vms_default_secure_boot).
+              Uses C(OVMF_CODE.secboot.fd) with pre-enrolled Microsoft/OVMF keys and enables
+              SMM (System Management Mode). Requires UEFI to be enabled.
             type: bool
           tpm:
             description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(vms_default_tpm).
@@ -185,6 +192,23 @@ argument_specs:
           C(/usr/share/edk2/ovmf/OVMF_VARS.fd) on EL9+.
           Override this variable if your firmware is installed in a non-standard location.
         type: path
+      vms_default_secure_boot:
+        description: >-
+          Whether VMs default to UEFI Secure Boot when not specified per-VM.
+          Uses Secure Boot firmware with pre-enrolled Microsoft/OVMF keys.
+        type: bool
+        default: false
+      vms_ovmf_code_secboot:
+        description: >-
+          Path to the OVMF Secure Boot firmware code file (read-only, shared across VMs).
+        type: path
+        default: /usr/share/edk2/ovmf/OVMF_CODE.secboot.fd
+      vms_ovmf_vars_secboot_template:
+        description: >-
+          Path to the OVMF Secure Boot vars template file with pre-enrolled keys
+          (copied per-VM for writable NVRAM).
+        type: path
+        default: /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd
       vms_default_tpm:
         description: Whether VMs default to TPM 2.0 emulation. Can be overridden per VM with C(tpm) key.
         type: bool

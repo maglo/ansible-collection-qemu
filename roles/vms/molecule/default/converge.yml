@@ -42,3 +42,7 @@
           usb_disk_image: /tmp/test-usb-installer.iso
           usb_boot_priority: false
           state: present
+        - name: testvm-secboot
+          disk_size: 1G
+          secure_boot: true
+          state: present

@@ -3,12 +3,17 @@
 {% set _memory = item.memory | default(vms_default_memory) %}
 {% set _cpus = item.cpus | default(vms_default_cpus) %}
 {% set _uefi = item.uefi | default(vms_default_uefi) %}
+{% set _secure_boot = item.secure_boot | default(vms_default_secure_boot) %}
 {% set _tpm = item.tpm | default(vms_default_tpm) %}
 {% set _net_mode = item.net_mode | default(vms_default_net_mode) %}
 {% set _mac = item.mac_address | default('52:54:00:' ~ (item.name | hash('md5'))[0:2] ~ ':' ~ (item.name | hash('md5'))[2:4] ~ ':' ~ (item.name | hash('md5'))[4:6]) %}
 {% set _args = [] %}
 {% set _ = _args.append('-name ' ~ item.name) %}
+{% if _secure_boot %}
+{% set _ = _args.append('-machine q35,accel=kvm,smm=on') %}
+{% else %}
 {% set _ = _args.append('-machine q35,accel=kvm') %}
+{% endif %}
 {% set _ = _args.append('-m ' ~ _memory) %}
 {% set _ = _args.append('-smp ' ~ _cpus) %}
 {% set _ = _args.append('-nographic') %}
@@ -34,8 +39,14 @@
 {% endif %}
 {% endif %}
 {% if _uefi %}
+{% if _secure_boot %}
+{% set _ = _args.append('-drive if=pflash,format=raw,readonly=on,file=' ~ vms_ovmf_code_secboot) %}
+{% set _ = _args.append('-drive if=pflash,format=raw,file=' ~ vms_image_dir ~ '/' ~ item.name ~ '_VARS.fd') %}
+{% set _ = _args.append('-global driver=cfi.pflash01,property=secure,value=on') %}
+{% else %}
 {% set _ = _args.append('-drive if=pflash,format=raw,readonly=on,file=' ~ vms_ovmf_code) %}
 {% set _ = _args.append('-drive if=pflash,format=raw,file=' ~ vms_image_dir ~ '/' ~ item.name ~ '_VARS.fd') %}
+{% endif %}
 {% endif %}
 {% if _tpm %}
 {% set _ = _args.append('-chardev socket,id=chrtpm,path=' ~ vms_swtpm_state_dir ~ '/' ~ item.name ~ '/swtpm.sock') %}
