@@ -1,0 +1,6 @@
+---
+breaking_changes:
+  - "host - Remove ``host_libvirtd_enabled`` variable and ``libvirt`` from default
+    packages. The collection's libvirt-free design means libvirtd was never needed
+    for VM management. Users who need libvirt can add it to ``host_packages``
+    (closes #91)."

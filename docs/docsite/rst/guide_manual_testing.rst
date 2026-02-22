@@ -80,7 +80,7 @@ Verify that the ``host`` role installs packages and deploys systemd template uni
 .. code-block:: bash
 
    # Packages installed
-   rpm -q qemu-kvm qemu-img libvirt swtpm swtpm-tools socat
+   rpm -q qemu-kvm qemu-img swtpm swtpm-tools socat
 
    # Systemd units deployed
    systemctl cat qemu-vm@.service
@@ -88,9 +88,6 @@ Verify that the ``host`` role installs packages and deploys systemd template uni
 
    # Directories created
    ls -la /etc/qemu/vms /var/lib/qemu/images
-
-   # libvirtd running
-   systemctl status libvirtd
 
 Test 2: Host role — noVNC
 --------------------------

@@ -1,9 +1,6 @@
 ---
 - name: Converge - Lifecycle operations
   hosts: all
-  vars:
-    # Use qcow2 format for Docker testing (KVM not available)
-    host_libvirtd_enabled: false
   tasks:
     # Include host role first
     - name: Include host role

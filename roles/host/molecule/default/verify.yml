@@ -14,7 +14,6 @@
       loop:
         - qemu-kvm
         - qemu-img
-        - libvirt
         - swtpm
         - swtpm-tools
 
@@ -123,15 +122,6 @@
           - "'Before=qemu-vm@%i.service' in content"
           - "'/usr/bin/swtpm socket' in content"
           - "'/var/lib/swtpm/%i' in content"
-
-    # ── libvirtd is disabled ──────────────────────────────────
-    - name: Check libvirtd is not enabled
-      ansible.builtin.systemd_service:
-        name: libvirtd
-        enabled: false
-      check_mode: true
-      register: libvirtd_check
-      failed_when: libvirtd_check.changed
 
     # ── noVNC should not exist (negative test) ────────────────
     - name: Stat noVNC directory

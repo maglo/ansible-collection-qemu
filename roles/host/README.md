@@ -14,8 +14,7 @@ The role installs QEMU/KVM packages, deploys systemd template units for managing
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `host_packages` | `[qemu-kvm, qemu-img, libvirt, swtpm, swtpm-tools, socat]` | Packages to install for QEMU/KVM host |
-| `host_libvirtd_enabled` | `true` | Whether to enable and start libvirtd |
+| `host_packages` | `[qemu-kvm, qemu-img, swtpm, swtpm-tools, socat]` | Packages to install for QEMU/KVM host |
 | `host_vm_config_dir` | `/etc/qemu/vms` | Directory containing VM configuration files (one `.conf` per VM) |
 | `host_vm_image_dir` | `/var/lib/qemu/images` | Directory containing VM disk images |
 | `host_service_user` | `qemu` | User for the QEMU systemd service |

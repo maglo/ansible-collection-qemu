@@ -3,13 +3,9 @@
 host_packages:
   - qemu-kvm
   - qemu-img
-  - libvirt
   - swtpm
   - swtpm-tools
   - socat
-
-# Whether to enable and start libvirtd
-host_libvirtd_enabled: false
 
 # Directory containing QEMU VM configuration files (one per VM)
 host_vm_config_dir: /etc/qemu/vms

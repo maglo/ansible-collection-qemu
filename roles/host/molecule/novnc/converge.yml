@@ -3,5 +3,4 @@
   hosts: all
   roles:
     - role: host
-      host_libvirtd_enabled: false
       host_novnc_enabled: true
