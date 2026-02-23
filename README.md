@@ -23,8 +23,8 @@ If you need an Ansible-driven, version-controlled alternative to manually runnin
 
 | Role | Description |
 |------|-------------|
-| [`maglo.qemu.host`](roles/host/README.md) | Install QEMU/KVM packages, deploy systemd template units for VMs, and optionally set up noVNC |
-| [`maglo.qemu.vms`](roles/vms/README.md) | Create and manage QEMU/KVM virtual machines — disk images, UEFI, TPM, networking, noVNC, USB, and lifecycle |
+| [`maglo.qemu.host`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/host/README.md) | Install QEMU/KVM packages, deploy systemd template units for VMs, and optionally set up noVNC |
+| [`maglo.qemu.vms`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/vms/README.md) | Create and manage QEMU/KVM virtual machines — disk images, UEFI, TPM, networking, noVNC, USB, and lifecycle |
 
 ## Supported Platforms
 
@@ -247,17 +247,17 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 
 ## Example Playbooks
 
-See the [example playbooks](playbooks/) directory for ready-to-use examples:
+See the [example playbooks](https://github.com/maglo/ansible-collection-qemu/tree/main/playbooks/) directory for ready-to-use examples:
 
 | Playbook | Description |
 |----------|-------------|
-| [`basic_host.yml`](playbooks/basic_host.yml) | Minimal host setup |
-| [`vms.yml`](playbooks/vms.yml) | Host setup + basic VM creation |
-| [`vms_with_novnc.yml`](playbooks/vms_with_novnc.yml) | Host + VMs with noVNC enabled |
+| [`basic_host.yml`](https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/basic_host.yml) | Minimal host setup |
+| [`vms.yml`](https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/vms.yml) | Host setup + basic VM creation |
+| [`vms_with_novnc.yml`](https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/vms_with_novnc.yml) | Host + VMs with noVNC enabled |
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and workflow guidelines.
+Contributions are welcome! See [CONTRIBUTING.md](https://github.com/maglo/ansible-collection-qemu/blob/main/CONTRIBUTING.md) for development setup, testing, and workflow guidelines.
 
 ## License
 
