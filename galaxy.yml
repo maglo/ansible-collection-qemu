@@ -29,3 +29,4 @@ build_ignore:
   - molecule
   - tests
   - "roles/*/molecule"
+  - playbooks

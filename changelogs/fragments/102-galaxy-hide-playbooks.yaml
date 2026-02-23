@@ -1,0 +1,3 @@
+---
+trivial:
+  - "Exclude ``playbooks/`` from the Galaxy tarball until playbook documentation is complete (closes #102)."
