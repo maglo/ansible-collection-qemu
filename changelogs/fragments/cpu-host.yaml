@@ -1,0 +1,5 @@
+---
+bugfixes:
+  - "vms - Add ``-cpu host`` flag to QEMU args so guests expose the host CPU
+    feature set; without it QEMU defaults to ``qemu64``, causing a fatal glibc
+    error on EL9 (closes #106)."
