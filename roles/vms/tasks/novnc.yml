@@ -12,6 +12,37 @@
 - name: Configure noVNC for VMs
   when: _vms_novnc_vms | length > 0
   block:
+    - name: Verify noVNC systemd template exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/novnc@.service
+      register: _vms_novnc_template
+      failed_when: not _vms_novnc_template.stat.exists
+
+    - name: Create systemd drop-in directory for noVNC-dependent VMs
+      ansible.builtin.file:
+        path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      become: true
+      loop: "{{ _vms_novnc_vms }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Deploy noVNC dependency override for noVNC-enabled VMs
+      ansible.builtin.template:
+        src: qemu-vm-novnc-dependency.conf.j2
+        dest: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/novnc-dependency.conf"
+        mode: '0644'
+        owner: root
+        group: root
+      become: true
+      loop: "{{ _vms_novnc_vms }}"
+      notify: Reload systemd
+      loop_control:
+        label: "{{ item.name }}"
+
     - name: Deploy per-VM noVNC environment files
       ansible.builtin.template:
         src: novnc-env.conf.j2
