@@ -1,0 +1,4 @@
+---
+bugfixes:
+  - "host, vms - Add ``become: true`` to ``Reload systemd`` handlers so ``daemon_reload`` reaches the system
+    D-Bus socket and does not time out when the play runs without top-level ``become`` (closes #104)."
