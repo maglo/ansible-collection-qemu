@@ -1,0 +1,4 @@
+---
+bugfixes:
+  - "vms - Fail early when ``novnc_enabled`` is set but the ``novnc@.service`` template is absent, and add a
+    systemd drop-in so the VM unit depends on its noVNC service (closes #100)."
