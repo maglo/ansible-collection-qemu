@@ -1,0 +1,5 @@
+---
+bugfixes:
+  - "vms - Create per-VM runtime directory for the monitor socket when ``state: present``, not only for
+    started/stopped/restarted, so ``systemctl start qemu-vm@<name>`` works without a second playbook run
+    (closes #105)."

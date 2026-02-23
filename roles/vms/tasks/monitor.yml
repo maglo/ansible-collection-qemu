@@ -11,4 +11,4 @@
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
-  when: (item.state | default('present')) in ['started', 'stopped', 'restarted']
+  when: (item.state | default('present')) != 'absent'
