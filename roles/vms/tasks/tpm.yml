@@ -44,7 +44,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Create systemd drop-in directory for qemu-vm@{{ item.name }}
+- name: Create systemd drop-in directory for TPM-enabled VMs
   ansible.builtin.file:
     path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
     state: directory
