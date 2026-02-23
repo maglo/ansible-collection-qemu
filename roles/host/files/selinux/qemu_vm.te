@@ -1,0 +1,14 @@
+module qemu_vm 1.1;
+
+require {
+    type init_t;
+    type qemu_exec_t;
+    type swtpm_exec_t;
+    class file { execute execute_no_trans getattr map open read };
+}
+
+#============= init_t ==============
+# Allow systemd-managed qemu-vm@.service (running as init_t on EL9) to
+# execute /usr/libexec/qemu-kvm (qemu_exec_t) and /usr/bin/swtpm (swtpm_exec_t).
+allow init_t qemu_exec_t:file { execute execute_no_trans getattr map open read };
+allow init_t swtpm_exec_t:file { execute execute_no_trans getattr map open read };
