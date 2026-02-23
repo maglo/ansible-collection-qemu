@@ -1,0 +1,5 @@
+---
+bugfixes:
+  - "host - Move SELinux policy installation from ``vms`` role to ``host`` role where it architecturally belongs (closes #98)."
+  - "host - Fix SELinux policy to target ``init_t`` instead of ``unconfined_service_t`` and add ``swtpm_exec_t``
+    execute rule, resolving VMs failing to start with SELinux enforcing on EL9 (closes #99)."
