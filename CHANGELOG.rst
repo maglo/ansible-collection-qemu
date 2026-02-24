@@ -4,6 +4,21 @@ maglo.qemu Release Notes
 
 .. contents:: Topics
 
+v0.2.1
+======
+
+Bugfixes
+--------
+
+- Replace relative README links with absolute GitHub URLs so they resolve correctly on Ansible Galaxy (closes #101).
+- host - Fix SELinux policy to target ``init_t`` instead of ``unconfined_service_t`` and add ``swtpm_exec_t`` execute rule, resolving VMs failing to start with SELinux enforcing on EL9 (closes #99).
+- host - Move SELinux policy installation from ``vms`` role to ``host`` role where it architecturally belongs (closes #98).
+- host, vms - Add ``become: true`` to ``Reload systemd`` handlers so ``daemon_reload`` reaches the system D-Bus socket and does not time out when the play runs without top-level ``become`` (closes #104).
+- vms - Add ``-cpu host`` flag to QEMU args so guests expose the host CPU feature set; without it QEMU defaults to ``qemu64``, causing a fatal glibc error on EL9 (closes #106).
+- vms - Create per-VM runtime directory for the monitor socket when ``state: present``, not only for started/stopped/restarted, so ``systemctl start qemu-vm@<name>`` works without a second playbook run (closes #105).
+- vms - Fail early when ``novnc_enabled`` is set but the ``novnc@.service`` template is absent, and add a systemd drop-in so the VM unit depends on its noVNC service (closes #100).
+- vms - Replace Jinja2 loop variable in TPM drop-in task ``name:`` field with a static string to avoid literal ``{{ item.name }}`` appearing in loop output (closes #103).
+
 v0.2.0
 ======
 
