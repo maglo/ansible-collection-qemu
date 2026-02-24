@@ -46,3 +46,20 @@
           disk_size: 1G
           secure_boot: true
           state: present
+        - name: testvm-cloud-init
+          disk_size: 1G
+          uefi: false
+          cloud_init_user_data: |
+            #cloud-config
+            hostname: testvm-cloud-init
+          cloud_init_network_config: |
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: true
+          state: present
+        - name: testvm-cloud-init-minimal
+          disk_size: 1G
+          uefi: false
+          cloud_init_user_data: "#cloud-config\n"
+          state: present

@@ -74,6 +74,12 @@ cd roles/host
 molecule test -s novnc
 ```
 
+### Manual testing
+
+For end-to-end testing on real KVM hardware — required for VM lifecycle tests
+(`started`, `restarted`, `absent`) and cloud-init seed ISO tests that cannot run in
+containers — follow the [Manual Testing Guide](docs/docsite/rst/guide_manual_testing.rst).
+
 ## Git Workflow
 
 - **Never commit directly to `main`.** Always create a feature branch and open a PR.

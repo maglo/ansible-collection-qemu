@@ -56,6 +56,18 @@
     state: absent
   become: true
 
+- name: Remove cloud-init seed ISO
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
+    state: absent
+  become: true
+
+- name: Remove cloud-init staging directory
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
+    state: absent
+  become: true
+
 - name: Remove UEFI NVRAM file
   ansible.builtin.file:
     path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd"

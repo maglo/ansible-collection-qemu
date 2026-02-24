@@ -15,6 +15,8 @@ argument_specs:
           - qemu-img
           - swtpm
           - swtpm-tools
+          - socat
+          - genisoimage
       host_vm_config_dir:
         description: Directory containing QEMU VM configuration files (one C(.conf) per VM).
         type: path

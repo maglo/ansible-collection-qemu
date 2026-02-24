@@ -284,6 +284,62 @@
           - "'-global driver=cfi.pflash01,property=secure,value=on' in _content"
           - "'-vnc :' in _content"
 
+    # ── cloud-init seed ISO ───────────────────────────────────
+    - name: Stat cloud-init seed ISO
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-cloud-init-seed.iso
+      register: cloud_init_iso
+
+    - name: Assert cloud-init seed ISO properties
+      ansible.builtin.assert:
+        that:
+          - cloud_init_iso.stat.exists
+          - cloud_init_iso.stat.isreg
+          - cloud_init_iso.stat.pw_name == 'qemu'
+          - cloud_init_iso.stat.gr_name == 'qemu'
+          - cloud_init_iso.stat.mode == '0644'
+
+    - name: Stat minimal cloud-init seed ISO
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-cloud-init-minimal-seed.iso
+      register: cloud_init_minimal_iso
+
+    - name: Assert minimal cloud-init seed ISO exists
+      ansible.builtin.assert:
+        that:
+          - cloud_init_minimal_iso.stat.exists
+          - cloud_init_minimal_iso.stat.isreg
+
+    - name: Verify no seed ISO for VM without cloud-init config
+      ansible.builtin.stat:
+        path: /var/lib/qemu/images/testvm-seed.iso
+      register: no_cloud_init_iso
+
+    - name: Assert non-cloud-init VM has no seed ISO
+      ansible.builtin.assert:
+        that:
+          - not no_cloud_init_iso.stat.exists
+
+    # ── VM config — cloud-init (virtio CD-ROM drive argument) ──
+    - name: Read testvm-cloud-init config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-cloud-init.conf
+      register: testvm_cloud_init_conf
+
+    - name: Assert testvm-cloud-init config has seed ISO drive
+      vars:
+        _content: "{{ testvm_cloud_init_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-drive if=virtio,format=raw,file=/var/lib/qemu/images/testvm-cloud-init-seed.iso,media=cdrom,readonly=on' in _content"
+
+    - name: Assert testvm config has no seed ISO drive
+      vars:
+        _content: "{{ testvm_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'media=cdrom' not in _content"
+
     # ── bridge.conf ──────────────────────────────────────────
     - name: Stat bridge.conf
       ansible.builtin.stat:
@@ -374,6 +430,23 @@
           - name: testvm-secboot
             disk_size: 1G
             secure_boot: true
+            state: present
+          - name: testvm-cloud-init
+            disk_size: 1G
+            uefi: false
+            cloud_init_user_data: |
+              #cloud-config
+              hostname: testvm-cloud-init
+            cloud_init_network_config: |
+              version: 2
+              ethernets:
+                eth0:
+                  dhcp4: true
+            state: present
+          - name: testvm-cloud-init-minimal
+            disk_size: 1G
+            uefi: false
+            cloud_init_user_data: "#cloud-config\n"
             state: present
 
     - name: Record image modification time after re-run

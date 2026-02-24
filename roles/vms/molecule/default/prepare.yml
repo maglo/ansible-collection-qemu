@@ -2,9 +2,11 @@
 - name: Prepare
   hosts: all
   tasks:
-    - name: Install iproute
+    - name: Install iproute and genisoimage
       ansible.builtin.dnf:
-        name: iproute
+        name:
+          - iproute
+          - genisoimage
         state: present
 
     - name: Create dummy bridge for testing

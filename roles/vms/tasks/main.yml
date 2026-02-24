@@ -47,5 +47,9 @@
   ansible.builtin.import_tasks: usb_disk.yml
   when: _vms_active_vms | length > 0
 
+- name: Generate cloud-init seed ISOs
+  ansible.builtin.import_tasks: cloud_init.yml
+  when: _vms_active_vms | length > 0
+
 - name: Generate VM config and manage service
   ansible.builtin.import_tasks: service.yml

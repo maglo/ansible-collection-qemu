@@ -22,6 +22,9 @@
 {% set _ = _args.append('-vnc :' ~ _vnc) %}
 {% set _ = _args.append('-monitor unix:/var/lib/qemu/' ~ item.name ~ '/monitor.sock,server,nowait') %}
 {% set _ = _args.append('-drive if=virtio,format=' ~ _fmt ~ ',file=' ~ vms_image_dir ~ '/' ~ item.name ~ '.' ~ _fmt) %}
+{% if item.cloud_init_user_data is defined or item.cloud_init_meta_data is defined or item.cloud_init_network_config is defined %}
+{% set _ = _args.append('-drive if=virtio,format=raw,file=' ~ vms_image_dir ~ '/' ~ item.name ~ '-seed.iso,media=cdrom,readonly=on') %}
+{% endif %}
 {% if item.usb_disk_image is defined and item.usb_disk_image %}
 {% set _usb_image = item.usb_disk_image %}
 {% set _usb_image_lower = _usb_image | lower %}

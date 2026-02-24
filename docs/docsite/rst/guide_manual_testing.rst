@@ -80,7 +80,7 @@ Verify that the ``host`` role installs packages and deploys systemd template uni
 .. code-block:: bash
 
    # Packages installed
-   rpm -q qemu-kvm qemu-img swtpm swtpm-tools socat
+   rpm -q qemu-kvm qemu-img swtpm swtpm-tools socat genisoimage
 
    # Systemd units deployed
    systemctl cat qemu-vm@.service
@@ -406,6 +406,82 @@ Change state to ``restarted`` and re-run. Monitor system journal for graceful sh
        # force_destroy NOT set
 
 Verify this **fails** with a clear error message.
+
+Test 12: Cloud-init seed ISO
+-----------------------------
+
+Verify that cloud-init configuration is written to a seed ISO and attached to the VM,
+and that re-running the playbook with unchanged variables produces no changes.
+
+**Playbook** (``test_cloud_init.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: cloud-init-vm
+               disk_size: 5G
+               state: present
+               cloud_init_user_data: |
+                 #cloud-config
+                 hostname: cloud-init-vm
+                 users:
+                   - name: ansible
+                     sudo: ALL=(ALL) NOPASSWD:ALL
+                     ssh_authorized_keys:
+                       - ssh-ed25519 AAAA... your-key-here
+
+**Run:**
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_cloud_init.yml
+
+**Verify:**
+
+.. code-block:: bash
+
+   # Staging directory and source files written
+   ls -la /var/lib/qemu/images/.cloud-init-staging/cloud-init-vm/
+   cat /var/lib/qemu/images/.cloud-init-staging/cloud-init-vm/meta-data
+   cat /var/lib/qemu/images/.cloud-init-staging/cloud-init-vm/user-data
+
+   # Seed ISO created with CIDATA volume label
+   ls -lh /var/lib/qemu/images/cloud-init-vm-seed.iso
+   isoinfo -d -i /var/lib/qemu/images/cloud-init-vm-seed.iso | grep "Volume id"
+   # Expected: Volume id: CIDATA
+
+   # VM config references the seed ISO
+   grep "seed.iso" /etc/qemu/vms/cloud-init-vm.conf
+
+**Idempotency:**
+
+.. code-block:: bash
+
+   # Re-run with identical variables — must report zero changed tasks
+   ansible-playbook -i inventory.yml test_cloud_init.yml
+
+**Cleanup (state: absent removes ISO and staging directory):**
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: cloud-init-vm
+       state: absent
+       force_destroy: true
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_cloud_init.yml
+
+   # Both the ISO and staging dir must be gone
+   ls /var/lib/qemu/images/cloud-init-vm-seed.iso 2>&1 | grep "No such file"
+   ls /var/lib/qemu/images/.cloud-init-staging/cloud-init-vm 2>&1 | grep "No such file"
 
 Known RC limitations
 ---------------------

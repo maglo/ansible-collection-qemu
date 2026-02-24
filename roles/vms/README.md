@@ -66,6 +66,9 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `vnc` | no | hash-based | VNC display number (port = 5900+N) |
 | `usb_disk_image` | no | — | Path to USB disk image to attach (`.iso`, `.raw`, `.img`, `.qcow2`) |
 | `usb_boot_priority` | no | `true` when `usb_disk_image` is set | Boot from USB first |
+| `cloud_init_user_data` | no | — | cloud-init `user-data` content; triggers seed ISO generation |
+| `cloud_init_meta_data` | no | auto-generated | cloud-init `meta-data` content; auto-generated from VM name if omitted |
+| `cloud_init_network_config` | no | — | cloud-init `network-config` content; omitted from ISO if not set |
 | `novnc_enabled` | no | `vms_default_novnc_enabled` | Enable noVNC web console for this VM |
 | `novnc_port` | no | `6080 + vnc` | Port for noVNC web console (auto-assigned if not specified) |
 | `state` | no | `present` | Desired service state: `started`, `stopped`, `present`, `restarted`, or `absent` |
@@ -99,6 +102,7 @@ vms_list:
 
 When destroyed, the following artifacts are removed:
 - Disk image (`/var/lib/qemu/images/{name}.{qcow2|raw}`)
+- cloud-init seed ISO (`/var/lib/qemu/images/{name}-seed.iso`) if present
 - UEFI NVRAM file (`/var/lib/qemu/images/{name}_VARS.fd`)
 - Config files (`/etc/qemu/vms/{name}.conf`, `/etc/qemu/vms/novnc-{name}.conf`)
 - Runtime directory (`/var/lib/qemu/{name}/`)
@@ -165,6 +169,59 @@ vms_list:
     usb_boot_priority: true
     state: started
 ```
+
+## Cloud-Init / Configuration Drive
+
+The role can automatically generate a NoCloud seed ISO and attach it to a VM as a virtio CD-ROM. This lets cloud-init (Linux) or cloudbase-init (Windows) pick up first-boot configuration without any manual ISO preparation.
+
+### Prerequisites
+
+- **Host**: `genisoimage` or `xorriso` must be installed on the Ansible target host (the role detects whichever is available).
+- **Guest**: `cloud-init` or `cloudbase-init` must be installed inside the VM image. Cloud images from major distributions (AlmaLinux, Rocky Linux, Ubuntu, Debian) ship with `cloud-init` pre-installed.
+
+### Usage
+
+Set any combination of `cloud_init_user_data`, `cloud_init_meta_data`, or `cloud_init_network_config` on a VM entry. As soon as any of these keys is present, the role:
+
+1. Writes the content files to a temporary staging directory.
+2. Generates a seed ISO (`/var/lib/qemu/images/<name>-seed.iso`) with volume label `CIDATA`.
+3. Attaches the ISO to QEMU as a read-only virtio CD-ROM drive.
+
+`meta-data` is auto-generated from the VM name if `cloud_init_meta_data` is not provided:
+
+```yaml
+instance-id: <name>
+local-hostname: <name>
+```
+
+Example:
+
+```yaml
+vms_list:
+  - name: web01
+    disk_image_url: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+    cloud_init_user_data: |
+      #cloud-config
+      packages:
+        - nginx
+      runcmd:
+        - systemctl enable --now nginx
+    cloud_init_network_config: |
+      version: 2
+      ethernets:
+        eth0:
+          dhcp4: true
+    state: started
+```
+
+The seed ISO is placed alongside the disk image:
+```
+/var/lib/qemu/images/
+├── web01.qcow2          (overlay disk)
+└── web01-seed.iso       (cloud-init seed ISO, auto-generated)
+```
+
+When the VM is destroyed with `state: absent`, the seed ISO is removed along with all other VM artifacts.
 
 ## noVNC Web Console
 

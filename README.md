@@ -175,6 +175,13 @@ systemctl status qemu-vm@web01
 - USB 3.0 XHCI controller emulated
 - Boot from USB first with `usb_boot_priority: true`
 
+### Cloud-init / configuration drive
+
+- Auto-generate a NoCloud seed ISO from inline per-VM content (`cloud_init_user_data`, `cloud_init_meta_data`, `cloud_init_network_config`)
+- ISO is placed automatically at `vms_image_dir/<name>-seed.iso` and attached as a virtio CD-ROM
+- `meta-data` is auto-generated from the VM name when `cloud_init_meta_data` is omitted
+- Requires `genisoimage` or `xorriso` on the host; guest image must have `cloud-init` installed
+
 ### VM lifecycle management
 
 | State | Behaviour |
@@ -239,6 +246,9 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vnc` | no | hash-based | VNC display number |
 | `usb_disk_image` | no | — | Path to USB image to attach |
 | `usb_boot_priority` | no | `true` | Boot USB first |
+| `cloud_init_user_data` | no | — | cloud-init `user-data` content; triggers seed ISO generation |
+| `cloud_init_meta_data` | no | auto-generated | cloud-init `meta-data` content |
+| `cloud_init_network_config` | no | — | cloud-init `network-config` content |
 | `novnc_enabled` | no | `false` | Enable noVNC web console |
 | `novnc_port` | no | `6080 + vnc` | noVNC port |
 | `state` | no | `present` | Service state |

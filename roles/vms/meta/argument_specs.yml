@@ -26,6 +26,9 @@ argument_specs:
             C(vnc) (VNC display number, auto-generated from VM name if not specified),
             C(usb_disk_image) (path to USB disk image: iso/raw/img/qcow2),
             C(usb_boot_priority) (boot from attached USB first; defaults to true when usb image is set),
+            C(cloud_init_user_data) (cloud-init user-data content; triggers seed ISO generation),
+            C(cloud_init_meta_data) (cloud-init meta-data content; auto-generated from VM name if omitted),
+            C(cloud_init_network_config) (cloud-init network-config content; omitted from ISO if not set),
             C(novnc_enabled) (enable noVNC web console for this VM),
             C(novnc_port) (noVNC port, auto-assigned if not specified),
             C(state) (C(started), C(stopped), or C(present))."
@@ -103,6 +106,25 @@ argument_specs:
               Whether to boot from attached USB storage first.
               Defaults to C(true) when C(usb_disk_image) is set.
             type: bool
+          cloud_init_user_data:
+            description: >-
+              Content for the cloud-init C(user-data) file (cloud-config YAML or shell script).
+              When any C(cloud_init_*) key is set the role generates a seed ISO at
+              C(vms_image_dir/<name>-seed.iso) and attaches it to the VM as a virtio CD-ROM.
+              Requires C(genisoimage) or C(xorriso) on the host.
+              The guest image must have C(cloud-init) or C(cloudbase-init) installed.
+            type: str
+          cloud_init_meta_data:
+            description: >-
+              Content for the cloud-init C(meta-data) file.
+              When omitted, a minimal C(meta-data) with C(instance-id) and C(local-hostname)
+              set to the VM name is generated automatically.
+            type: str
+          cloud_init_network_config:
+            description: >-
+              Content for the cloud-init C(network-config) file (Netplan or cloud-init v1/v2 format).
+              When omitted, no C(network-config) file is included in the seed ISO.
+            type: str
           novnc_enabled:
             description: >-
               Enable noVNC web console for this VM. Overrides C(vms_default_novnc_enabled).

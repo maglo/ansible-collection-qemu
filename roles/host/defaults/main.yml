@@ -6,6 +6,7 @@ host_packages:
   - swtpm
   - swtpm-tools
   - socat
+  - genisoimage
 
 # Directory containing QEMU VM configuration files (one per VM)
 host_vm_config_dir: /etc/qemu/vms

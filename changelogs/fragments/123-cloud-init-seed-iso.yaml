@@ -1,0 +1,5 @@
+---
+minor_changes:
+  - "vms - add idempotent cloud-init seed ISO generation from per-VM inline variables
+    (closes #120)."
+  - "host - add genisoimage to default host_packages for cloud-init seed ISO support."
