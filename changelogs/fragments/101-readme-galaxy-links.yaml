@@ -1,3 +1,0 @@
----
-bugfixes:
-  - "Replace relative README links with absolute GitHub URLs so they resolve correctly on Ansible Galaxy (closes #101)."

@@ -1,4 +1,0 @@
----
-bugfixes:
-  - "vms - Replace Jinja2 loop variable in TPM drop-in task ``name:`` field with a static string to avoid
-    literal ``{{ item.name }}`` appearing in loop output (closes #103)."
