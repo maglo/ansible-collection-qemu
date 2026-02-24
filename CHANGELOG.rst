@@ -4,6 +4,15 @@ maglo.qemu Release Notes
 
 .. contents:: Topics
 
+v0.2.2
+======
+
+Bugfixes
+--------
+
+- host - Add ``become: true`` to SELinux policy compile and package tasks to prevent ``Permission denied`` errors when ``/tmp/qemu_vm.mod`` or ``/tmp/qemu_vm.pp`` are root-owned from a previous run (https://github.com/maglo/ansible-collection-qemu/issues/118).
+- host - Extend SELinux policy (v1.2) to grant ``init_t`` permission to create the QEMU monitor unix socket and access ``/dev/kvm``; fixes VM startup ``Permission denied`` errors on EL9/EL10 with SELinux enforcing (https://github.com/maglo/ansible-collection-qemu/issues/119).
+
 v0.2.1
 ======
 
