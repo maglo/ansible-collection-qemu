@@ -28,12 +28,14 @@
 - name: Compile SELinux policy module
   ansible.builtin.command:
     cmd: checkmodule -M -m -o /tmp/qemu_vm.mod /tmp/qemu_vm.te
+  become: true
   changed_when: true
   when: _host_selinux_status.stdout == 'Enforcing'
 
 - name: Package SELinux policy module
   ansible.builtin.command:
     cmd: semodule_package -o /tmp/qemu_vm.pp -m /tmp/qemu_vm.mod
+  become: true
   changed_when: true
   when: _host_selinux_status.stdout == 'Enforcing'
 
