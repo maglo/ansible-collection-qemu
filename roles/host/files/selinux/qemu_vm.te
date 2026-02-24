@@ -1,10 +1,15 @@
-module qemu_vm 1.1;
+module qemu_vm 1.2;
 
 require {
     type init_t;
     type qemu_exec_t;
     type swtpm_exec_t;
+    type var_lib_t;
+    type kvm_device_t;
     class file { execute execute_no_trans getattr map open read };
+    class chr_file { open read write ioctl };
+    class dir { write add_name remove_name };
+    class sock_file { create unlink write setattr };
 }
 
 #============= init_t ==============
@@ -12,3 +17,6 @@ require {
 # execute /usr/libexec/qemu-kvm (qemu_exec_t) and /usr/bin/swtpm (swtpm_exec_t).
 allow init_t qemu_exec_t:file { execute execute_no_trans getattr map open read };
 allow init_t swtpm_exec_t:file { execute execute_no_trans getattr map open read };
+allow init_t var_lib_t:dir { write add_name remove_name };
+allow init_t var_lib_t:sock_file { create unlink write setattr };
+allow init_t kvm_device_t:chr_file { open read write ioctl };
