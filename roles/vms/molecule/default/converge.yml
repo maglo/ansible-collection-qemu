@@ -63,3 +63,8 @@
           uefi: false
           cloud_init_user_data: "#cloud-config\n"
           state: present
+        - name: testvm-cpu
+          disk_size: 1G
+          uefi: false
+          cpu_model: kvm64
+          state: present

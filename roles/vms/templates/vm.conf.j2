@@ -2,6 +2,7 @@
 {% set _fmt = item.disk_format | default(vms_default_disk_format) %}
 {% set _memory = item.memory | default(vms_default_memory) %}
 {% set _cpus = item.cpus | default(vms_default_cpus) %}
+{% set _cpu = item.cpu_model | default(vms_default_cpu) %}
 {% set _uefi = item.uefi | default(vms_default_uefi) %}
 {% set _secure_boot = item.secure_boot | default(vms_default_secure_boot) %}
 {% set _tpm = item.tpm | default(vms_default_tpm) %}
@@ -16,7 +17,7 @@
 {% endif %}
 {% set _ = _args.append('-m ' ~ _memory) %}
 {% set _ = _args.append('-smp ' ~ _cpus) %}
-{% set _ = _args.append('-cpu host') %}
+{% set _ = _args.append('-cpu ' ~ _cpu) %}
 {% set _ = _args.append('-nographic') %}
 {% set _vnc = item.vnc | default((item.name | hash('md5') | int(base=16)) % 100) %}
 {% set _ = _args.append('-vnc :' ~ _vnc) %}
