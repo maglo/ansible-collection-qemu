@@ -4,6 +4,15 @@ maglo.qemu Release Notes
 
 .. contents:: Topics
 
+v0.3.0
+======
+
+Minor Changes
+-------------
+
+- host - add genisoimage to default host_packages for cloud-init seed ISO support.
+- vms - add idempotent cloud-init seed ISO generation from per-VM inline variables (closes #120).
+
 v0.2.2
 ======
 

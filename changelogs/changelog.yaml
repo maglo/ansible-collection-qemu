@@ -179,3 +179,12 @@ releases:
     fragments:
     - 121-selinux-fixes.yaml
     release_date: '2026-02-24'
+  0.3.0:
+    changes:
+      minor_changes:
+      - host - add genisoimage to default host_packages for cloud-init seed ISO support.
+      - 'vms - add idempotent cloud-init seed ISO generation from per-VM inline variables
+        (closes #120).'
+    fragments:
+    - 123-cloud-init-seed-iso.yaml
+    release_date: '2026-02-25'
