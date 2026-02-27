@@ -18,7 +18,7 @@
       register: _vms_novnc_template
       failed_when: not _vms_novnc_template.stat.exists
 
-    - name: Create systemd drop-in directory for noVNC-dependent VMs
+    - name: Create systemd drop-in directory for {{ item.name }}
       ansible.builtin.file:
         path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
         state: directory
@@ -30,7 +30,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Deploy noVNC dependency override for noVNC-enabled VMs
+    - name: Deploy noVNC dependency override for {{ item.name }}
       ansible.builtin.template:
         src: qemu-vm-novnc-dependency.conf.j2
         dest: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/novnc-dependency.conf"
@@ -43,7 +43,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Deploy per-VM noVNC environment files
+    - name: Deploy noVNC environment file for {{ item.name }}
       ansible.builtin.template:
         src: novnc-env.conf.j2
         dest: "{{ vms_vm_config_dir }}/novnc-{{ item.name }}.conf"
@@ -55,7 +55,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Enable and start per-VM noVNC services
+    - name: Enable and start noVNC service for {{ item.name }}
       ansible.builtin.systemd_service:
         name: "novnc@{{ item.name }}.service"
         state: started

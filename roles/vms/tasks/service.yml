@@ -8,7 +8,7 @@
     mode: "0755"
   become: true
 
-- name: Write per-VM config
+- name: Write config for {{ item.name }}
   ansible.builtin.template:
     src: vm.conf.j2
     dest: "{{ vms_vm_config_dir }}/{{ item.name }}.conf"
@@ -20,7 +20,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Manage VM service state
+- name: Manage service state for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
     state: "{{ item.state }}"
@@ -32,7 +32,7 @@
     label: "{{ item.name }}"
   when: (item.state | default('present')) in ['started', 'stopped']
 
-- name: Verify VM service is running
+- name: Verify service is running for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
   register: _vms_service_check

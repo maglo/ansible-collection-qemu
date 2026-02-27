@@ -1,6 +1,6 @@
 ---
 # Configure QEMU monitor sockets for VM lifecycle management
-- name: Create per-VM runtime directories for monitor sockets
+- name: Create monitor socket directory for {{ item.name }}
   ansible.builtin.file:
     path: /var/lib/qemu/{{ item.name }}
     state: directory

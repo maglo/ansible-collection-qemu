@@ -22,7 +22,7 @@
   become: true
   when: _vms_tpm_vms | length > 0
 
-- name: Create per-VM swtpm state directories
+- name: Create swtpm state directory for {{ item.name }}
   ansible.builtin.file:
     path: "{{ vms_swtpm_state_dir }}/{{ item.name }}"
     state: directory
@@ -34,7 +34,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Enable and start swtpm for TPM-enabled VMs
+- name: Enable and start swtpm for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "swtpm@{{ item.name }}.service"
     state: started
@@ -44,7 +44,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Create systemd drop-in directory for TPM-enabled VMs
+- name: Create systemd drop-in directory for {{ item.name }}
   ansible.builtin.file:
     path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
     state: directory
@@ -56,7 +56,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Deploy swtpm dependency override for TPM-enabled VMs
+- name: Deploy swtpm dependency override for {{ item.name }}
   ansible.builtin.template:
     src: qemu-vm-tpm-dependency.conf.j2
     dest: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/tpm-dependency.conf"
