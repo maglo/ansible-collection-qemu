@@ -40,7 +40,7 @@
         dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/meta-data"
         content: >-
           {{ item.cloud_init_meta_data if item.cloud_init_meta_data is defined else
-             'instance-id: ' ~ item.name ~ '\nlocal-hostname: ' ~ item.name ~ '\n' }}
+             "instance-id: " ~ item.name ~ "\nlocal-hostname: " ~ item.name ~ "\n" }}
         owner: "{{ vms_service_user }}"
         group: "{{ vms_service_group }}"
         mode: "0600"
