@@ -1,12 +1,4 @@
 ---
-- name: Install edk2-ovmf
-  ansible.builtin.dnf:
-    name: edk2-ovmf
-    state: present
-  become: true
-  when: _vms_active_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list | length > 0
-        or (_vms_active_vms | rejectattr('uefi', 'defined') | list | length > 0 and vms_default_uefi)
-
 # Build the list of UEFI VMs with resolved secure_boot flag
 - name: Identify UEFI VMs
   ansible.builtin.set_fact:

@@ -17,6 +17,7 @@ argument_specs:
           - swtpm-tools
           - socat
           - genisoimage
+          - edk2-ovmf
       host_vm_config_dir:
         description: Directory containing QEMU VM configuration files (one C(.conf) per VM).
         type: path
