@@ -1,0 +1,4 @@
+---
+bugfixes:
+  - "host - install edk2-ovmf package for UEFI firmware support; it was incorrectly
+    installed by the vms role instead of the host role (closes #126)."
