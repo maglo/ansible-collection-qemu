@@ -5,7 +5,7 @@
   ansible.builtin.set_fact:
     vms_shutdown_timeout: "{{ item.shutdown_timeout | default(vms_default_shutdown_timeout) }}"
 
-- name: Check if {{ item.name }} is running
+- name: Check VM service status for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
   become: true
@@ -34,7 +34,7 @@
   failed_when: false
   register: vms_graceful_shutdown_wait
 
-- name: Force stop {{ item.name }} if graceful shutdown timed out
+- name: Force stop VM service if graceful shutdown timed out for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
     state: stopped
@@ -43,7 +43,7 @@
     - vms_vm_service_status.status.ActiveState == 'active'
     - (vms_graceful_shutdown_wait is failed or vms_acpi_shutdown is failed or vms_acpi_shutdown is skipped)
 
-- name: Verify {{ item.name }} is stopped
+- name: Verify VM service is stopped for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
   become: true
