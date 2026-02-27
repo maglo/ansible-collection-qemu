@@ -1,0 +1,4 @@
+---
+bugfixes:
+  - "vms - remove host role dependency to prevent double-application when following
+    documented playbook patterns (closes #125)."

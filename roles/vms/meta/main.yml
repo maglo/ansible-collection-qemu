@@ -13,5 +13,3 @@ galaxy_info:
     - qemu
     - kvm
     - virtualization
-dependencies:
-  - role: host
