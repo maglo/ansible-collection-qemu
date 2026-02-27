@@ -18,15 +18,16 @@
   when: item.novnc_enabled | default(vms_default_novnc_enabled)
   failed_when: false
 
-- name: Gracefully shut down VM
-  ansible.builtin.include_tasks: shutdown.yml
-
-- name: Disable VM service
+- name: Stop and disable VM service
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
+    state: stopped
     enabled: false
   become: true
   failed_when: false
+
+- name: Gracefully shut down VM
+  ansible.builtin.include_tasks: shutdown.yml
 
 - name: Stop and disable swtpm service
   ansible.builtin.systemd_service:
