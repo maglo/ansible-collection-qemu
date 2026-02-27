@@ -4,6 +4,23 @@ maglo.qemu Release Notes
 
 .. contents:: Topics
 
+v0.3.1
+======
+
+Minor Changes
+-------------
+
+- vms - Add C(vms_default_cpu) role variable and per-VM C(cpu_model) key to make the QEMU C(-cpu) model configurable (closes #107).
+- vms - include VM name in per-VM loop task names for clearer playbook output when managing multiple VMs (closes #128).
+
+Bugfixes
+--------
+
+- host - install edk2-ovmf package for UEFI firmware support; it was incorrectly installed by the vms role instead of the host role (closes #126).
+- vms - fix default cloud-init meta-data producing literal ``\n`` instead of newlines, which prevented cloud-init from setting the VM hostname (closes #129).
+- vms - remove host role dependency to prevent double-application when following documented playbook patterns (closes #125).
+- vms - stop VM service before verifying shutdown during destroy to prevent failure when Restart=on-failure is set in the QEMU systemd service (closes #127).
+
 v0.3.0
 ======
 
