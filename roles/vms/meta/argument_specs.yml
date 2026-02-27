@@ -23,6 +23,7 @@ argument_specs:
             C(mac_address) (overrides the auto-generated MAC),
             C(memory) (overrides C(vms_default_memory)),
             C(cpus) (overrides C(vms_default_cpus)),
+            C(cpu_model) (overrides C(vms_default_cpu)),
             C(vnc) (VNC display number, auto-generated from VM name if not specified),
             C(usb_disk_image) (path to USB disk image: iso/raw/img/qcow2),
             C(usb_boot_priority) (boot from attached USB first; defaults to true when usb image is set),
@@ -91,6 +92,11 @@ argument_specs:
           cpus:
             description: Number of virtual CPUs for this VM. Overrides C(vms_default_cpus).
             type: int
+          cpu_model:
+            description: >-
+              CPU model for this VM (e.g. C(host), C(kvm64)).
+              Overrides C(vms_default_cpu).
+            type: str
           vnc:
             description: >-
               VNC display number for this VM (maps to port 5900+N).
@@ -266,6 +272,10 @@ argument_specs:
         description: Default number of virtual CPUs for VMs that do not specify C(cpus).
         type: int
         default: 2
+      vms_default_cpu:
+        description: Default CPU model passed to QEMU C(-cpu) flag for VMs that do not specify C(cpu_model).
+        type: str
+        default: host
       vms_default_novnc_enabled:
         description: >-
           Whether VMs default to noVNC web console when not specified per-VM.

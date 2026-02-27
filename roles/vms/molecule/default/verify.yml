@@ -134,6 +134,7 @@
           - "'-machine q35,accel=kvm' in _content"
           - "'-m 2G' in _content"
           - "'-smp 2' in _content"
+          - "'-cpu host' in _content"
           - "'-nographic' in _content"
           - "'-vnc :' in _content"
           - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
@@ -340,6 +341,19 @@
         that:
           - "'media=cdrom' not in _content"
 
+    # ── VM config — testvm-cpu (custom cpu_model override) ───
+    - name: Read testvm-cpu config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-cpu.conf
+      register: testvm_cpu_conf
+
+    - name: Assert testvm-cpu config uses kvm64 CPU model
+      vars:
+        _content: "{{ testvm_cpu_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-cpu kvm64' in _content"
+
     # ── bridge.conf ──────────────────────────────────────────
     - name: Stat bridge.conf
       ansible.builtin.stat:
@@ -447,6 +461,11 @@
             disk_size: 1G
             uefi: false
             cloud_init_user_data: "#cloud-config\n"
+            state: present
+          - name: testvm-cpu
+            disk_size: 1G
+            uefi: false
+            cpu_model: kvm64
             state: present
 
     - name: Record image modification time after re-run
