@@ -1,4 +1,0 @@
----
-bugfixes:
-  - "vms - fix default cloud-init meta-data producing literal ``\\n`` instead of
-    newlines, which prevented cloud-init from setting the VM hostname (closes #129)."

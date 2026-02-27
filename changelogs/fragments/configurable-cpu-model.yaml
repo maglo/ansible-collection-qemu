@@ -1,3 +1,0 @@
----
-minor_changes:
-  - "vms - Add C(vms_default_cpu) role variable and per-VM C(cpu_model) key to make the QEMU C(-cpu) model configurable (closes #107)."

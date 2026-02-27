@@ -1,4 +1,0 @@
----
-bugfixes:
-  - "vms - stop VM service before verifying shutdown during destroy to prevent
-    failure when Restart=on-failure is set in the QEMU systemd service (closes #127)."
