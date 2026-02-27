@@ -23,7 +23,7 @@
           genisoimage not found on the host.
           Run the maglo.qemu.host role to install it.
 
-    - name: Create cloud-init staging directory
+    - name: Create cloud-init staging directory for {{ item.name }}
       ansible.builtin.file:
         path: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
         state: directory
@@ -35,7 +35,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Write cloud-init meta-data
+    - name: Write cloud-init meta-data for {{ item.name }}
       ansible.builtin.copy:
         dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/meta-data"
         content: >-
@@ -50,7 +50,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Write cloud-init user-data
+    - name: Write cloud-init user-data for {{ item.name }}
       ansible.builtin.copy:
         dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/user-data"
         content: "{{ item.cloud_init_user_data | default('#cloud-config\n') }}"
@@ -63,7 +63,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Write cloud-init network-config
+    - name: Write cloud-init network-config for {{ item.name }}
       ansible.builtin.copy:
         dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/network-config"
         content: "{{ item.cloud_init_network_config }}"
@@ -77,7 +77,7 @@
         label: "{{ item.name }}"
       when: item.cloud_init_network_config is defined
 
-    - name: Stat cloud-init seed ISOs
+    - name: Stat cloud-init seed ISO for {{ item.name }}
       ansible.builtin.stat:
         path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
       register: _vms_iso_stats
@@ -109,7 +109,7 @@
         or (item.cloud_init_network_config is defined
             and _vms_network_config_results.results[ansible_loop.index0].changed)
 
-    - name: Set ownership of cloud-init seed ISO
+    - name: Set ownership of cloud-init seed ISO for {{ item.name }}
       ansible.builtin.file:
         path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
         owner: "{{ vms_service_user }}"

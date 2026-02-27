@@ -1,0 +1,4 @@
+---
+minor_changes:
+  - "vms - include VM name in per-VM loop task names for clearer playbook output
+    when managing multiple VMs (closes #128)."
