@@ -8,6 +8,7 @@
         content: "molecule-usb-test\n"
         mode: "0644"
   roles:
+    - role: host
     - role: vms
       vms_list:
         - name: testvm
