@@ -354,6 +354,7 @@
         that:
           - "'-cpu kvm64' in _content"
 
+
     # ── bridge.conf ──────────────────────────────────────────
     - name: Stat bridge.conf
       ansible.builtin.stat:
