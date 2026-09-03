@@ -1,0 +1,7 @@
+---
+minor_changes:
+  - vms role - add the per-VM ``disk_bus`` key and the ``vms_default_disk_bus``
+    variable. The value ``virtio-scsi`` attaches the system disk through a
+    ``virtio-scsi-pci`` controller and an ``scsi-hd`` device. The default stays
+    ``virtio-blk``, so the QEMU arguments of an existing VM do not change
+    (https://github.com/maglo/ansible-collection-qemu/issues/140).

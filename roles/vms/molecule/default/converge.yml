@@ -64,6 +64,17 @@
           uefi: false
           cloud_init_user_data: "#cloud-config\n"
           state: present
+        - name: testvm-scsi
+          disk_size: 1G
+          uefi: false
+          disk_bus: virtio-scsi
+          state: present
+        - name: testvm-scsi-usb
+          disk_size: 1G
+          uefi: false
+          disk_bus: virtio-scsi
+          usb_disk_image: /tmp/test-usb-installer.iso
+          state: present
         - name: testvm-cpu
           disk_size: 1G
           uefi: false

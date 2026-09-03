@@ -122,6 +122,7 @@ systemctl status qemu-vm@web01
 - **URL-provisioned images:** Download a cloud image (QCOW2) from a URL and use it as a backing file; multiple VMs share the same cached base image (copy-on-write)
 - **Checksum verification:** Optional SHA256 checksum validation for downloaded images
 - **Idempotent:** Existing images are never recreated
+- **Disk bus:** `virtio-blk` by default. Set `disk_bus: virtio-scsi` per VM to attach the disk through a `virtio-scsi-pci` controller, which is the bus that production images usually use. The cloud-init seed ISO stays on virtio-blk
 
 ### UEFI firmware
 
@@ -218,6 +219,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vms_default_disk_size` | `20G` | Default disk size |
 | `vms_default_disk_format` | `qcow2` | Default disk format |
 | `vms_default_uefi` | `true` | UEFI boot by default |
+| `vms_default_disk_bus` | `virtio-blk` | Default disk bus (`virtio-blk` or `virtio-scsi`) |
 | `vms_default_secure_boot` | `false` | UEFI Secure Boot by default |
 | `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again (command line only) |
 | `vms_default_tpm` | `false` | TPM emulation by default |
@@ -240,6 +242,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `disk_image_checksum` | no | — | `sha256:...` checksum for URL image |
 | `uefi` | no | `vms_default_uefi` | UEFI boot |
 | `secure_boot` | no | `vms_default_secure_boot` | UEFI Secure Boot |
+| `disk_bus` | no | `vms_default_disk_bus` | Disk bus: `virtio-blk` or `virtio-scsi` |
 | `nvram_template` | no | global template | UEFI variable store template for this VM only |
 | `nvram_generation` | no | `1` | Increase to write the NVRAM file again |
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |

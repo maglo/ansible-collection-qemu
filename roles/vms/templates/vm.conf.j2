@@ -22,7 +22,16 @@
 {% set _vnc = item.vnc | default((item.name | hash('md5') | int(base=16)) % 100) %}
 {% set _ = _args.append('-vnc :' ~ _vnc) %}
 {% set _ = _args.append('-monitor unix:/var/lib/qemu/' ~ item.name ~ '/monitor.sock,server,nowait') %}
-{% set _ = _args.append('-drive if=virtio,format=' ~ _fmt ~ ',file=' ~ vms_image_dir ~ '/' ~ item.name ~ '.' ~ _fmt) %}
+{% set _disk_bus = item.disk_bus | default(vms_default_disk_bus) %}
+{% set _disk_file = vms_image_dir ~ '/' ~ item.name ~ '.' ~ _fmt %}
+{% if _disk_bus == 'virtio-scsi' %}
+{% set _ = _args.append('-device virtio-scsi-pci,id=scsi0') %}
+{% set _ = _args.append('-drive if=none,id=disk0,format=' ~ _fmt ~ ',file=' ~ _disk_file) %}
+{# bootindex 2 keeps the USB device (bootindex 1) ahead of the system disk #}
+{% set _ = _args.append('-device scsi-hd,drive=disk0,bus=scsi0.0,bootindex=2') %}
+{% else %}
+{% set _ = _args.append('-drive if=virtio,format=' ~ _fmt ~ ',file=' ~ _disk_file) %}
+{% endif %}
 {% if item.cloud_init_user_data is defined or item.cloud_init_meta_data is defined or item.cloud_init_network_config is defined %}
 {% set _ = _args.append('-drive if=virtio,format=raw,file=' ~ vms_image_dir ~ '/' ~ item.name ~ '-seed.iso,media=cdrom,readonly=on') %}
 {% endif %}
