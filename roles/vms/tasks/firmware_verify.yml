@@ -1,0 +1,84 @@
+---
+# Verify that the UEFI variable store of each Secure Boot VM holds the keys
+# that the VM needs. A variable store that is still in Setup Mode, or that
+# lost its db entry, gives a VM that boots an unsigned artifact. That failure
+# is silent, so the role asserts the state instead.
+#
+# The check reads the file offline. `SecureBoot` and `SetupMode` are volatile
+# variables that the firmware creates at boot, so they are not in the file.
+# The offline equivalents are:
+#   * a PK is enrolled            -> the platform is not in Setup Mode;
+#   * SecureBootEnable is ON      -> the firmware enforces Secure Boot;
+#   * KEK and db are enrolled     -> the VM can verify a signed artifact.
+- name: Determine the VMs to verify
+  ansible.builtin.set_fact:
+    _vms_nvram_verify_vms: >-
+      {{ _vms_uefi_vms | selectattr('secure_boot', 'defined') | selectattr('secure_boot') | list
+         + (_vms_uefi_vms | rejectattr('secure_boot', 'defined') | list if vms_default_secure_boot else []) }}
+
+- name: Check whether virt-fw-vars is available
+  ansible.builtin.command:
+    cmd: which virt-fw-vars
+  register: _vms_nvram_tool
+  failed_when: false
+  changed_when: false
+
+- name: Report a skipped NVRAM verification
+  ansible.builtin.debug:
+    msg: >-
+      Skipping the NVRAM verification of {{ _vms_nvram_verify_vms | length }} VM(s):
+      virt-fw-vars is not installed. Install the package python3-virt-firmware
+      to enable the verification. On EL9 the package is in EPEL.
+  when:
+    - _vms_nvram_verify_vms | length > 0
+    - _vms_nvram_tool.rc != 0
+
+- name: Read the UEFI variables of {{ item.name }}
+  ansible.builtin.command:
+    cmd: virt-fw-vars --input {{ vms_image_dir }}/{{ item.name }}_VARS.fd --print --verbose
+  register: _vms_nvram_dumps
+  become: true
+  changed_when: false
+  when: _vms_nvram_tool.rc == 0
+  loop: "{{ _vms_nvram_verify_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Assert the Secure Boot keys of {{ item.item.name }}
+  ansible.builtin.assert:
+    that:
+      - "'\nname=PK guid=' in _dump"
+      - "'\nname=KEK guid=' in _dump"
+      - "'\nname=db guid=' in _dump"
+      - "'\nname=SecureBootEnable guid=' in _dump"
+      - "'bool: ON' in _sbe_block"
+    fail_msg: >-
+      The variable store {{ vms_image_dir }}/{{ item.item.name }}_VARS.fd is not
+      ready for Secure Boot. A store without a PK is in Setup Mode, and a VM
+      with such a store boots an unsigned artifact.
+    success_msg: "The variable store of {{ item.item.name }} holds PK, KEK and db, and Secure Boot is enabled."
+  vars:
+    _dump: "{{ '\n' ~ item.stdout }}"
+    _sbe_block: "{{ (_dump.split('\nname=') | select('match', '^SecureBootEnable guid=') | list | first) | default('') }}"
+  when: _vms_nvram_tool.rc == 0
+  loop: "{{ _vms_nvram_dumps.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Assert the expected db certificate of {{ item.item.name }}
+  ansible.builtin.assert:
+    that:
+      - ('subject CN=' ~ item.item.nvram_expected_db_cn) in _db_block
+    fail_msg: >-
+      The db of {{ item.item.name }} does not hold a certificate with the subject
+      CN '{{ item.item.nvram_expected_db_cn }}'. The VM cannot verify an artifact
+      that this certificate signed.
+  vars:
+    _dump: "{{ '\n' ~ item.stdout }}"
+    _db_block: "{{ (_dump.split('\nname=') | select('match', '^db guid=') | list | first) | default('') }}"
+  when:
+    - _vms_nvram_tool.rc == 0
+    - item.item.nvram_expected_db_cn is defined
+  loop: "{{ _vms_nvram_dumps.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"

@@ -20,6 +20,12 @@
   ansible.builtin.import_tasks: firmware.yml
   when: _vms_active_vms | length > 0
 
+- name: Verify the Secure Boot variable stores
+  ansible.builtin.import_tasks: firmware_verify.yml
+  when:
+    - _vms_active_vms | length > 0
+    - vms_nvram_verify | bool
+
 - name: Download and cache disk images
   ansible.builtin.import_tasks: disk_image.yml
 
@@ -41,6 +47,10 @@
 
 - name: Setup QEMU monitor sockets
   ansible.builtin.import_tasks: monitor.yml
+  when: _vms_active_vms | length > 0
+
+- name: Write per-VM SMBIOS OEM strings
+  ansible.builtin.import_tasks: smbios.yml
   when: _vms_active_vms | length > 0
 
 - name: Validate USB disk image attachments

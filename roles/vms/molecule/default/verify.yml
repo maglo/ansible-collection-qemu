@@ -223,6 +223,189 @@
           - "'-device usb-storage,drive=usb0' in _content"
           - "'bootindex=1' not in _content"
 
+    # ── VM config — disk bus ────────────────────────────────
+    - name: Read testvm config for the default disk bus
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm.conf
+      register: testvm_blk_conf
+
+    - name: Assert the default disk bus stays virtio-blk
+      vars:
+        _content: "{{ testvm_blk_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
+          - "'virtio-scsi-pci' not in _content"
+
+    - name: Read testvm-scsi config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-scsi.conf
+      register: testvm_scsi_conf
+
+    - name: Assert testvm-scsi uses a virtio-scsi controller
+      vars:
+        _content: "{{ testvm_scsi_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device virtio-scsi-pci,id=scsi0' in _content"
+          - "'-drive if=none,id=disk0,format=qcow2,file=/var/lib/qemu/images/testvm-scsi.qcow2' in _content"
+          - "'-device scsi-hd,drive=disk0,bus=scsi0.0,bootindex=2' in _content"
+          - "'-drive if=virtio,format=qcow2' not in _content"
+
+    - name: Read testvm-scsi-usb config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-scsi-usb.conf
+      register: testvm_scsi_usb_conf
+
+    - name: Assert the USB device keeps the boot priority over the SCSI disk
+      vars:
+        _content: "{{ testvm_scsi_usb_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device usb-storage,drive=usb0,bootindex=1' in _content"
+          - "'-device scsi-hd,drive=disk0,bus=scsi0.0,bootindex=2' in _content"
+
+    # ── VM config — SMBIOS OEM strings ──────────────────────
+    - name: Read testvm-smbios config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-smbios.conf
+      register: testvm_smbios_conf
+
+    - name: Assert the config points at one file for each OEM string
+      vars:
+        _content: "{{ testvm_smbios_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-smbios type=11,path=/var/lib/qemu/testvm-smbios/smbios/00' in _content"
+          - "'-smbios type=11,path=/var/lib/qemu/testvm-smbios/smbios/01' in _content"
+          # The file path keeps the space out of QEMU_ARGS. systemd splits an
+          # unquoted $QEMU_ARGS at each space, so a value= form would break.
+          - "'value=io.systemd' not in _content"
+
+    - name: Read the SMBIOS OEM string files
+      ansible.builtin.slurp:
+        src: "/var/lib/qemu/testvm-smbios/smbios/{{ item }}"
+      register: _smbios_files
+      loop:
+        - "00"
+        - "01"
+
+    - name: Assert the OEM string files hold the exact strings
+      ansible.builtin.assert:
+        that:
+          - (_smbios_files.results[0].content | b64decode)
+            == 'io.systemd.stub.kernel-cmdline-extra=rd.debug systemd.log_level=debug'
+          - (_smbios_files.results[1].content | b64decode)
+            == 'io.systemd.credential:mycred=abc'
+        fail_msg: >-
+          An OEM string file does not hold the exact string. A trailing newline
+          would become part of the string that the guest reads.
+
+    # An OEM string can hold a credential, so no other local user may read it.
+    - name: Stat the SMBIOS directory and the OEM string files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: _smbios_modes
+      loop:
+        - /var/lib/qemu/testvm-smbios/smbios
+        - /var/lib/qemu/testvm-smbios/smbios/00
+        - /var/lib/qemu/testvm-smbios/smbios/01
+
+    - name: Assert that only the QEMU user can read an OEM string
+      ansible.builtin.assert:
+        that:
+          - _smbios_modes.results[0].stat.mode == '0700'
+          - _smbios_modes.results[1].stat.mode == '0600'
+          - _smbios_modes.results[2].stat.mode == '0600'
+          - _smbios_modes.results | map(attribute='stat.pw_name') | unique | list == ['qemu']
+        fail_msg: >-
+          An OEM string file is readable by another local user. An OEM string
+          can hold a credential.
+
+    # Deleting the key must remove the files. Otherwise a credential that you
+    # removed from the playbook stays on the host.
+    - name: Run the role again without smbios_oem_strings
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - name: testvm-smbios
+            disk_size: 1G
+            uefi: false
+            state: present
+
+    - name: Find the OEM string files after the key was removed
+      ansible.builtin.find:
+        paths: /var/lib/qemu/testvm-smbios/smbios
+        file_type: file
+      register: _smbios_left
+
+    - name: Read the config after the key was removed
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-smbios.conf
+      register: _smbios_conf_after
+
+    - name: Assert that removing the key removed the files and the arguments
+      ansible.builtin.assert:
+        that:
+          - _smbios_left.files | length == 0
+          - "'-smbios type=11' not in (_smbios_conf_after.content | b64decode)"
+        fail_msg: >-
+          Removing smbios_oem_strings left the string files on the host.
+          An OEM string can hold a credential.
+
+    # ── TPM state file and reset ────────────────────────────
+    - name: Read the TPM state file of testvm-tpm
+      ansible.builtin.slurp:
+        src: /var/lib/swtpm/testvm-tpm.state
+      register: _tpm_state
+
+    - name: Assert the TPM state file records the first generation
+      ansible.builtin.assert:
+        that:
+          - (_tpm_state.content | b64decode | from_json).generation | int == 1
+
+    - name: Write a sentinel file into the swtpm state directory
+      ansible.builtin.copy:
+        content: "molecule-sealed-keyslot\n"
+        dest: /var/lib/swtpm/testvm-tpm/molecule-sentinel
+        mode: "0644"
+
+    - name: Run the role again with a higher TPM generation
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - name: testvm-tpm
+            disk_size: 1G
+            tpm: true
+            tpm_generation: 2
+            state: present
+
+    - name: Stat the sentinel file after the TPM reset
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm/molecule-sentinel
+      register: _tpm_sentinel
+
+    - name: Read the TPM state file after the reset
+      ansible.builtin.slurp:
+        src: /var/lib/swtpm/testvm-tpm.state
+      register: _tpm_state_after
+
+    - name: Assert the generation change cleared the swtpm state directory
+      ansible.builtin.assert:
+        that:
+          - not _tpm_sentinel.stat.exists
+          - (_tpm_state_after.content | b64decode | from_json).generation | int == 2
+        fail_msg: An increase of tpm_generation did not clear the swtpm state.
+
+    - name: Assert swtpm runs again after the reset
+      ansible.builtin.systemd_service:
+        name: swtpm@testvm-tpm.service
+      register: _swtpm_after
+      failed_when: _swtpm_after.status.ActiveState != 'active'
+      changed_when: false
+
     # ── Secure Boot firmware ────────────────────────────────
     - name: Stat OVMF_CODE.secboot.fd
       ansible.builtin.stat:

@@ -1,0 +1,9 @@
+---
+minor_changes:
+  - vms role - add the per-VM ``tpm_generation`` key and the
+    ``vms_tpm_force_reset`` variable. Increase the generation to clear the
+    swtpm state directory of a VM. The role stops the VM and swtpm before it
+    clears the directory, and starts them again afterwards. A VM that has no
+    TPM state file yet keeps its state, so an upgrade of the collection does
+    not clear the TPM of a VM that exists
+    (https://github.com/maglo/ansible-collection-qemu/issues/142).

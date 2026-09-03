@@ -21,6 +21,7 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `vms_list` | `[]` | List of VMs to create (see below) |
 | `vms_default_disk_size` | `20G` | Default disk size when not specified per VM |
 | `vms_default_disk_format` | `qcow2` | Default disk format (`qcow2` or `raw`) |
+| `vms_default_disk_bus` | `virtio-blk` | Default disk bus (`virtio-blk` or `virtio-scsi`, per-VM override with `disk_bus` key) |
 | `vms_image_dir` | `/var/lib/qemu/images` | Directory for disk images (should match `host_vm_image_dir`) |
 | `vms_image_cache_dir` | `/var/lib/qemu/images/cache` | Cache directory for downloaded disk images (shared across VMs) |
 | `vms_verify_checksums` | `true` | Whether to verify checksums for downloaded images (currently unused but reserved) |
@@ -32,7 +33,10 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `vms_default_secure_boot` | `false` | Whether VMs default to UEFI Secure Boot (per-VM override with `secure_boot` key) |
 | `vms_ovmf_code_secboot` | `/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd` | Path to OVMF Secure Boot firmware code file |
 | `vms_ovmf_vars_secboot_template` | `/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd` | Path to OVMF Secure Boot vars template (pre-enrolled keys) |
+| `vms_nvram_verify` | `false` | Verify the variable store of each Secure Boot VM (needs `virt-fw-vars`) |
+| `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again from its template. Command-line escape hatch only |
 | `vms_default_tpm` | `false` | Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key) |
+| `vms_tpm_force_reset` | `false` | Clear the swtpm state of every TPM VM. Command-line escape hatch only |
 | `vms_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state |
 | `vms_default_net_mode` | `user` | Default networking mode (`user` or `bridge`) |
 | `vms_default_net_bridge` | `br0` | Default bridge device for bridge-mode VMs |
@@ -53,17 +57,23 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `name` | yes | — | VM name, used as the disk image filename |
 | `disk_size` | no | `vms_default_disk_size` | Disk image size (e.g. `20G`, `100G`) |
 | `disk_format` | no | `vms_default_disk_format` | Disk format (`qcow2` or `raw`) |
+| `disk_bus` | no | `vms_default_disk_bus` | Disk bus (`virtio-blk` or `virtio-scsi`) |
 | `disk_image_url` | no | — | URL to a qcow2 image to download and use as a backing file |
 | `disk_image_checksum` | no | — | SHA256 checksum for the downloaded image (format: `sha256:abc123...`) |
 | `uefi` | no | `vms_default_uefi` | Whether to enable UEFI boot for this VM |
 | `secure_boot` | no | `vms_default_secure_boot` | Enable UEFI Secure Boot (requires UEFI) |
+| `nvram_template` | no | `vms_ovmf_vars_template` or `vms_ovmf_vars_secboot_template` | UEFI variable store template for this VM only |
+| `nvram_generation` | no | `1` | Increase to write the NVRAM file again from the template |
+| `nvram_expected_db_cn` | no | — | Subject CN that the signature database (db) must hold (checked when `vms_nvram_verify` is true) |
 | `tpm` | no | `vms_default_tpm` | Enable TPM 2.0 emulation via swtpm |
+| `tpm_generation` | no | `1` | Increase to clear the swtpm state of this VM |
 | `net_mode` | no | `vms_default_net_mode` | Networking mode: `user` or `bridge` |
 | `net_bridge` | no | `vms_default_net_bridge` | Bridge device (only used when `net_mode` is `bridge`) |
 | `mac_address` | no | auto-generated | MAC address (overrides the deterministic auto-generated MAC) |
 | `memory` | no | `vms_default_memory` | Memory allocation (e.g. `2G`, `4G`) |
 | `cpus` | no | `vms_default_cpus` | Number of virtual CPUs |
 | `vnc` | no | hash-based | VNC display number (port = 5900+N) |
+| `smbios_oem_strings` | no | — | List of SMBIOS type 11 OEM strings (read by `systemd-stub`). Stored in `0600` files; a change needs a restart of the VM |
 | `usb_disk_image` | no | — | Path to USB disk image to attach (`.iso`, `.raw`, `.img`, `.qcow2`) |
 | `usb_boot_priority` | no | `true` when `usb_disk_image` is set | Boot from USB first |
 | `cloud_init_user_data` | no | — | cloud-init `user-data` content; triggers seed ISO generation |

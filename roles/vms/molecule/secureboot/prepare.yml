@@ -1,0 +1,73 @@
+---
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Install edk2-ovmf for the firmware templates
+      ansible.builtin.dnf:
+        name: edk2-ovmf
+        state: present
+
+    # The scenario never boots a VM, so the custom template needs no valid
+    # firmware layout. It needs only content that is different from the stock
+    # template, to prove that the role selects the correct file.
+    - name: Create a custom variable store template
+      ansible.builtin.copy:
+        content: "molecule-custom-varstore\n"
+        dest: /tmp/custom_VARS.fd
+        mode: "0644"
+
+    # The verification needs virt-fw-vars. On a real host the package is
+    # python3-virt-firmware, which is in EPEL on EL9. The scenario installs it
+    # with pip instead, so that it does not add an EPEL repository to CI and
+    # works the same way on EL9 and EL10.
+    - name: Install openssl and pip
+      ansible.builtin.dnf:
+        name:
+          - openssl
+          - python3-pip
+        state: present
+
+    - name: Install virt-firmware
+      ansible.builtin.pip:
+        name: virt-firmware
+        state: present
+
+    - name: Create a certificate for the signature database
+      ansible.builtin.command:
+        cmd: >-
+          openssl req -x509 -newkey rsa:2048 -nodes -days 3
+          -keyout /tmp/molecule-db.key -out /tmp/molecule-db.crt
+          -subj "/CN=Molecule Devbox db/"
+        creates: /tmp/molecule-db.crt
+
+    # A variable store with a known content: a generated PK and KEK, the
+    # Microsoft db, and the certificate above. The verification asserts against
+    # this store, so the test does not depend on what edk2-ovmf ships.
+    - name: Create an enrolled variable store
+      ansible.builtin.command:
+        cmd: >-
+          virt-fw-vars --input /usr/share/edk2/ovmf/OVMF_VARS.fd
+          --enroll-generate "Molecule PK" --sb
+          --add-db 11111111-2222-3333-4444-555555555555 /tmp/molecule-db.crt
+          --output /tmp/enrolled_VARS.fd
+        creates: /tmp/enrolled_VARS.fd
+
+    # A VM of a collection version before 0.4.0: an NVRAM file plus the marker
+    # file, and no state file. The role must adopt it and keep the NVRAM file.
+    - name: Create the image directory
+      ansible.builtin.file:
+        path: /var/lib/qemu/images
+        state: directory
+        mode: "0755"
+
+    - name: Create the NVRAM file of a VM of an earlier version
+      ansible.builtin.copy:
+        content: "molecule-legacy-boot-entries\n"
+        dest: /var/lib/qemu/images/legacyvm_VARS.fd
+        mode: "0644"
+
+    - name: Create the legacy secure boot marker of that VM
+      ansible.builtin.file:
+        path: /var/lib/qemu/images/legacyvm_VARS.fd.secboot
+        state: touch
+        mode: "0644"

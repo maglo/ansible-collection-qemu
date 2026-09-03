@@ -1,0 +1,186 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  vars:
+    _image_dir: /var/lib/qemu/images
+  tasks:
+    # ── The role writes a state file for each UEFI VM ──────────
+    - name: Read the NVRAM state files
+      ansible.builtin.slurp:
+        src: "{{ _image_dir }}/{{ item }}_VARS.fd.state"
+      register: _states
+      loop:
+        - sb-stock
+        - sb-custom
+        - legacyvm
+
+    - name: Assert the content of the state files
+      ansible.builtin.assert:
+        that:
+          - _state.secure_boot | bool
+          - _state.generation | int == 1
+          - _state.fingerprint | length > 0
+          - _state.template_checksum | length == 64
+        fail_msg: "Unexpected state file for {{ item.item }}: {{ _state }}"
+      vars:
+        _state: "{{ item.content | b64decode | from_json }}"
+      loop: "{{ _states.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Assert that each state file names the correct template
+      ansible.builtin.assert:
+        that:
+          - (_states.results[0].content | b64decode | from_json).template
+            == '/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'
+          - (_states.results[1].content | b64decode | from_json).template
+            == '/tmp/custom_VARS.fd'
+
+    # ── The per-VM template applies to that VM only ────────────
+    - name: Stat the NVRAM files and the templates
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        checksum_algorithm: sha256
+      register: _files
+      loop:
+        - "{{ _image_dir }}/sb-stock_VARS.fd"
+        - "{{ _image_dir }}/sb-custom_VARS.fd"
+        - /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd
+        - /tmp/custom_VARS.fd
+
+    - name: Assert that each VM got the correct variable store
+      ansible.builtin.assert:
+        that:
+          - _files.results[0].stat.checksum == _files.results[2].stat.checksum
+          - _files.results[1].stat.checksum == _files.results[3].stat.checksum
+        fail_msg: >-
+          The per-VM nvram_template did not apply, or it changed the
+          variable store of the other VM.
+
+    # ── A VM of an earlier version keeps its NVRAM file ────────
+    - name: Read the NVRAM file of the VM of an earlier version
+      ansible.builtin.slurp:
+        src: "{{ _image_dir }}/legacyvm_VARS.fd"
+      register: _legacy_nvram
+
+    - name: Assert that the role adopted the VM without a rewrite
+      ansible.builtin.assert:
+        that:
+          - (_legacy_nvram.content | b64decode) == 'molecule-legacy-boot-entries\n'
+        fail_msg: >-
+          The role overwrote the NVRAM file of a VM of an earlier collection
+          version. An upgrade must not erase the UEFI boot entries of a VM.
+
+    - name: Stat the legacy secure boot markers
+      ansible.builtin.stat:
+        path: "{{ _image_dir }}/{{ item }}_VARS.fd.secboot"
+      register: _markers
+      loop:
+        - sb-stock
+        - sb-custom
+        - legacyvm
+
+    - name: Assert that the state file replaced the legacy marker
+      ansible.builtin.assert:
+        that:
+          - _markers.results | rejectattr('stat.exists') | list | length == 3
+
+    # ── The verification of the variable store ────────────────
+    - name: Run the role with the NVRAM verification enabled
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_nvram_verify: true
+        vms_list:
+          - name: sb-enrolled
+            disk_size: 1G
+            secure_boot: true
+            nvram_template: /tmp/enrolled_VARS.fd
+            nvram_expected_db_cn: Molecule Devbox db
+            state: present
+
+    # A store without a PK is in Setup Mode. The verification must fail on it,
+    # because a VM with such a store boots an unsigned artifact. Without this
+    # check an assertion that always passes would look like a passing test.
+    - name: Replace the variable store with one that is still in Setup Mode
+      ansible.builtin.copy:
+        src: /usr/share/edk2/ovmf/OVMF_VARS.fd
+        dest: "{{ _image_dir }}/sb-enrolled_VARS.fd"
+        remote_src: true
+        owner: qemu
+        group: qemu
+        mode: "0644"
+
+    # `nvram_template` keeps the value of the converge on purpose. The
+    # fingerprint in the state file therefore does not change, and the role
+    # does not write the variable store again before it verifies it.
+    - name: Run the verification against the store in Setup Mode
+      block:
+        - name: Include the role with the verification enabled
+          ansible.builtin.include_role:
+            name: vms
+          vars:
+            vms_nvram_verify: true
+            vms_list:
+              - name: sb-enrolled
+                disk_size: 1G
+                secure_boot: true
+                nvram_template: /tmp/enrolled_VARS.fd
+                state: present
+
+        - name: Record that the verification accepted the store
+          ansible.builtin.set_fact:
+            _setup_mode_accepted: true
+      rescue:
+        - name: Record that the verification rejected the store
+          ansible.builtin.set_fact:
+            _setup_mode_accepted: false
+
+    - name: Assert that the verification rejects a store in Setup Mode
+      ansible.builtin.assert:
+        that:
+          - not _setup_mode_accepted
+        fail_msg: >-
+          The verification accepted a variable store that has no PK. Such a
+          store is in Setup Mode, and the VM would boot an unsigned artifact.
+
+    - name: Restore the enrolled variable store
+      ansible.builtin.copy:
+        src: /tmp/enrolled_VARS.fd
+        dest: "{{ _image_dir }}/sb-enrolled_VARS.fd"
+        remote_src: true
+        owner: qemu
+        group: qemu
+        mode: "0644"
+
+    # ── An increase of nvram_generation writes the file again ──
+    - name: Save the NVRAM checksum of legacyvm before the generation change
+      ansible.builtin.set_fact:
+        _legacy_before: "{{ _legacy_nvram.content | b64decode }}"
+
+    - name: Run the role again with a higher generation for legacyvm
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - name: legacyvm
+            disk_size: 1G
+            secure_boot: true
+            nvram_generation: 2
+            state: present
+
+    - name: Read the NVRAM file and the state file of legacyvm again
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: _legacy_after
+      loop:
+        - "{{ _image_dir }}/legacyvm_VARS.fd"
+        - "{{ _image_dir }}/legacyvm_VARS.fd.state"
+
+    - name: Assert that the generation change wrote the NVRAM file again
+      ansible.builtin.assert:
+        that:
+          - (_legacy_after.results[0].content | b64decode) != _legacy_before
+          - (_legacy_after.results[1].content | b64decode | from_json).generation | int == 2
+        fail_msg: An increase of nvram_generation did not write the NVRAM file again.

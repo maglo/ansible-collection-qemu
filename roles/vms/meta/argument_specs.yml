@@ -13,11 +13,16 @@ argument_specs:
           - List of VMs to create. Each entry is a dictionary with at least a C(name) key.
           - "Optional per-VM keys: C(disk_size) (overrides C(vms_default_disk_size)),
             C(disk_format) (overrides C(vms_default_disk_format)),
+            C(disk_bus) (overrides C(vms_default_disk_bus)),
             C(disk_image_url) (URL to qcow2 image to use as backing file),
             C(disk_image_checksum) (SHA256 checksum for image verification),
             C(uefi) (overrides C(vms_default_uefi)),
             C(secure_boot) (overrides C(vms_default_secure_boot)),
+            C(nvram_template) (per-VM UEFI variable store template),
+            C(nvram_generation) (increase to write the NVRAM file again),
+            C(nvram_expected_db_cn) (subject CN that the db must hold),
             C(tpm) (overrides C(vms_default_tpm)),
+            C(tpm_generation) (increase to clear the TPM state),
             C(net_mode) (overrides C(vms_default_net_mode)),
             C(net_bridge) (overrides C(vms_default_net_bridge)),
             C(mac_address) (overrides the auto-generated MAC),
@@ -25,6 +30,7 @@ argument_specs:
             C(cpus) (overrides C(vms_default_cpus)),
             C(cpu_model) (overrides C(vms_default_cpu)),
             C(vnc) (VNC display number, auto-generated from VM name if not specified),
+            C(smbios_oem_strings) (list of SMBIOS type 11 OEM strings),
             C(usb_disk_image) (path to USB disk image: iso/raw/img/qcow2),
             C(usb_boot_priority) (boot from attached USB first; defaults to true when usb image is set),
             C(cloud_init_user_data) (cloud-init user-data content; triggers seed ISO generation),
@@ -50,6 +56,17 @@ argument_specs:
             choices:
               - qcow2
               - raw
+          disk_bus:
+            description: >-
+              Bus for the system disk of this VM. Overrides C(vms_default_disk_bus).
+              C(virtio-blk) attaches the disk with C(-drive if=virtio).
+              C(virtio-scsi) attaches a C(virtio-scsi-pci) controller and an
+              C(scsi-hd) device, which is the bus that production images usually use.
+              The cloud-init seed ISO stays on virtio-blk in both cases.
+            type: str
+            choices:
+              - virtio-blk
+              - virtio-scsi
           disk_image_url:
             description: >-
               URL to a qcow2 disk image to download and use as a backing file.
@@ -71,9 +88,40 @@ argument_specs:
               Uses C(OVMF_CODE.secboot.fd) with pre-enrolled Microsoft/OVMF keys and enables
               SMM (System Management Mode). Requires UEFI to be enabled.
             type: bool
+          nvram_template:
+            description: >-
+              Path to the UEFI variable store template for this VM.
+              It overrides C(vms_ovmf_vars_template) and C(vms_ovmf_vars_secboot_template)
+              for this VM only. Use it to give one VM a variable store that holds
+              custom PK, KEK and db keys.
+            type: path
+          nvram_generation:
+            description: >-
+              Generation counter for the UEFI variable store of this VM.
+              Increase the value to make the role write the NVRAM file again from the
+              template. The role writes the file again also when C(secure_boot), the
+              template path, or the content of the template changes.
+              A rewrite erases the UEFI boot entries of the VM.
+            type: int
+            default: 1
+          nvram_expected_db_cn:
+            description: >-
+              Subject common name of a certificate that the signature database (db)
+              of this VM must hold, for example C(My Devbox Secure Boot).
+              The role checks it only when C(vms_nvram_verify) is C(true).
+            type: str
           tpm:
             description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(vms_default_tpm).
             type: bool
+          tpm_generation:
+            description: >-
+              Generation counter for the TPM state of this VM.
+              Increase the value to clear C(vms_swtpm_state_dir/<name>).
+              A reset removes the sealed key slots, the persistent handles and
+              the PCR history of the VM. The role stops the VM and swtpm before
+              it clears the directory, and starts them again afterwards.
+            type: int
+            default: 1
           net_mode:
             description: Networking mode for this VM. Overrides C(vms_default_net_mode).
             type: str
@@ -102,6 +150,31 @@ argument_specs:
               VNC display number for this VM (maps to port 5900+N).
               If not specified, calculated from hash of VM name.
             type: int
+          smbios_oem_strings:
+            description:
+              - List of SMBIOS type 11 OEM strings for this VM.
+              - >-
+                C(systemd-stub) reads these strings, so they add to the command line
+                of a UKI without a rebuild of the image, for example
+                C(io.systemd.stub.kernel-cmdline-extra=rd.debug) or
+                C(io.systemd.credential:mycred=abc).
+              - >-
+                The role writes each string to its own file under
+                C(/var/lib/qemu/<name>/smbios/) and passes it to QEMU with
+                C(-smbios type=11,path=...). A string may therefore contain spaces.
+              - >-
+                The files have mode C(0600) and belong to C(vms_service_user), because
+                an OEM string can hold a secret. Deleting the key removes the files.
+              - >-
+                The firmware reads the strings once at boot. A change therefore takes
+                effect at the next start of the VM, and the role does not restart a
+                running VM.
+              - >-
+                C(systemd-stub) ignores these strings under confidential computing,
+                and they measure into PCR 12. OpenStack Nova has no equivalent knob,
+                so do not design a production configuration on this feature.
+            type: list
+            elements: str
           usb_disk_image:
             description: >-
               Path to a pre-provisioned USB disk image to attach to the VM.
@@ -176,6 +249,15 @@ argument_specs:
         choices:
           - qcow2
           - raw
+      vms_default_disk_bus:
+        description: >-
+          Default bus for the system disk of a VM.
+          Can be overridden per VM with the C(disk_bus) key.
+        type: str
+        default: virtio-blk
+        choices:
+          - virtio-blk
+          - virtio-scsi
       vms_image_dir:
         description: Directory for VM disk images. Should match C(host_vm_image_dir).
         type: path
@@ -237,8 +319,43 @@ argument_specs:
           (copied per-VM for writable NVRAM).
         type: path
         default: /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd
+      vms_nvram_verify:
+        description:
+          - >-
+            Verify the UEFI variable store of each Secure Boot VM after the role
+            writes it. The role asserts that a PK, a KEK and a db are enrolled, and
+            that C(SecureBootEnable) is on.
+          - >-
+            A store without a PK is in Setup Mode, and a VM with such a store boots
+            an unsigned artifact without a complaint.
+          - >-
+            C(SecureBoot) and C(SetupMode) are volatile variables that the firmware
+            creates at boot, so an offline check cannot read them. An enrolled PK is
+            the offline equivalent of C(SetupMode=0).
+          - >-
+            The check needs C(virt-fw-vars) from the package
+            C(python3-virt-firmware), which is in EPEL on EL9. The role reports a
+            skip when the command is absent.
+        type: bool
+        default: false
+      vms_nvram_force_reset:
+        description: >-
+          Write the UEFI NVRAM file of every VM in this run again from its template.
+          This variable is a one-shot escape hatch for the command line.
+          Do not set it in a playbook, because it erases the UEFI boot entries at
+          each run. To reset the NVRAM of one VM, increase its C(nvram_generation).
+        type: bool
+        default: false
       vms_default_tpm:
         description: Whether VMs default to TPM 2.0 emulation. Can be overridden per VM with C(tpm) key.
+        type: bool
+        default: false
+      vms_tpm_force_reset:
+        description: >-
+          Clear the swtpm state of every TPM VM in this run.
+          This variable is a one-shot escape hatch for the command line.
+          Do not set it in a playbook. To reset the TPM of one VM, increase its
+          C(tpm_generation).
         type: bool
         default: false
       vms_swtpm_state_dir:

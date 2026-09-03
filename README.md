@@ -122,13 +122,35 @@ systemctl status qemu-vm@web01
 - **URL-provisioned images:** Download a cloud image (QCOW2) from a URL and use it as a backing file; multiple VMs share the same cached base image (copy-on-write)
 - **Checksum verification:** Optional SHA256 checksum validation for downloaded images
 - **Idempotent:** Existing images are never recreated
+- **Disk bus:** `virtio-blk` by default. Set `disk_bus: virtio-scsi` per VM to attach the disk through a `virtio-scsi-pci` controller, which is the bus that production images usually use. The cloud-init seed ISO stays on virtio-blk
 
 ### UEFI firmware
 
 - UEFI boot with OVMF firmware, enabled by default
 - Per-VM writable NVRAM (`OVMF_VARS.fd`) copied automatically
 - **Secure Boot**: Enable per VM with `secure_boot: true` — uses `OVMF_CODE.secboot.fd` with pre-enrolled Microsoft/OVMF keys and SMM
+- **Custom variable store**: Give one VM its own template with `nvram_template: /path/to/OVMF_VARS.fd` — for example a store that holds your own PK, KEK and db keys. The other VMs on the host keep the global template
+- **NVRAM reset**: Increase `nvram_generation` to write the NVRAM file again from the template. The role also writes it again when `secure_boot`, the template path, or the content of the template changes. The role never rewrites the file otherwise, so UEFI boot entries that the guest writes survive a converge
+- **Verification**: Set `vms_nvram_verify: true` to assert that the variable store of each Secure Boot VM holds a PK, a KEK and a db, and that Secure Boot is enabled. A store without a PK is in Setup Mode, and a VM with such a store boots an unsigned artifact without a complaint. Add `nvram_expected_db_cn` per VM to also assert a certificate in the db. The check needs `virt-fw-vars` from `python3-virt-firmware` (EPEL on EL9); the role reports a skip when the command is absent
+
+  `SecureBoot` and `SetupMode` are volatile variables that the firmware creates at boot, so an offline check cannot read them. An enrolled PK is the offline equivalent of `SetupMode=0`
 - Disable per VM with `uefi: false`
+
+### SMBIOS OEM strings
+
+- Pass a list of SMBIOS type 11 OEM strings to a VM with `smbios_oem_strings`
+- `systemd-stub` reads these strings, so they add to the command line of a UKI without a rebuild and a new signature:
+
+  ```yaml
+  smbios_oem_strings:
+    - "io.systemd.stub.kernel-cmdline-extra=rd.debug systemd.log_level=debug"
+  ```
+
+- The role writes each string to its own file and passes it with `-smbios type=11,path=...`, so a string may contain spaces
+- The files are mode `0600` and belong to the QEMU user. An OEM string can hold a secret, and the `path=` form keeps it out of the command line, where `ps` would show it to every user. Deleting the key from `vms_list` removes the files
+- **A change takes effect at the next boot of the VM.** The firmware reads the strings once. The role does not restart a running VM, so restart it yourself to pick up a new string
+- `systemd-stub` ignores these strings under confidential computing, and they measure into PCR 12
+- OpenStack Nova has no equivalent knob. This feature is a convenience of this collection only
 
 ### TPM 2.0 emulation
 
@@ -136,6 +158,7 @@ systemctl status qemu-vm@web01
 - Per-VM state directories under `/var/lib/swtpm/`
 - Systemd dependency ensures swtpm starts before QEMU
 - Enable per VM with `tpm: true`
+- **TPM reset**: TPM state is persistent. Sealed key slots, persistent handles and the PCR history survive a rebuild of the VM. Increase `tpm_generation` to clear `/var/lib/swtpm/<name>`. The role stops the VM and swtpm first, and starts them again afterwards
 
 ### Networking
 
@@ -216,7 +239,11 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vms_default_disk_size` | `20G` | Default disk size |
 | `vms_default_disk_format` | `qcow2` | Default disk format |
 | `vms_default_uefi` | `true` | UEFI boot by default |
+| `vms_default_disk_bus` | `virtio-blk` | Default disk bus (`virtio-blk` or `virtio-scsi`) |
 | `vms_default_secure_boot` | `false` | UEFI Secure Boot by default |
+| `vms_nvram_verify` | `false` | Verify the variable store of each Secure Boot VM |
+| `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again (command line only) |
+| `vms_tpm_force_reset` | `false` | Clear the swtpm state of every TPM VM (command line only) |
 | `vms_default_tpm` | `false` | TPM emulation by default |
 | `vms_default_net_mode` | `user` | Default networking mode |
 | `vms_default_memory` | `2G` | Default memory |
@@ -237,6 +264,12 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `disk_image_checksum` | no | — | `sha256:...` checksum for URL image |
 | `uefi` | no | `vms_default_uefi` | UEFI boot |
 | `secure_boot` | no | `vms_default_secure_boot` | UEFI Secure Boot |
+| `disk_bus` | no | `vms_default_disk_bus` | Disk bus: `virtio-blk` or `virtio-scsi` |
+| `nvram_template` | no | global template | UEFI variable store template for this VM only |
+| `nvram_generation` | no | `1` | Increase to write the NVRAM file again |
+| `nvram_expected_db_cn` | no | — | Subject CN that the db must hold |
+| `smbios_oem_strings` | no | — | List of SMBIOS type 11 OEM strings |
+| `tpm_generation` | no | `1` | Increase to clear the swtpm state of this VM |
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |
 | `net_mode` | no | `vms_default_net_mode` | `user` or `bridge` |
 | `net_bridge` | no | `br0` | Bridge device (bridge mode) |
