@@ -75,6 +75,13 @@
           disk_bus: virtio-scsi
           usb_disk_image: /tmp/test-usb-installer.iso
           state: present
+        - name: testvm-smbios
+          disk_size: 1G
+          uefi: false
+          smbios_oem_strings:
+            - "io.systemd.stub.kernel-cmdline-extra=rd.debug systemd.log_level=debug"
+            - "io.systemd.credential:mycred=abc"
+          state: present
         - name: testvm-cpu
           disk_size: 1G
           uefi: false

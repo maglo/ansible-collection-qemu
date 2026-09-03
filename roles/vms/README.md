@@ -69,6 +69,7 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `memory` | no | `vms_default_memory` | Memory allocation (e.g. `2G`, `4G`) |
 | `cpus` | no | `vms_default_cpus` | Number of virtual CPUs |
 | `vnc` | no | hash-based | VNC display number (port = 5900+N) |
+| `smbios_oem_strings` | no | — | List of SMBIOS type 11 OEM strings (read by `systemd-stub`). Stored in `0600` files; a change needs a restart of the VM |
 | `usb_disk_image` | no | — | Path to USB disk image to attach (`.iso`, `.raw`, `.img`, `.qcow2`) |
 | `usb_boot_priority` | no | `true` when `usb_disk_image` is set | Boot from USB first |
 | `cloud_init_user_data` | no | — | cloud-init `user-data` content; triggers seed ISO generation |

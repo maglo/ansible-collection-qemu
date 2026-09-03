@@ -43,6 +43,10 @@
   ansible.builtin.import_tasks: monitor.yml
   when: _vms_active_vms | length > 0
 
+- name: Write per-VM SMBIOS OEM strings
+  ansible.builtin.import_tasks: smbios.yml
+  when: _vms_active_vms | length > 0
+
 - name: Validate USB disk image attachments
   ansible.builtin.import_tasks: usb_disk.yml
   when: _vms_active_vms | length > 0

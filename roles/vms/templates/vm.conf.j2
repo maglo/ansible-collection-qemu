@@ -67,6 +67,10 @@
 {% set _ = _args.append('-tpmdev emulator,id=tpm0,chardev=chrtpm') %}
 {% set _ = _args.append('-device tpm-tis,tpmdev=tpm0') %}
 {% endif %}
+{% set _smbios = item.smbios_oem_strings | default([]) %}
+{% for _oem_string in _smbios %}
+{% set _ = _args.append('-smbios type=11,path=/var/lib/qemu/' ~ item.name ~ '/smbios/' ~ ('%02d' | format(loop.index0))) %}
+{% endfor %}
 {% if _net_mode == 'user' %}
 {% set _ = _args.append('-nic user,model=virtio-net-pci,mac=' ~ _mac) %}
 {% elif _net_mode == 'bridge' %}

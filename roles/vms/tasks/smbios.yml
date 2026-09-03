@@ -1,0 +1,37 @@
+---
+# Write the SMBIOS type 11 OEM strings of each VM to one file per string.
+#
+# QEMU reads each string with `-smbios type=11,path=FILE`. The role does not
+# use the `value=` form, because the systemd unit passes the arguments as an
+# unquoted `$QEMU_ARGS`. systemd splits that variable at each space and does
+# not interpret quotation marks inside the value, so a string that contains a
+# space would become two arguments. A file holds the space instead.
+- name: Determine the VMs that set SMBIOS OEM strings
+  ansible.builtin.set_fact:
+    _vms_smbios_vms: >-
+      {{ _vms_active_vms | selectattr('smbios_oem_strings', 'defined')
+                         | rejectattr('smbios_oem_strings', 'equalto', []) | list }}
+
+# An OEM string can hold a secret, for example
+# `io.systemd.credential:mypassword=...`. Only the QEMU user may read it.
+- name: Create the SMBIOS directory for {{ item.name }}
+  ansible.builtin.file:
+    path: /var/lib/qemu/{{ item.name }}/smbios
+    state: directory
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0700"
+  become: true
+  loop: "{{ _vms_smbios_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# The loop covers every VM, not only the VMs that set the key now. A VM whose
+# list you delete must lose its files, and a VM that keeps its list must lose
+# the files of a longer list of an earlier run.
+- name: Write the SMBIOS OEM strings of {{ _vms_smbios_vm.name }}
+  ansible.builtin.include_tasks: smbios_strings.yml
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ _vms_smbios_vm.name }}"
+    loop_var: _vms_smbios_vm
