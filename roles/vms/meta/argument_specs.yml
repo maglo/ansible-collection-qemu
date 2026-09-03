@@ -13,6 +13,7 @@ argument_specs:
           - List of VMs to create. Each entry is a dictionary with at least a C(name) key.
           - "Optional per-VM keys: C(disk_size) (overrides C(vms_default_disk_size)),
             C(disk_format) (overrides C(vms_default_disk_format)),
+            C(disk_bus) (overrides C(vms_default_disk_bus)),
             C(disk_image_url) (URL to qcow2 image to use as backing file),
             C(disk_image_checksum) (SHA256 checksum for image verification),
             C(uefi) (overrides C(vms_default_uefi)),
@@ -52,6 +53,17 @@ argument_specs:
             choices:
               - qcow2
               - raw
+          disk_bus:
+            description: >-
+              Bus for the system disk of this VM. Overrides C(vms_default_disk_bus).
+              C(virtio-blk) attaches the disk with C(-drive if=virtio).
+              C(virtio-scsi) attaches a C(virtio-scsi-pci) controller and an
+              C(scsi-hd) device, which is the bus that production images usually use.
+              The cloud-init seed ISO stays on virtio-blk in both cases.
+            type: str
+            choices:
+              - virtio-blk
+              - virtio-scsi
           disk_image_url:
             description: >-
               URL to a qcow2 disk image to download and use as a backing file.
@@ -194,6 +206,15 @@ argument_specs:
         choices:
           - qcow2
           - raw
+      vms_default_disk_bus:
+        description: >-
+          Default bus for the system disk of a VM.
+          Can be overridden per VM with the C(disk_bus) key.
+        type: str
+        default: virtio-blk
+        choices:
+          - virtio-blk
+          - virtio-scsi
       vms_image_dir:
         description: Directory for VM disk images. Should match C(host_vm_image_dir).
         type: path

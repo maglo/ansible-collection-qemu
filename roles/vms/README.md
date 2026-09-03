@@ -21,6 +21,7 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `vms_list` | `[]` | List of VMs to create (see below) |
 | `vms_default_disk_size` | `20G` | Default disk size when not specified per VM |
 | `vms_default_disk_format` | `qcow2` | Default disk format (`qcow2` or `raw`) |
+| `vms_default_disk_bus` | `virtio-blk` | Default disk bus (`virtio-blk` or `virtio-scsi`, per-VM override with `disk_bus` key) |
 | `vms_image_dir` | `/var/lib/qemu/images` | Directory for disk images (should match `host_vm_image_dir`) |
 | `vms_image_cache_dir` | `/var/lib/qemu/images/cache` | Cache directory for downloaded disk images (shared across VMs) |
 | `vms_verify_checksums` | `true` | Whether to verify checksums for downloaded images (currently unused but reserved) |
@@ -54,6 +55,7 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `name` | yes | — | VM name, used as the disk image filename |
 | `disk_size` | no | `vms_default_disk_size` | Disk image size (e.g. `20G`, `100G`) |
 | `disk_format` | no | `vms_default_disk_format` | Disk format (`qcow2` or `raw`) |
+| `disk_bus` | no | `vms_default_disk_bus` | Disk bus (`virtio-blk` or `virtio-scsi`) |
 | `disk_image_url` | no | — | URL to a qcow2 image to download and use as a backing file |
 | `disk_image_checksum` | no | — | SHA256 checksum for the downloaded image (format: `sha256:abc123...`) |
 | `uefi` | no | `vms_default_uefi` | Whether to enable UEFI boot for this VM |

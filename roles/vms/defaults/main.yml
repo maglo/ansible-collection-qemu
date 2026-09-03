@@ -15,6 +15,12 @@ vms_default_disk_size: "20G"
 # Default disk format
 vms_default_disk_format: qcow2
 
+# Default disk bus for VMs (per-VM override with `disk_bus` key).
+# `virtio-blk` attaches the disk with `-drive if=virtio`.
+# `virtio-scsi` attaches a virtio-scsi-pci controller and an scsi-hd device,
+# which is the bus that production images usually use.
+vms_default_disk_bus: virtio-blk
+
 # Directory for VM disk images (must match host_vm_image_dir)
 vms_image_dir: /var/lib/qemu/images
 

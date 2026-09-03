@@ -223,6 +223,48 @@
           - "'-device usb-storage,drive=usb0' in _content"
           - "'bootindex=1' not in _content"
 
+    # ── VM config — disk bus ────────────────────────────────
+    - name: Read testvm config for the default disk bus
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm.conf
+      register: testvm_blk_conf
+
+    - name: Assert the default disk bus stays virtio-blk
+      vars:
+        _content: "{{ testvm_blk_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
+          - "'virtio-scsi-pci' not in _content"
+
+    - name: Read testvm-scsi config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-scsi.conf
+      register: testvm_scsi_conf
+
+    - name: Assert testvm-scsi uses a virtio-scsi controller
+      vars:
+        _content: "{{ testvm_scsi_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device virtio-scsi-pci,id=scsi0' in _content"
+          - "'-drive if=none,id=disk0,format=qcow2,file=/var/lib/qemu/images/testvm-scsi.qcow2' in _content"
+          - "'-device scsi-hd,drive=disk0,bus=scsi0.0,bootindex=2' in _content"
+          - "'-drive if=virtio,format=qcow2' not in _content"
+
+    - name: Read testvm-scsi-usb config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-scsi-usb.conf
+      register: testvm_scsi_usb_conf
+
+    - name: Assert the USB device keeps the boot priority over the SCSI disk
+      vars:
+        _content: "{{ testvm_scsi_usb_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-device usb-storage,drive=usb0,bootindex=1' in _content"
+          - "'-device scsi-hd,drive=disk0,bus=scsi0.0,bootindex=2' in _content"
+
     # ── Secure Boot firmware ────────────────────────────────
     - name: Stat OVMF_CODE.secboot.fd
       ansible.builtin.stat:
