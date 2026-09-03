@@ -128,6 +128,8 @@ systemctl status qemu-vm@web01
 - UEFI boot with OVMF firmware, enabled by default
 - Per-VM writable NVRAM (`OVMF_VARS.fd`) copied automatically
 - **Secure Boot**: Enable per VM with `secure_boot: true` — uses `OVMF_CODE.secboot.fd` with pre-enrolled Microsoft/OVMF keys and SMM
+- **Custom variable store**: Give one VM its own template with `nvram_template: /path/to/OVMF_VARS.fd` — for example a store that holds your own PK, KEK and db keys. The other VMs on the host keep the global template
+- **NVRAM reset**: Increase `nvram_generation` to write the NVRAM file again from the template. The role also writes it again when `secure_boot`, the template path, or the content of the template changes. The role never rewrites the file otherwise, so UEFI boot entries that the guest writes survive a converge
 - Disable per VM with `uefi: false`
 
 ### TPM 2.0 emulation
@@ -217,6 +219,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vms_default_disk_format` | `qcow2` | Default disk format |
 | `vms_default_uefi` | `true` | UEFI boot by default |
 | `vms_default_secure_boot` | `false` | UEFI Secure Boot by default |
+| `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again (command line only) |
 | `vms_default_tpm` | `false` | TPM emulation by default |
 | `vms_default_net_mode` | `user` | Default networking mode |
 | `vms_default_memory` | `2G` | Default memory |
@@ -237,6 +240,8 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `disk_image_checksum` | no | — | `sha256:...` checksum for URL image |
 | `uefi` | no | `vms_default_uefi` | UEFI boot |
 | `secure_boot` | no | `vms_default_secure_boot` | UEFI Secure Boot |
+| `nvram_template` | no | global template | UEFI variable store template for this VM only |
+| `nvram_generation` | no | `1` | Increase to write the NVRAM file again |
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |
 | `net_mode` | no | `vms_default_net_mode` | `user` or `bridge` |
 | `net_bridge` | no | `br0` | Bridge device (bridge mode) |

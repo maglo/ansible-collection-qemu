@@ -76,10 +76,20 @@
   become: true
   when: item.uefi | default(vms_default_uefi)
 
-- name: Remove secure boot marker file for {{ item.name }}
+- name: Remove NVRAM state file for {{ item.name }}
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.state"
+    state: absent
+  become: true
+  when: item.uefi | default(vms_default_uefi)
+
+# The marker file of collection versions before 0.4.0. Remove it so that a VM
+# with the same name does not adopt the state of the VM that is destroyed.
+- name: Remove legacy secure boot marker file for {{ item.name }}
   ansible.builtin.file:
     path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
     state: absent
+  become: true
   when: item.uefi | default(vms_default_uefi)
 
 - name: Remove per-VM runtime directory for {{ item.name }}

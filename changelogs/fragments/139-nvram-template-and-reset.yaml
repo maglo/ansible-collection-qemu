@@ -1,0 +1,22 @@
+---
+minor_changes:
+  - vms role - add the per-VM ``nvram_template`` key. It selects the UEFI
+    variable store template for one VM and overrides ``vms_ovmf_vars_template``
+    and ``vms_ovmf_vars_secboot_template`` for that VM only
+    (https://github.com/maglo/ansible-collection-qemu/issues/139).
+  - vms role - add the per-VM ``nvram_generation`` key and the
+    ``vms_nvram_force_reset`` variable. Increase the generation to write the
+    UEFI NVRAM file again from its template
+    (https://github.com/maglo/ansible-collection-qemu/issues/139).
+  - vms role - write the UEFI NVRAM file again when the template path or the
+    content of the template changes. Earlier versions wrote the file only when
+    the ``secure_boot`` flag changed
+    (https://github.com/maglo/ansible-collection-qemu/issues/139).
+  - vms role - stop a VM before the role writes its UEFI NVRAM file, and start
+    the VM again afterwards. QEMU maps the file as pflash while the VM runs
+    (https://github.com/maglo/ansible-collection-qemu/issues/139).
+  - vms role - replace the ``<name>_VARS.fd.secboot`` marker file with the
+    ``<name>_VARS.fd.state`` state file. The role adopts an existing marker
+    without a rewrite of the NVRAM file, so an upgrade keeps the UEFI boot
+    entries of each VM that exists
+    (https://github.com/maglo/ansible-collection-qemu/issues/139).

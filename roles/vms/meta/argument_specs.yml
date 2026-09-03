@@ -17,6 +17,8 @@ argument_specs:
             C(disk_image_checksum) (SHA256 checksum for image verification),
             C(uefi) (overrides C(vms_default_uefi)),
             C(secure_boot) (overrides C(vms_default_secure_boot)),
+            C(nvram_template) (per-VM UEFI variable store template),
+            C(nvram_generation) (increase to write the NVRAM file again),
             C(tpm) (overrides C(vms_default_tpm)),
             C(net_mode) (overrides C(vms_default_net_mode)),
             C(net_bridge) (overrides C(vms_default_net_bridge)),
@@ -71,6 +73,22 @@ argument_specs:
               Uses C(OVMF_CODE.secboot.fd) with pre-enrolled Microsoft/OVMF keys and enables
               SMM (System Management Mode). Requires UEFI to be enabled.
             type: bool
+          nvram_template:
+            description: >-
+              Path to the UEFI variable store template for this VM.
+              It overrides C(vms_ovmf_vars_template) and C(vms_ovmf_vars_secboot_template)
+              for this VM only. Use it to give one VM a variable store that holds
+              custom PK, KEK and db keys.
+            type: path
+          nvram_generation:
+            description: >-
+              Generation counter for the UEFI variable store of this VM.
+              Increase the value to make the role write the NVRAM file again from the
+              template. The role writes the file again also when C(secure_boot), the
+              template path, or the content of the template changes.
+              A rewrite erases the UEFI boot entries of the VM.
+            type: int
+            default: 1
           tpm:
             description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(vms_default_tpm).
             type: bool
@@ -237,6 +255,14 @@ argument_specs:
           (copied per-VM for writable NVRAM).
         type: path
         default: /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd
+      vms_nvram_force_reset:
+        description: >-
+          Write the UEFI NVRAM file of every VM in this run again from its template.
+          This variable is a one-shot escape hatch for the command line.
+          Do not set it in a playbook, because it erases the UEFI boot entries at
+          each run. To reset the NVRAM of one VM, increase its C(nvram_generation).
+        type: bool
+        default: false
       vms_default_tpm:
         description: Whether VMs default to TPM 2.0 emulation. Can be overridden per VM with C(tpm) key.
         type: bool
