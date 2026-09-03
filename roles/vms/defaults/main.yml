@@ -66,6 +66,14 @@ vms_nvram_force_reset: false
 # Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key)
 vms_default_tpm: false
 
+# Clear the swtpm state of every TPM VM in this run.
+# This variable is a one-shot escape hatch for the command line:
+#   ansible-playbook ... -e vms_tpm_force_reset=true
+# Do not set it in a playbook. It clears sealed key slots, persistent handles
+# and the PCR history at each run.
+# To reset the TPM of one VM, increase its `tpm_generation` key instead.
+vms_tpm_force_reset: false
+
 # Base directory for per-VM swtpm state
 # NOTE: This must match host_swtpm_state_dir (used by swtpm@.service template)
 vms_swtpm_state_dir: /var/lib/swtpm

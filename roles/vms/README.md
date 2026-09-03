@@ -35,6 +35,7 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `vms_ovmf_vars_secboot_template` | `/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd` | Path to OVMF Secure Boot vars template (pre-enrolled keys) |
 | `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again from its template. Command-line escape hatch only |
 | `vms_default_tpm` | `false` | Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key) |
+| `vms_tpm_force_reset` | `false` | Clear the swtpm state of every TPM VM. Command-line escape hatch only |
 | `vms_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state |
 | `vms_default_net_mode` | `user` | Default networking mode (`user` or `bridge`) |
 | `vms_default_net_bridge` | `br0` | Default bridge device for bridge-mode VMs |
@@ -63,6 +64,7 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `nvram_template` | no | `vms_ovmf_vars_template` or `vms_ovmf_vars_secboot_template` | UEFI variable store template for this VM only |
 | `nvram_generation` | no | `1` | Increase to write the NVRAM file again from the template |
 | `tpm` | no | `vms_default_tpm` | Enable TPM 2.0 emulation via swtpm |
+| `tpm_generation` | no | `1` | Increase to clear the swtpm state of this VM |
 | `net_mode` | no | `vms_default_net_mode` | Networking mode: `user` or `bridge` |
 | `net_bridge` | no | `vms_default_net_bridge` | Bridge device (only used when `net_mode` is `bridge`) |
 | `mac_address` | no | auto-generated | MAC address (overrides the deterministic auto-generated MAC) |
