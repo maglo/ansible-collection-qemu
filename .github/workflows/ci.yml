@@ -107,6 +107,8 @@ jobs:
             scenario: novnc
           - role: vms
             scenario: default
+          - role: vms
+            scenario: secureboot
     steps:
       - name: Checkout
         uses: actions/checkout@v4

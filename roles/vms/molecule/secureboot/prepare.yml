@@ -1,0 +1,37 @@
+---
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Install edk2-ovmf for the firmware templates
+      ansible.builtin.dnf:
+        name: edk2-ovmf
+        state: present
+
+    # The scenario never boots a VM, so the custom template needs no valid
+    # firmware layout. It needs only content that is different from the stock
+    # template, to prove that the role selects the correct file.
+    - name: Create a custom variable store template
+      ansible.builtin.copy:
+        content: "molecule-custom-varstore\n"
+        dest: /tmp/custom_VARS.fd
+        mode: "0644"
+
+    # A VM of a collection version before 0.4.0: an NVRAM file plus the marker
+    # file, and no state file. The role must adopt it and keep the NVRAM file.
+    - name: Create the image directory
+      ansible.builtin.file:
+        path: /var/lib/qemu/images
+        state: directory
+        mode: "0755"
+
+    - name: Create the NVRAM file of a VM of an earlier version
+      ansible.builtin.copy:
+        content: "molecule-legacy-boot-entries\n"
+        dest: /var/lib/qemu/images/legacyvm_VARS.fd
+        mode: "0644"
+
+    - name: Create the legacy secure boot marker of that VM
+      ansible.builtin.file:
+        path: /var/lib/qemu/images/legacyvm_VARS.fd.secboot
+        state: touch
+        mode: "0644"
