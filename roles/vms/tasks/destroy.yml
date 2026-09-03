@@ -105,6 +105,13 @@
   become: true
   when: item.tpm | default(vms_default_tpm)
 
+- name: Remove TPM state file for {{ item.name }}
+  ansible.builtin.file:
+    path: "{{ vms_swtpm_state_dir }}/{{ item.name }}.state"
+    state: absent
+  become: true
+  when: item.tpm | default(vms_default_tpm)
+
 - name: Remove systemd drop-in directory for {{ item.name }}
   ansible.builtin.file:
     path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"

@@ -354,6 +354,58 @@
           Removing smbios_oem_strings left the string files on the host.
           An OEM string can hold a credential.
 
+    # ── TPM state file and reset ────────────────────────────
+    - name: Read the TPM state file of testvm-tpm
+      ansible.builtin.slurp:
+        src: /var/lib/swtpm/testvm-tpm.state
+      register: _tpm_state
+
+    - name: Assert the TPM state file records the first generation
+      ansible.builtin.assert:
+        that:
+          - (_tpm_state.content | b64decode | from_json).generation | int == 1
+
+    - name: Write a sentinel file into the swtpm state directory
+      ansible.builtin.copy:
+        content: "molecule-sealed-keyslot\n"
+        dest: /var/lib/swtpm/testvm-tpm/molecule-sentinel
+        mode: "0644"
+
+    - name: Run the role again with a higher TPM generation
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - name: testvm-tpm
+            disk_size: 1G
+            tpm: true
+            tpm_generation: 2
+            state: present
+
+    - name: Stat the sentinel file after the TPM reset
+      ansible.builtin.stat:
+        path: /var/lib/swtpm/testvm-tpm/molecule-sentinel
+      register: _tpm_sentinel
+
+    - name: Read the TPM state file after the reset
+      ansible.builtin.slurp:
+        src: /var/lib/swtpm/testvm-tpm.state
+      register: _tpm_state_after
+
+    - name: Assert the generation change cleared the swtpm state directory
+      ansible.builtin.assert:
+        that:
+          - not _tpm_sentinel.stat.exists
+          - (_tpm_state_after.content | b64decode | from_json).generation | int == 2
+        fail_msg: An increase of tpm_generation did not clear the swtpm state.
+
+    - name: Assert swtpm runs again after the reset
+      ansible.builtin.systemd_service:
+        name: swtpm@testvm-tpm.service
+      register: _swtpm_after
+      failed_when: _swtpm_after.status.ActiveState != 'active'
+      changed_when: false
+
     # ── Secure Boot firmware ────────────────────────────────
     - name: Stat OVMF_CODE.secboot.fd
       ansible.builtin.stat:

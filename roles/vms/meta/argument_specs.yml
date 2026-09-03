@@ -21,6 +21,7 @@ argument_specs:
             C(nvram_template) (per-VM UEFI variable store template),
             C(nvram_generation) (increase to write the NVRAM file again),
             C(tpm) (overrides C(vms_default_tpm)),
+            C(tpm_generation) (increase to clear the TPM state),
             C(net_mode) (overrides C(vms_default_net_mode)),
             C(net_bridge) (overrides C(vms_default_net_bridge)),
             C(mac_address) (overrides the auto-generated MAC),
@@ -105,6 +106,15 @@ argument_specs:
           tpm:
             description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(vms_default_tpm).
             type: bool
+          tpm_generation:
+            description: >-
+              Generation counter for the TPM state of this VM.
+              Increase the value to clear C(vms_swtpm_state_dir/<name>).
+              A reset removes the sealed key slots, the persistent handles and
+              the PCR history of the VM. The role stops the VM and swtpm before
+              it clears the directory, and starts them again afterwards.
+            type: int
+            default: 1
           net_mode:
             description: Networking mode for this VM. Overrides C(vms_default_net_mode).
             type: str
@@ -312,6 +322,14 @@ argument_specs:
         default: false
       vms_default_tpm:
         description: Whether VMs default to TPM 2.0 emulation. Can be overridden per VM with C(tpm) key.
+        type: bool
+        default: false
+      vms_tpm_force_reset:
+        description: >-
+          Clear the swtpm state of every TPM VM in this run.
+          This variable is a one-shot escape hatch for the command line.
+          Do not set it in a playbook. To reset the TPM of one VM, increase its
+          C(tpm_generation).
         type: bool
         default: false
       vms_swtpm_state_dir:

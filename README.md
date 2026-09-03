@@ -155,6 +155,7 @@ systemctl status qemu-vm@web01
 - Per-VM state directories under `/var/lib/swtpm/`
 - Systemd dependency ensures swtpm starts before QEMU
 - Enable per VM with `tpm: true`
+- **TPM reset**: TPM state is persistent. Sealed key slots, persistent handles and the PCR history survive a rebuild of the VM. Increase `tpm_generation` to clear `/var/lib/swtpm/<name>`. The role stops the VM and swtpm first, and starts them again afterwards
 
 ### Networking
 
@@ -238,6 +239,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vms_default_disk_bus` | `virtio-blk` | Default disk bus (`virtio-blk` or `virtio-scsi`) |
 | `vms_default_secure_boot` | `false` | UEFI Secure Boot by default |
 | `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again (command line only) |
+| `vms_tpm_force_reset` | `false` | Clear the swtpm state of every TPM VM (command line only) |
 | `vms_default_tpm` | `false` | TPM emulation by default |
 | `vms_default_net_mode` | `user` | Default networking mode |
 | `vms_default_memory` | `2G` | Default memory |
@@ -262,6 +264,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `nvram_template` | no | global template | UEFI variable store template for this VM only |
 | `nvram_generation` | no | `1` | Increase to write the NVRAM file again |
 | `smbios_oem_strings` | no | — | List of SMBIOS type 11 OEM strings |
+| `tpm_generation` | no | `1` | Increase to clear the swtpm state of this VM |
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |
 | `net_mode` | no | `vms_default_net_mode` | `user` or `bridge` |
 | `net_bridge` | no | `br0` | Bridge device (bridge mode) |
