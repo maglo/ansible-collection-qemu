@@ -131,6 +131,9 @@ systemctl status qemu-vm@web01
 - **Secure Boot**: Enable per VM with `secure_boot: true` — uses `OVMF_CODE.secboot.fd` with pre-enrolled Microsoft/OVMF keys and SMM
 - **Custom variable store**: Give one VM its own template with `nvram_template: /path/to/OVMF_VARS.fd` — for example a store that holds your own PK, KEK and db keys. The other VMs on the host keep the global template
 - **NVRAM reset**: Increase `nvram_generation` to write the NVRAM file again from the template. The role also writes it again when `secure_boot`, the template path, or the content of the template changes. The role never rewrites the file otherwise, so UEFI boot entries that the guest writes survive a converge
+- **Verification**: Set `vms_nvram_verify: true` to assert that the variable store of each Secure Boot VM holds a PK, a KEK and a db, and that Secure Boot is enabled. A store without a PK is in Setup Mode, and a VM with such a store boots an unsigned artifact without a complaint. Add `nvram_expected_db_cn` per VM to also assert a certificate in the db. The check needs `virt-fw-vars` from `python3-virt-firmware` (EPEL on EL9); the role reports a skip when the command is absent
+
+  `SecureBoot` and `SetupMode` are volatile variables that the firmware creates at boot, so an offline check cannot read them. An enrolled PK is the offline equivalent of `SetupMode=0`
 - Disable per VM with `uefi: false`
 
 ### SMBIOS OEM strings
@@ -238,6 +241,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vms_default_uefi` | `true` | UEFI boot by default |
 | `vms_default_disk_bus` | `virtio-blk` | Default disk bus (`virtio-blk` or `virtio-scsi`) |
 | `vms_default_secure_boot` | `false` | UEFI Secure Boot by default |
+| `vms_nvram_verify` | `false` | Verify the variable store of each Secure Boot VM |
 | `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again (command line only) |
 | `vms_tpm_force_reset` | `false` | Clear the swtpm state of every TPM VM (command line only) |
 | `vms_default_tpm` | `false` | TPM emulation by default |
@@ -263,6 +267,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `disk_bus` | no | `vms_default_disk_bus` | Disk bus: `virtio-blk` or `virtio-scsi` |
 | `nvram_template` | no | global template | UEFI variable store template for this VM only |
 | `nvram_generation` | no | `1` | Increase to write the NVRAM file again |
+| `nvram_expected_db_cn` | no | — | Subject CN that the db must hold |
 | `smbios_oem_strings` | no | — | List of SMBIOS type 11 OEM strings |
 | `tpm_generation` | no | `1` | Increase to clear the swtpm state of this VM |
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |

@@ -56,6 +56,11 @@ vms_ovmf_code_secboot: /usr/share/edk2/ovmf/OVMF_CODE.secboot.fd
 # Path to OVMF Secure Boot vars template (pre-enrolled Microsoft/OVMF keys, copied per-VM)
 vms_ovmf_vars_secboot_template: /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd
 
+# Verify the UEFI variable store of each Secure Boot VM after the role writes
+# it. The check needs `virt-fw-vars` from the package python3-virt-firmware,
+# which is in EPEL on EL9. The role reports a skip when the command is absent.
+vms_nvram_verify: false
+
 # Force a rewrite of the UEFI NVRAM file of every VM in this run.
 # This variable is a one-shot escape hatch for the command line:
 #   ansible-playbook ... -e vms_nvram_force_reset=true

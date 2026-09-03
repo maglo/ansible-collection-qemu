@@ -16,6 +16,12 @@
           secure_boot: true
           nvram_template: /tmp/custom_VARS.fd
           state: present
+        # A store with known keys, used by the verification in verify.yml.
+        - name: sb-enrolled
+          disk_size: 1G
+          secure_boot: true
+          nvram_template: /tmp/enrolled_VARS.fd
+          state: present
         # A VM of an earlier collection version. Its NVRAM file must survive.
         - name: legacyvm
           disk_size: 1G

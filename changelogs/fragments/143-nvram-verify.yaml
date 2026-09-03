@@ -1,0 +1,10 @@
+---
+minor_changes:
+  - vms role - add the ``vms_nvram_verify`` variable and the per-VM
+    ``nvram_expected_db_cn`` key. When the verification is on, the role asserts
+    that the UEFI variable store of each Secure Boot VM holds a PK, a KEK and a
+    db, and that ``SecureBootEnable`` is on. A store without a PK is in Setup
+    Mode, and a VM with such a store boots an unsigned artifact without a
+    complaint. The check needs ``virt-fw-vars`` from the package
+    ``python3-virt-firmware``, and the role reports a skip when the command is
+    absent (https://github.com/maglo/ansible-collection-qemu/issues/143).
