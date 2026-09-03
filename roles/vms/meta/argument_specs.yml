@@ -28,6 +28,7 @@ argument_specs:
             C(cpus) (overrides C(vms_default_cpus)),
             C(cpu_model) (overrides C(vms_default_cpu)),
             C(vnc) (VNC display number, auto-generated from VM name if not specified),
+            C(smbios_oem_strings) (list of SMBIOS type 11 OEM strings),
             C(usb_disk_image) (path to USB disk image: iso/raw/img/qcow2),
             C(usb_boot_priority) (boot from attached USB first; defaults to true when usb image is set),
             C(cloud_init_user_data) (cloud-init user-data content; triggers seed ISO generation),
@@ -132,6 +133,31 @@ argument_specs:
               VNC display number for this VM (maps to port 5900+N).
               If not specified, calculated from hash of VM name.
             type: int
+          smbios_oem_strings:
+            description:
+              - List of SMBIOS type 11 OEM strings for this VM.
+              - >-
+                C(systemd-stub) reads these strings, so they add to the command line
+                of a UKI without a rebuild of the image, for example
+                C(io.systemd.stub.kernel-cmdline-extra=rd.debug) or
+                C(io.systemd.credential:mycred=abc).
+              - >-
+                The role writes each string to its own file under
+                C(/var/lib/qemu/<name>/smbios/) and passes it to QEMU with
+                C(-smbios type=11,path=...). A string may therefore contain spaces.
+              - >-
+                The files have mode C(0600) and belong to C(vms_service_user), because
+                an OEM string can hold a secret. Deleting the key removes the files.
+              - >-
+                The firmware reads the strings once at boot. A change therefore takes
+                effect at the next start of the VM, and the role does not restart a
+                running VM.
+              - >-
+                C(systemd-stub) ignores these strings under confidential computing,
+                and they measure into PCR 12. OpenStack Nova has no equivalent knob,
+                so do not design a production configuration on this feature.
+            type: list
+            elements: str
           usb_disk_image:
             description: >-
               Path to a pre-provisioned USB disk image to attach to the VM.

@@ -1,0 +1,42 @@
+---
+# The file holds the string without a trailing newline, because QEMU passes the
+# content of the file to the guest as the OEM string.
+#
+# Mode 0600: an OEM string can hold a secret, for example
+# `io.systemd.credential:mypassword=...`. The `path=` form already keeps the
+# string out of the command line, where `ps` would show it to every user, so
+# the file must not show it either. QEMU runs as `vms_service_user` and reads
+# the file as the owner.
+- name: Write an SMBIOS OEM string of {{ _vms_smbios_vm.name }}
+  ansible.builtin.copy:
+    content: "{{ item }}"
+    dest: "/var/lib/qemu/{{ _vms_smbios_vm.name }}/smbios/{{ '%02d' | format(_vms_smbios_index) }}"
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0600"
+  become: true
+  loop: "{{ _vms_smbios_vm.smbios_oem_strings | default([]) }}"
+  loop_control:
+    index_var: _vms_smbios_index
+    label: "{{ _vms_smbios_vm.name }}[{{ _vms_smbios_index }}]"
+
+# A shorter list, an empty list, or a deleted key leaves files of an earlier run
+# behind. QEMU no longer reads them, but the content stays on disk, and an OEM
+# string can hold a secret. The `find` module returns an empty list when the
+# directory does not exist, so this runs safely for a VM that never used the key.
+- name: Find the SMBIOS OEM string files of {{ _vms_smbios_vm.name }}
+  ansible.builtin.find:
+    paths: "/var/lib/qemu/{{ _vms_smbios_vm.name }}/smbios"
+    file_type: file
+  register: _vms_smbios_present
+  become: true
+
+- name: Remove the stale SMBIOS OEM string files of {{ _vms_smbios_vm.name }}
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  become: true
+  loop: "{{ _vms_smbios_present.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: (item.path | basename | int) >= (_vms_smbios_vm.smbios_oem_strings | default([]) | length)

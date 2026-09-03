@@ -1,0 +1,6 @@
+---
+minor_changes:
+  - vms role - add the per-VM ``smbios_oem_strings`` key. The role passes each
+    string to QEMU as an SMBIOS type 11 OEM string, which ``systemd-stub``
+    reads. This adds to the command line of a UKI without a rebuild and a new
+    signature (https://github.com/maglo/ansible-collection-qemu/issues/141).

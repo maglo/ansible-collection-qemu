@@ -133,6 +133,22 @@ systemctl status qemu-vm@web01
 - **NVRAM reset**: Increase `nvram_generation` to write the NVRAM file again from the template. The role also writes it again when `secure_boot`, the template path, or the content of the template changes. The role never rewrites the file otherwise, so UEFI boot entries that the guest writes survive a converge
 - Disable per VM with `uefi: false`
 
+### SMBIOS OEM strings
+
+- Pass a list of SMBIOS type 11 OEM strings to a VM with `smbios_oem_strings`
+- `systemd-stub` reads these strings, so they add to the command line of a UKI without a rebuild and a new signature:
+
+  ```yaml
+  smbios_oem_strings:
+    - "io.systemd.stub.kernel-cmdline-extra=rd.debug systemd.log_level=debug"
+  ```
+
+- The role writes each string to its own file and passes it with `-smbios type=11,path=...`, so a string may contain spaces
+- The files are mode `0600` and belong to the QEMU user. An OEM string can hold a secret, and the `path=` form keeps it out of the command line, where `ps` would show it to every user. Deleting the key from `vms_list` removes the files
+- **A change takes effect at the next boot of the VM.** The firmware reads the strings once. The role does not restart a running VM, so restart it yourself to pick up a new string
+- `systemd-stub` ignores these strings under confidential computing, and they measure into PCR 12
+- OpenStack Nova has no equivalent knob. This feature is a convenience of this collection only
+
 ### TPM 2.0 emulation
 
 - Software TPM via `swtpm`, managed as `swtpm@<name>.service`
@@ -245,6 +261,7 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `disk_bus` | no | `vms_default_disk_bus` | Disk bus: `virtio-blk` or `virtio-scsi` |
 | `nvram_template` | no | global template | UEFI variable store template for this VM only |
 | `nvram_generation` | no | `1` | Increase to write the NVRAM file again |
+| `smbios_oem_strings` | no | — | List of SMBIOS type 11 OEM strings |
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |
 | `net_mode` | no | `vms_default_net_mode` | `user` or `bridge` |
 | `net_bridge` | no | `br0` | Bridge device (bridge mode) |
