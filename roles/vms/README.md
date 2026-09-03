@@ -33,6 +33,7 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `vms_default_secure_boot` | `false` | Whether VMs default to UEFI Secure Boot (per-VM override with `secure_boot` key) |
 | `vms_ovmf_code_secboot` | `/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd` | Path to OVMF Secure Boot firmware code file |
 | `vms_ovmf_vars_secboot_template` | `/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd` | Path to OVMF Secure Boot vars template (pre-enrolled keys) |
+| `vms_nvram_verify` | `false` | Verify the variable store of each Secure Boot VM (needs `virt-fw-vars`) |
 | `vms_nvram_force_reset` | `false` | Write the NVRAM file of every VM again from its template. Command-line escape hatch only |
 | `vms_default_tpm` | `false` | Whether VMs default to TPM 2.0 emulation (per-VM override with `tpm` key) |
 | `vms_tpm_force_reset` | `false` | Clear the swtpm state of every TPM VM. Command-line escape hatch only |
@@ -63,6 +64,7 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `secure_boot` | no | `vms_default_secure_boot` | Enable UEFI Secure Boot (requires UEFI) |
 | `nvram_template` | no | `vms_ovmf_vars_template` or `vms_ovmf_vars_secboot_template` | UEFI variable store template for this VM only |
 | `nvram_generation` | no | `1` | Increase to write the NVRAM file again from the template |
+| `nvram_expected_db_cn` | no | — | Subject CN that the signature database (db) must hold (checked when `vms_nvram_verify` is true) |
 | `tpm` | no | `vms_default_tpm` | Enable TPM 2.0 emulation via swtpm |
 | `tpm_generation` | no | `1` | Increase to clear the swtpm state of this VM |
 | `net_mode` | no | `vms_default_net_mode` | Networking mode: `user` or `bridge` |

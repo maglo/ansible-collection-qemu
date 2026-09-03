@@ -20,6 +20,7 @@ argument_specs:
             C(secure_boot) (overrides C(vms_default_secure_boot)),
             C(nvram_template) (per-VM UEFI variable store template),
             C(nvram_generation) (increase to write the NVRAM file again),
+            C(nvram_expected_db_cn) (subject CN that the db must hold),
             C(tpm) (overrides C(vms_default_tpm)),
             C(tpm_generation) (increase to clear the TPM state),
             C(net_mode) (overrides C(vms_default_net_mode)),
@@ -103,6 +104,12 @@ argument_specs:
               A rewrite erases the UEFI boot entries of the VM.
             type: int
             default: 1
+          nvram_expected_db_cn:
+            description: >-
+              Subject common name of a certificate that the signature database (db)
+              of this VM must hold, for example C(My Devbox Secure Boot).
+              The role checks it only when C(vms_nvram_verify) is C(true).
+            type: str
           tpm:
             description: Enable TPM 2.0 emulation for this VM via swtpm. Overrides C(vms_default_tpm).
             type: bool
@@ -312,6 +319,25 @@ argument_specs:
           (copied per-VM for writable NVRAM).
         type: path
         default: /usr/share/edk2/ovmf/OVMF_VARS.secboot.fd
+      vms_nvram_verify:
+        description:
+          - >-
+            Verify the UEFI variable store of each Secure Boot VM after the role
+            writes it. The role asserts that a PK, a KEK and a db are enrolled, and
+            that C(SecureBootEnable) is on.
+          - >-
+            A store without a PK is in Setup Mode, and a VM with such a store boots
+            an unsigned artifact without a complaint.
+          - >-
+            C(SecureBoot) and C(SetupMode) are volatile variables that the firmware
+            creates at boot, so an offline check cannot read them. An enrolled PK is
+            the offline equivalent of C(SetupMode=0).
+          - >-
+            The check needs C(virt-fw-vars) from the package
+            C(python3-virt-firmware), which is in EPEL on EL9. The role reports a
+            skip when the command is absent.
+        type: bool
+        default: false
       vms_nvram_force_reset:
         description: >-
           Write the UEFI NVRAM file of every VM in this run again from its template.

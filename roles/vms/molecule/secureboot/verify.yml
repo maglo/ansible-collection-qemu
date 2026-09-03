@@ -86,6 +86,74 @@
         that:
           - _markers.results | rejectattr('stat.exists') | list | length == 3
 
+    # ── The verification of the variable store ────────────────
+    - name: Run the role with the NVRAM verification enabled
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_nvram_verify: true
+        vms_list:
+          - name: sb-enrolled
+            disk_size: 1G
+            secure_boot: true
+            nvram_template: /tmp/enrolled_VARS.fd
+            nvram_expected_db_cn: Molecule Devbox db
+            state: present
+
+    # A store without a PK is in Setup Mode. The verification must fail on it,
+    # because a VM with such a store boots an unsigned artifact. Without this
+    # check an assertion that always passes would look like a passing test.
+    - name: Replace the variable store with one that is still in Setup Mode
+      ansible.builtin.copy:
+        src: /usr/share/edk2/ovmf/OVMF_VARS.fd
+        dest: "{{ _image_dir }}/sb-enrolled_VARS.fd"
+        remote_src: true
+        owner: qemu
+        group: qemu
+        mode: "0644"
+
+    # `nvram_template` keeps the value of the converge on purpose. The
+    # fingerprint in the state file therefore does not change, and the role
+    # does not write the variable store again before it verifies it.
+    - name: Run the verification against the store in Setup Mode
+      block:
+        - name: Include the role with the verification enabled
+          ansible.builtin.include_role:
+            name: vms
+          vars:
+            vms_nvram_verify: true
+            vms_list:
+              - name: sb-enrolled
+                disk_size: 1G
+                secure_boot: true
+                nvram_template: /tmp/enrolled_VARS.fd
+                state: present
+
+        - name: Record that the verification accepted the store
+          ansible.builtin.set_fact:
+            _setup_mode_accepted: true
+      rescue:
+        - name: Record that the verification rejected the store
+          ansible.builtin.set_fact:
+            _setup_mode_accepted: false
+
+    - name: Assert that the verification rejects a store in Setup Mode
+      ansible.builtin.assert:
+        that:
+          - not _setup_mode_accepted
+        fail_msg: >-
+          The verification accepted a variable store that has no PK. Such a
+          store is in Setup Mode, and the VM would boot an unsigned artifact.
+
+    - name: Restore the enrolled variable store
+      ansible.builtin.copy:
+        src: /tmp/enrolled_VARS.fd
+        dest: "{{ _image_dir }}/sb-enrolled_VARS.fd"
+        remote_src: true
+        owner: qemu
+        group: qemu
+        mode: "0644"
+
     # ── An increase of nvram_generation writes the file again ──
     - name: Save the NVRAM checksum of legacyvm before the generation change
       ansible.builtin.set_fact:
