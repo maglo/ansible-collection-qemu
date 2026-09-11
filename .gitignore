@@ -1,1 +1,3 @@
 .ansible/
+maglo-qemu-*.tar.gz
+changelogs/.plugin-cache.yaml
