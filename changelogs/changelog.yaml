@@ -214,3 +214,54 @@ releases:
     - 129-fix-cloud-init-meta-data-newlines.yaml
     - configurable-cpu-model.yaml
     release_date: '2026-02-27'
+  0.4.0:
+    changes:
+      minor_changes:
+      - vms role - add the ``vms_nvram_verify`` variable and the per-VM ``nvram_expected_db_cn``
+        key. When the verification is on, the role asserts that the UEFI variable
+        store of each Secure Boot VM holds a PK, a KEK and a db, and that ``SecureBootEnable``
+        is on. A store without a PK is in Setup Mode, and a VM with such a store boots
+        an unsigned artifact without a complaint. The check needs ``virt-fw-vars``
+        from the package ``python3-virt-firmware``, and the role reports a skip when
+        the command is absent (https://github.com/maglo/ansible-collection-qemu/issues/143).
+      - vms role - add the per-VM ``disk_bus`` key and the ``vms_default_disk_bus``
+        variable. The value ``virtio-scsi`` attaches the system disk through a ``virtio-scsi-pci``
+        controller and an ``scsi-hd`` device. The default stays ``virtio-blk``, so
+        the QEMU arguments of an existing VM do not change (https://github.com/maglo/ansible-collection-qemu/issues/140).
+      - vms role - add the per-VM ``nvram_generation`` key and the ``vms_nvram_force_reset``
+        variable. Increase the generation to write the UEFI NVRAM file again from
+        its template (https://github.com/maglo/ansible-collection-qemu/issues/139).
+      - vms role - add the per-VM ``nvram_template`` key. It selects the UEFI variable
+        store template for one VM and overrides ``vms_ovmf_vars_template`` and ``vms_ovmf_vars_secboot_template``
+        for that VM only (https://github.com/maglo/ansible-collection-qemu/issues/139).
+      - vms role - add the per-VM ``smbios_oem_strings`` key. The role passes each
+        string to QEMU as an SMBIOS type 11 OEM string, which ``systemd-stub`` reads.
+        This adds to the command line of a UKI without a rebuild and a new signature
+        (https://github.com/maglo/ansible-collection-qemu/issues/141).
+      - vms role - add the per-VM ``tpm_generation`` key and the ``vms_tpm_force_reset``
+        variable. Increase the generation to clear the swtpm state directory of a
+        VM. The role stops the VM and swtpm before it clears the directory, and starts
+        them again afterwards. A VM that has no TPM state file yet keeps its state,
+        so an upgrade of the collection does not clear the TPM of a VM that exists
+        (https://github.com/maglo/ansible-collection-qemu/issues/142).
+      - vms role - replace the ``<name>_VARS.fd.secboot`` marker file with the ``<name>_VARS.fd.state``
+        state file. The role adopts an existing marker without a rewrite of the NVRAM
+        file, so an upgrade keeps the UEFI boot entries of each VM that exists (https://github.com/maglo/ansible-collection-qemu/issues/139).
+      - vms role - stop a VM before the role writes its UEFI NVRAM file, and start
+        the VM again afterwards. QEMU maps the file as pflash while the VM runs (https://github.com/maglo/ansible-collection-qemu/issues/139).
+      - vms role - write the UEFI NVRAM file again when the template path or the content
+        of the template changes. Earlier versions wrote the file only when the ``secure_boot``
+        flag changed (https://github.com/maglo/ansible-collection-qemu/issues/139).
+      release_summary: Feature release for the ``vms`` role. It adds control over
+        the UEFI variable store of a VM (per-VM template, forced reset, rewrite on
+        a template change and an optional Secure Boot verification), a way to reset
+        the swtpm state of a VM, per-VM SMBIOS type 11 OEM strings, and the ``virtio-scsi``
+        disk bus.
+    fragments:
+    - 139-nvram-template-and-reset.yaml
+    - 140-disk-bus.yaml
+    - 141-smbios-oem-strings.yaml
+    - 142-tpm-reset.yaml
+    - 143-nvram-verify.yaml
+    - release-summary.yaml
+    release_date: '2026-09-11'
