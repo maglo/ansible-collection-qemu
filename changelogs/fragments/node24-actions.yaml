@@ -1,0 +1,3 @@
+---
+trivial:
+  - "CI - update the GitHub Actions used by the CI and release workflows to majors that run on the Node 24 Actions runtime, clearing the Node 20 deprecation warnings the runner emits on every job (https://github.com/maglo/ansible-collection-qemu/issues/151)."
