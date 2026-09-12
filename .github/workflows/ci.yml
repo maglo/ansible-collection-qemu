@@ -93,6 +93,16 @@ jobs:
       - name: Lint collection docs
         run: antsibull-docs lint-collection-docs --plugin-docs ansible_collections/maglo/qemu
 
+      # The site is what GitHub Pages publishes from main. Build it here so a
+      # PR that breaks a guide, a cross-reference or the role reference fails
+      # before it is merged; sphinx-build runs with -W, so a warning is an
+      # error.
+      - name: Install the documentation site dependencies
+        run: pip install -r ansible_collections/maglo/qemu/docs/site/requirements.txt
+
+      - name: Build the documentation site
+        run: ansible_collections/maglo/qemu/docs/site/build.sh
+
   molecule:
     name: Molecule - ${{ matrix.target.role }} (${{ matrix.target.scenario }}) - EL${{ matrix.el_version }}
     runs-on: ubuntu-latest

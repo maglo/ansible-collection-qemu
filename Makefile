@@ -1,7 +1,7 @@
 VERSION  := $(shell grep '^version:' galaxy.yml | awk '{print $$2}')
 TARBALL  := maglo-qemu-$(VERSION).tar.gz
 
-.PHONY: build clean release help
+.PHONY: build clean release publish docs help
 
 build: ## Build the collection tarball
 	ansible-galaxy collection build --force
@@ -28,6 +28,9 @@ release: ## Compile changelog and prepare a release. Usage: make release VERSION
 
 publish: build ## Publish to Ansible Galaxy (requires GALAXY_API_KEY)
 	ansible-galaxy collection publish --token $(GALAXY_API_KEY) $(TARBALL)
+
+docs: ## Build the documentation site into docs/site/_build/html
+	docs/site/build.sh
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

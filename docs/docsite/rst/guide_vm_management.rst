@@ -31,9 +31,11 @@ Each VM entry needs a ``name`` key. The two keys used above are:
 - ``disk_format`` — overrides ``vms_default_disk_format`` (default ``qcow2``)
 
 A VM entry takes about 30 more keys, one per VM setting. The
-``maglo.qemu.vms`` role README lists them all with their defaults, and
-``ansible-doc -t role maglo.qemu.vms`` prints the same list from the role
-argument spec. See `See also`_ below for the ones this guide does not cover.
+``maglo.qemu.vms`` role reference lists them all with their types and
+defaults, and ``ansible-doc -t role maglo.qemu.vms`` prints the same list from
+the role argument spec.
+:ref:`ansible_collections.maglo.qemu.docsite.guide_features` walks through what
+each of them does.
 
 One key matters for the rest of this guide: ``state`` controls the
 ``qemu-vm@<name>.service`` unit of the VM. ``present`` is the default. It
@@ -180,8 +182,9 @@ guest. The change therefore takes effect the next time the VM starts. Set
 See also
 --------
 
-This guide covers the basics. The ``maglo.qemu.vms`` role README documents the
-rest:
+This guide covers the basics.
+:ref:`ansible_collections.maglo.qemu.docsite.guide_features` covers the rest,
+one feature at a time:
 
 - ``secure_boot``, ``nvram_template``, ``nvram_generation``,
   ``vms_nvram_verify`` and ``nvram_expected_db_cn`` — UEFI Secure Boot and the
@@ -199,8 +202,11 @@ rest:
   emulated hardware.
 - ``state`` and ``force_destroy`` — the VM lifecycle.
 
-``ansible-doc -t role maglo.qemu.vms`` prints the same variables from the role
-argument spec.
+The ``maglo.qemu.vms`` role reference documents every variable with its type
+and default, and ``ansible-doc -t role maglo.qemu.vms`` prints the same list
+from the role argument spec.
 
+- :ref:`ansible_collections.maglo.qemu.docsite.guide_features` — every VM feature in one place
+- :ref:`ansible_collections.maglo.qemu.docsite.guide_examples` — ready-to-run playbooks
 - :ref:`ansible_collections.maglo.qemu.docsite.guide_host` — set up the hypervisor host
 - :ref:`ansible_collections.maglo.qemu.docsite.guide_manual_testing` — validate a release candidate

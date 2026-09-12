@@ -1,0 +1,245 @@
+.. _ansible_collections.maglo.qemu.docsite.guide_features:
+
+Feature guide
+=============
+
+What a VM of this collection can do, one feature per section. Each section
+names the variables involved; the ``maglo.qemu.vms`` role reference documents
+every one of them with its type and default, and
+``ansible-doc -t role maglo.qemu.vms`` prints the same list on the command
+line.
+
+Disk images
+-----------
+
+- **Blank disks** — qcow2 (the default) or raw, at ``disk_size``.
+- **Cloud images** — set ``disk_image_url`` to a QCOW2 image. The role
+  downloads it once into ``vms_image_cache_dir`` and gives each VM a
+  copy-on-write overlay on top of it, so ten VMs off one base image cost one
+  download and one copy of the base.
+- **Checksums** — ``disk_image_checksum`` takes a ``sha256:...`` value and the
+  role compares it against the downloaded file. ``vms_verify_checksums: false``
+  skips the comparison for every VM.
+- **Idempotent** — an image that exists is never recreated, so a converge
+  never destroys guest data.
+- **Disk bus** — ``virtio-blk`` by default. ``disk_bus: virtio-scsi`` attaches
+  the system disk through a ``virtio-scsi-pci`` controller, which is the bus
+  most production images expect. The cloud-init seed ISO stays on virtio-blk.
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: web01
+       disk_image_url: https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-10-latest.x86_64.qcow2
+       disk_image_checksum: sha256:0123456789abcdef...
+       disk_size: 40G
+       disk_bus: virtio-scsi
+
+UEFI firmware and Secure Boot
+-----------------------------
+
+UEFI boot with OVMF firmware is on by default (``vms_default_uefi``), and each
+VM gets its own writable NVRAM copy of ``OVMF_VARS.fd``.
+
+- **Secure Boot** — ``secure_boot: true`` uses ``OVMF_CODE.secboot.fd`` with
+  pre-enrolled Microsoft/OVMF keys and SMM.
+- **Custom variable store** — ``nvram_template: /path/to/OVMF_VARS.fd`` gives
+  one VM a store of your own, for example one that holds your PK, KEK and db.
+  The other VMs on the host keep the global template.
+- **NVRAM reset** — raise ``nvram_generation`` to write the NVRAM file from the
+  template again. The role also rewrites it when ``secure_boot``, the template
+  path or the content of the template changes, and never otherwise — so the
+  UEFI boot entries a guest writes survive a converge.
+- **Verification** — ``vms_nvram_verify: true`` asserts that the store of each
+  Secure Boot VM holds a PK, a KEK and a db, and that Secure Boot is enabled.
+  Add ``nvram_expected_db_cn`` to a VM to also assert a certificate in the db.
+  The check needs ``virt-fw-vars`` from ``python3-virt-firmware`` (EPEL on
+  EL9); the role reports a skip when the command is absent.
+
+.. note::
+
+   A store without a PK is in Setup Mode, and a VM with such a store boots an
+   unsigned artifact without a complaint. ``SecureBoot`` and ``SetupMode`` are
+   volatile variables that the firmware creates at boot, so an offline check
+   cannot read them — an enrolled PK is the offline equivalent of
+   ``SetupMode=0``.
+
+Set ``uefi: false`` on a VM that should boot the legacy BIOS path instead.
+
+TPM 2.0 emulation
+-----------------
+
+``tpm: true`` starts a software TPM for the VM via `swtpm
+<https://github.com/stefanberger/swtpm>`_, managed as
+``swtpm@<name>.service`` with per-VM state under ``/var/lib/swtpm/``. A
+systemd dependency orders it before the VM, so the TPM is ready when the
+firmware looks for it.
+
+TPM state is persistent: sealed key slots, persistent handles and the PCR
+history survive a rebuild of the VM. Raise ``tpm_generation`` to clear
+``/var/lib/swtpm/<name>``; the role stops the VM and swtpm first and starts
+them again afterwards. Only an *increase* resets — lowering the value, or
+removing the key, leaves the TPM alone.
+
+SMBIOS type 11 OEM strings
+--------------------------
+
+``smbios_oem_strings`` passes a list of SMBIOS type 11 OEM strings to a VM.
+``systemd-stub`` reads these, so they extend the command line of a unified
+kernel image without a rebuild and a new signature:
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: debug01
+       smbios_oem_strings:
+         - "io.systemd.stub.kernel-cmdline-extra=rd.debug systemd.log_level=debug"
+
+The role writes each string to its own file and passes it as
+``-smbios type=11,path=...``, so a string may contain spaces. The files are
+mode ``0600`` and owned by the QEMU user: an OEM string can hold a secret, and
+the ``path=`` form keeps it out of the command line, where ``ps`` would show it
+to every user on the host. Removing the key from ``vms_list`` removes the
+files.
+
+.. warning::
+
+   A change takes effect at the **next boot** of the VM. The firmware reads the
+   strings once, and the role does not restart a running VM, so use
+   ``state: restarted`` to pick up a new string.
+
+``systemd-stub`` ignores these strings under confidential computing, and they
+measure into PCR 12. OpenStack Nova has no equivalent knob; this is a
+convenience of this collection only.
+
+Networking
+----------
+
+- **User mode** (``net_mode: user``, the default) gives the guest outbound NAT
+  through SLIRP and needs nothing on the host.
+- **Bridge mode** (``net_mode: bridge``) attaches the guest to a host bridge —
+  ``br0`` unless ``net_bridge`` says otherwise — through
+  ``qemu-bridge-helper``. The bridge itself is yours to create.
+- **MAC addresses** are derived from the VM name under the QEMU OUI
+  ``52:54:00``, so they are stable across a rebuild. ``mac_address`` overrides
+  one. The role fails the run when two names collide.
+
+Consoles
+--------
+
+Every VM gets a VNC console. The display number is the MD5 hash of the VM name
+modulo 100, which keeps it stable across a rebuild; ``vnc: N`` overrides it and
+the port is ``5900 + N``. The role fails the run when two names collide.
+
+For a browser console, ``novnc_enabled: true`` starts a
+``novnc@<name>.service`` per VM on port ``6080 + <vnc display>`` — or
+``novnc_port`` — and the console is at ``http://<host>:<port>/vnc.html``. The
+host role must have installed the package first:
+
+.. code-block:: yaml
+
+   - role: maglo.qemu.host
+     vars:
+       host_novnc_enabled: true
+
+   - role: maglo.qemu.vms
+     vars:
+       vms_list:
+         - name: web01
+           disk_size: 40G
+           novnc_enabled: true
+           state: started
+
+.. warning::
+
+   noVNC serves the console over plain HTTP with no authentication. Keep the
+   port on a management network, or put a reverse proxy with TLS and
+   authentication in front of it.
+
+USB disks and ISOs
+------------------
+
+``usb_disk_image`` attaches one pre-provisioned image (``.iso``, ``.raw``,
+``.img`` or ``.qcow2``) to the VM behind an emulated USB 3.0 XHCI controller.
+``usb_boot_priority: true`` boots it first, which is how you drive an
+attended installation. The image must already exist on the host — the role
+does not create it, and fails the run when the path is missing.
+
+Cloud-init
+----------
+
+``cloud_init_user_data`` turns on generation of a NoCloud seed ISO, which the
+role writes to ``<vms_image_dir>/<name>-seed.iso`` and attaches as a virtio
+CD-ROM. ``cloud_init_meta_data`` and ``cloud_init_network_config`` fill in the
+other two files; ``meta-data`` is generated from the VM name when it is
+omitted.
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: web01
+       disk_image_url: https://example.com/centos-10-cloud.qcow2
+       cloud_init_user_data: |
+         #cloud-config
+         users:
+           - name: admin
+             sudo: ALL=(ALL) NOPASSWD:ALL
+             ssh_authorized_keys:
+               - ssh-ed25519 AAAA... admin@workstation
+
+This needs ``genisoimage`` on the host, which the ``host`` role installs, and
+a guest image with ``cloud-init`` in it.
+
+VM lifecycle
+------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - ``state``
+     - Behaviour
+   * - ``present``
+     - Write the configuration; leave the ``qemu-vm@`` unit alone. The swtpm
+       and noVNC instances of the VM are still started.
+   * - ``started``
+     - Enable and start the unit, then check that it is active.
+   * - ``stopped``
+     - Enable the unit but stop it.
+   * - ``restarted``
+     - Shut the guest down, then start the VM again.
+   * - ``absent``
+     - Destroy the VM and every artifact of it. Needs ``force_destroy: true``.
+
+A graceful shutdown writes ``system_powerdown`` to the QEMU monitor socket,
+which the guest sees as an ACPI power button press, and waits up to
+``shutdown_timeout`` seconds (default 120). The role then stops the unit either
+way, because a guest may ignore the request.
+
+A configuration change is written to the ``.conf`` file but does not restart a
+running VM. Use ``state: restarted`` to apply it.
+
+SELinux
+-------
+
+On EL9 and EL10 the VM unit runs as ``init_t``, which may not execute
+``/usr/libexec/qemu-kvm`` or ``/usr/bin/swtpm``. When ``getenforce`` reports
+``Enforcing``, the ``host`` role compiles and loads a small policy module that
+allows exactly that. The step is skipped when SELinux is permissive or
+disabled.
+
+Input validation
+----------------
+
+The ``vms`` role checks the whole list before it writes anything to the host,
+so a run that cannot finish leaves the host as it was. It fails on a duplicate
+VM name, a name that cannot be a systemd instance name, ``secure_boot``
+without ``uefi``, a ``disk_image_url`` with a non-qcow2 ``disk_format``, two
+VMs that would share a VNC display, a MAC address or a noVNC port, and
+``state: absent`` without ``force_destroy``.
+
+See also
+--------
+
+- :ref:`ansible_collections.maglo.qemu.docsite.guide_vm_management` — the day-to-day workflow
+- :ref:`ansible_collections.maglo.qemu.docsite.guide_examples` — ready-to-run playbooks

@@ -1,0 +1,14 @@
+# Copyright (c) maglo
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Dependencies of the documentation site. Install with:
+#   pip install -r docs/site/requirements.txt
+
+ansible-core >= 2.15
+ansible-pygments
+antsibull-docs >= 2.0.0, < 3.0.0
+furo >= 2024.1.29
+PyYAML
+sphinx >= 7.2
+sphinx-copybutton >= 0.5.2
+sphinx-design >= 0.5.0

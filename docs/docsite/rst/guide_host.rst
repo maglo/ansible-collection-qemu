@@ -1,30 +1,21 @@
 .. _ansible_collections.maglo.qemu.docsite.guide_host:
 
-Getting started with host
-=========================
+Host setup
+==========
 
 This guide walks through setting up a QEMU/KVM hypervisor host using the ``maglo.qemu.host`` role.
 
 Prerequisites
 -------------
 
-- A target host running Enterprise Linux 10 (RHEL, Rocky, Alma, CentOS). Enterprise
-  Linux 9 still works, but its support is deprecated and will be removed in a
-  release after the next one
-- The EPEL repository enabled on the target host. ``swtpm``, ``swtpm-tools``,
-  ``socat``, ``genisoimage`` and ``novnc`` come from EPEL on EL9 and EL10. The
-  collection does not enable EPEL itself, because that does not suit an
-  airgapped host. Enable it with ``dnf install epel-release``, or point the
-  host at a mirror that carries these packages.
-- Ansible >= 2.15
-- The ``maglo.qemu`` collection installed
+- A target host running Enterprise Linux 10 (RHEL, Rocky, Alma, CentOS), with
+  hardware virtualization enabled and the EPEL repository available
+- ``ansible-core`` >= 2.15 on the control node, and the ``maglo.qemu``
+  collection installed
 
-Installation
-------------
-
-.. code-block:: bash
-
-   ansible-galaxy collection install maglo.qemu
+:ref:`ansible_collections.maglo.qemu.docsite.guide_installation` covers all of
+these, including how to check for KVM support and why the collection does not
+enable EPEL itself.
 
 Basic setup
 -----------
@@ -146,3 +137,4 @@ Next steps
 ----------
 
 - :ref:`ansible_collections.maglo.qemu.docsite.guide_vm_management` — create and manage VMs
+- :ref:`ansible_collections.maglo.qemu.docsite.guide_features` — every VM feature and the variables behind it

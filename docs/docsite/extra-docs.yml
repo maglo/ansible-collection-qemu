@@ -2,6 +2,11 @@
 sections:
   - title: Guides
     toctree:
+      - guide_installation
       - guide_host
       - guide_vm_management
+      - guide_features
+      - guide_examples
+  - title: Development
+    toctree:
       - guide_manual_testing

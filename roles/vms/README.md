@@ -1,5 +1,9 @@
 # maglo.qemu.vms
 
+> 📖 Full documentation, including the guides and the generated variable
+> reference, is at
+> <https://maglo.github.io/ansible-collection-qemu/>.
+
 Create QEMU/KVM virtual machines on an Enterprise Linux host.
 
 For each VM in `vms_list` the role creates the disk image, the UEFI variable store, the emulated TPM state, the cloud-init seed ISO and the noVNC proxy, writes the QEMU arguments to `/etc/qemu/vms/<name>.conf`, and brings the `qemu-vm@<name>.service` unit to the state the VM asks for.

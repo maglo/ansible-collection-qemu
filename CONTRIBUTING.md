@@ -58,8 +58,8 @@ job.
 ### Docs
 
 The docs job checks that every role has a `README.md`, that `ansible-doc` can
-read each role argument spec, and that the collection documentation passes the
-antsibull-docs linter:
+read each role argument spec, that the collection documentation passes the
+antsibull-docs linter, and that the documentation site builds:
 
 ```bash
 pip install ansible-core antsibull-docs
@@ -76,6 +76,37 @@ ANSIBLE_COLLECTIONS_PATH=/tmp/collections ansible-doc -t role maglo.qemu.vms
 # Lint the collection docs, including docs/docsite/rst
 antsibull-docs lint-collection-docs --plugin-docs /tmp/collections/ansible_collections/maglo/qemu
 ```
+
+### Documentation site
+
+<https://maglo.github.io/ansible-collection-qemu/> is built from this
+repository by the `Docs site` workflow on every push to `main`, and the `docs`
+CI job builds it on every PR. Build it locally the same way:
+
+```bash
+pip install -r docs/site/requirements.txt
+docs/site/build.sh --serve   # http://localhost:8000
+```
+
+What lives where:
+
+| Path | Contents |
+|------|----------|
+| `docs/docsite/rst/` | The guides, in reStructuredText. Ansible Galaxy renders these too |
+| `docs/docsite/extra-docs.yml` | The order and grouping of the guides |
+| `docs/site/index.rst` | The landing page |
+| `docs/site/conf.py`, `docs/site/_static/` | Sphinx configuration and the theme tweaks |
+| `docs/site/collection/` | **Generated.** The role reference and a copy of the guides — never edit, never commit |
+
+The role reference is generated from `roles/*/meta/argument_specs.yml`, so a
+new variable reaches the site through its argument spec. The narrative
+documentation is hand-written: add a guide under `docs/docsite/rst/`, give it a
+label of the form
+`.. _ansible_collections.maglo.qemu.docsite.<name>:`, list it in
+`docs/docsite/extra-docs.yml`, and add it to a toctree in `docs/site/index.rst`.
+
+`sphinx-build` runs with `-W`, so a broken cross-reference or a malformed table
+fails the build — and therefore CI.
 
 ### Changelog
 
@@ -201,9 +232,9 @@ it to pass.
    - `README.md` covering the purpose, variables, dependencies and an example playbook
 2. Add Molecule tests under `roles/<role_name>/molecule/default/`.
 3. Add the role to the CI matrix in `.github/workflows/ci.yml`.
-4. Add the role to the roles table in the root `README.md`, and to the Quick Start
-   section of that file.
-5. Add an example playbook under `playbooks/`.
+4. Add the role to the roles table in the root `README.md`.
+5. Add an example playbook under `playbooks/`, and list it in
+   `docs/docsite/rst/guide_examples.rst`.
 6. Add the role and its scenarios to the [Molecule tests](#molecule-tests) table above.
 7. Add a changelog fragment.
 
@@ -243,6 +274,7 @@ make build                   # build the collection tarball
 make clean                   # remove built tarballs
 make release VERSION=x.y.z  # compile changelog, bump version, build
 make publish                 # build, then publish to Galaxy (needs GALAXY_API_KEY)
+make docs                    # build the documentation site into docs/site/_build/html
 make help                    # list all targets
 ```
 

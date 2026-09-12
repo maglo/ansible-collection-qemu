@@ -40,9 +40,18 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 
 ## Documentation
 
+The published documentation is <https://maglo.github.io/ansible-collection-qemu/>,
+built from `docs/` by `.github/workflows/docs.yml`. The root `README.md` is the
+landing page on GitHub and Ansible Galaxy: keep it short and let it point at
+the site. Reference documentation belongs in the argument specs and the guides,
+not in the README.
+
 - Every new role **must** include a `README.md` covering its purpose, variables, dependencies, and an example playbook.
-- When a new role is added, update the root `README.md` roles table, Quick Start section, and add an example playbook under `playbooks/`.
-- When an existing role gains new features (variables, behaviour), update **both** the role `README.md` and the root `README.md` in the same PR.
+- When a new role is added, add it to the roles table in the root `README.md`, add an example playbook under `playbooks/`, and list that playbook in `docs/docsite/rst/guide_examples.rst`.
+- When an existing role gains a user-visible feature, document it in the role `README.md` **and** in the relevant guide under `docs/docsite/rst/` in the same PR. Update the root `README.md` only when the summary it gives becomes wrong.
+- Guides live in `docs/docsite/rst/`. A new guide needs a label of the form `.. _ansible_collections.maglo.qemu.docsite.<name>:`, an entry in `docs/docsite/extra-docs.yml`, and an entry in a toctree in `docs/site/index.rst`.
+- Never edit or commit anything under `docs/site/collection/` — antsibull-docs generates it on every build.
+- The site is built with `-W`, so a broken cross-reference fails the `docs` CI job. Run `docs/site/build.sh` (or `make docs`) before pushing a documentation change.
 - `CONTRIBUTING.md` must be kept in sync — new roles should appear in the Molecule tests section.
 
 ## Roles
@@ -87,6 +96,7 @@ environment and run `make publish`.
 | `clean`   | Remove built tarballs (`maglo-qemu-*.tar.gz`)                       |
 | `release` | Compile changelog, bump version, build. Usage: `make release VERSION=x.y.z` |
 | `publish` | Build, then publish to Galaxy with `GALAXY_API_KEY`                  |
+| `docs`    | Build the documentation site into `docs/site/_build/html`            |
 
 Run `make help` for a quick reference.
 
