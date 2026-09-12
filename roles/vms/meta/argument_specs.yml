@@ -120,6 +120,8 @@ argument_specs:
               A reset removes the sealed key slots, the persistent handles and
               the PCR history of the VM. The role stops the VM and swtpm before
               it clears the directory, and starts them again afterwards.
+              Only an increase resets. Lowering the value, or removing the key
+              so that it falls back to C(1), leaves the TPM alone.
             type: int
             default: 1
           net_mode:
