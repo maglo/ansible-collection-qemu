@@ -1,30 +1,28 @@
 ---
-# Restart a VM with graceful shutdown
+# Restart one VM. `item` is the resolved VM entry, set by service.yml.
+#
+# The VM goes down through the guest, not through SIGTERM, so a restart does
+# not leave the guest file systems dirty. noVNC and swtpm are cycled after the
+# VM is down, because the drop-in units make the VM require them: stopping
+# either one first would take the VM down without a guest shutdown.
+
+- name: Gracefully shut down {{ item.name }}
+  ansible.builtin.include_tasks: shutdown.yml
+
 - name: Stop noVNC service for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "novnc@{{ item.name }}.service"
     state: stopped
   become: true
-  when: item.novnc_enabled | default(vms_default_novnc_enabled)
+  when: item.novnc_enabled
   failed_when: false
 
-- name: Gracefully shut down {{ item.name }}
-  ansible.builtin.include_tasks: shutdown.yml
-
-- name: Stop swtpm service for {{ item.name }}
+- name: Restart swtpm service for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "swtpm@{{ item.name }}.service"
-    state: stopped
+    state: restarted
   become: true
-  when: item.tpm | default(vms_default_tpm)
-  failed_when: false
-
-- name: Start swtpm service for {{ item.name }}
-  ansible.builtin.systemd_service:
-    name: "swtpm@{{ item.name }}.service"
-    state: started
-  become: true
-  when: item.tpm | default(vms_default_tpm)
+  when: item.tpm
 
 - name: Start VM service for {{ item.name }}
   ansible.builtin.systemd_service:
@@ -38,4 +36,4 @@
     name: "novnc@{{ item.name }}.service"
     state: started
   become: true
-  when: item.novnc_enabled | default(vms_default_novnc_enabled)
+  when: item.novnc_enabled

@@ -1,9 +1,6 @@
 ---
-- name: Determine VMs with USB disk image attachment
-  ansible.builtin.set_fact:
-    _vms_usb_vms: >-
-      {{ _vms_active_vms | selectattr('usb_disk_image', 'defined') | list }}
-
+# QEMU takes the image format from the file name extension (see vm.conf.j2),
+# so an unknown extension would attach the image with the wrong format.
 - name: Validate USB disk image configuration
   ansible.builtin.assert:
     that:
@@ -15,6 +12,9 @@
   loop_control:
     label: "{{ item.name }}"
 
+# The role never creates a USB image: it is pre-provisioned, usually an
+# installer ISO. A missing file gives a VM that starts and then fails to boot,
+# so check it here instead.
 - name: Check USB disk image exists
   ansible.builtin.stat:
     path: "{{ item.usb_disk_image }}"

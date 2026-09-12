@@ -1,33 +1,29 @@
 ---
-# Destroy VM and remove all artifacts
-# Requires force_destroy: true to prevent accidental data loss
-- name: Validate force_destroy for {{ item.name }}
-  ansible.builtin.assert:
-    that:
-      - item.force_destroy is defined
-      - item.force_destroy | bool
-    fail_msg: "Cannot destroy VM '{{ item.name }}': force_destroy must be set to true"
-    success_msg: "force_destroy confirmed for VM '{{ item.name }}'"
+# Destroy one VM and every artifact that belongs to it. `item` is the resolved
+# VM entry, set by service.yml. validate.yml has already checked that the VM
+# carries `force_destroy: true`.
+#
+# Order matters. The VM goes down through the guest first: the drop-in units
+# make it require its swtpm and noVNC instances, so stopping either of those
+# first would take the VM down with SIGTERM and no guest shutdown.
 
-- name: Stop noVNC service for {{ item.name }}
+- name: Gracefully shut down {{ item.name }}
+  ansible.builtin.include_tasks: shutdown.yml
+
+- name: Disable VM service for {{ item.name }}
+  ansible.builtin.systemd_service:
+    name: "qemu-vm@{{ item.name }}.service"
+    enabled: false
+  become: true
+  failed_when: false
+
+- name: Stop and disable noVNC service for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "novnc@{{ item.name }}.service"
     state: stopped
     enabled: false
   become: true
-  when: item.novnc_enabled | default(vms_default_novnc_enabled)
   failed_when: false
-
-- name: Stop and disable VM service for {{ item.name }}
-  ansible.builtin.systemd_service:
-    name: "qemu-vm@{{ item.name }}.service"
-    state: stopped
-    enabled: false
-  become: true
-  failed_when: false
-
-- name: Gracefully shut down {{ item.name }}
-  ansible.builtin.include_tasks: shutdown.yml
 
 - name: Stop and disable swtpm service for {{ item.name }}
   ansible.builtin.systemd_service:
@@ -35,88 +31,37 @@
     state: stopped
     enabled: false
   become: true
-  when: item.tpm | default(vms_default_tpm)
   failed_when: false
 
-- name: Remove VM config file for {{ item.name }}
+# Every path is removed without a condition. Removing a path that is not there
+# is a no-op, and a conditional removal would leak state: an operator who drops
+# `tpm: true` in the same change that sets `state: absent` would otherwise
+# leave the TPM state of the VM behind, and the next VM of that name would
+# adopt it.
+#
+# `<name>_VARS.fd.secboot` is the marker file of collection versions before
+# 0.4.0. It is removed here for the same reason.
+- name: Remove the artifacts of {{ item.name }}
   ansible.builtin.file:
-    path: "{{ vms_vm_config_dir }}/{{ item.name }}.conf"
+    path: "{{ _vms_destroy_path }}"
     state: absent
   become: true
-
-- name: Remove noVNC config file for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_vm_config_dir }}/novnc-{{ item.name }}.conf"
-    state: absent
-  become: true
-  when: item.novnc_enabled | default(vms_default_novnc_enabled)
-
-- name: Remove disk image for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}"
-    state: absent
-  become: true
-
-- name: Remove cloud-init seed ISO for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
-    state: absent
-  become: true
-
-- name: Remove cloud-init staging directory for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
-    state: absent
-  become: true
-
-- name: Remove UEFI NVRAM file for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd"
-    state: absent
-  become: true
-  when: item.uefi | default(vms_default_uefi)
-
-- name: Remove NVRAM state file for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.state"
-    state: absent
-  become: true
-  when: item.uefi | default(vms_default_uefi)
-
-# The marker file of collection versions before 0.4.0. Remove it so that a VM
-# with the same name does not adopt the state of the VM that is destroyed.
-- name: Remove legacy secure boot marker file for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
-    state: absent
-  become: true
-  when: item.uefi | default(vms_default_uefi)
-
-- name: Remove per-VM runtime directory for {{ item.name }}
-  ansible.builtin.file:
-    path: /var/lib/qemu/{{ item.name }}
-    state: absent
-  become: true
-
-- name: Remove swtpm state directory for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_swtpm_state_dir }}/{{ item.name }}"
-    state: absent
-  become: true
-  when: item.tpm | default(vms_default_tpm)
-
-- name: Remove TPM state file for {{ item.name }}
-  ansible.builtin.file:
-    path: "{{ vms_swtpm_state_dir }}/{{ item.name }}.state"
-    state: absent
-  become: true
-  when: item.tpm | default(vms_default_tpm)
-
-- name: Remove systemd drop-in directory for {{ item.name }}
-  ansible.builtin.file:
-    path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
-    state: absent
-  become: true
+  loop:
+    - "{{ vms_vm_config_dir }}/{{ item.name }}.conf"
+    - "{{ vms_vm_config_dir }}/novnc-{{ item.name }}.conf"
+    - "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format }}"
+    - "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
+    - "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
+    - "{{ vms_image_dir }}/{{ item.name }}_VARS.fd"
+    - "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.state"
+    - "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
+    - "/var/lib/qemu/{{ item.name }}"
+    - "{{ vms_swtpm_state_dir }}/{{ item.name }}"
+    - "{{ vms_swtpm_state_dir }}/{{ item.name }}.state"
+    - "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
+  loop_control:
+    loop_var: _vms_destroy_path
+    label: "{{ _vms_destroy_path }}"
 
 - name: Reload systemd daemon after destroying {{ item.name }}
   ansible.builtin.systemd_service:

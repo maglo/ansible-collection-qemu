@@ -1,4 +1,11 @@
 ---
+# Write the QEMU arguments of each VM and bring the services to the wanted
+# state.
+#
+# A config change takes effect the next time the VM starts: the role does not
+# restart a running VM by itself, because a restart interrupts the guest. Use
+# `state: restarted` to apply a change now.
+
 - name: Ensure VM config directory exists
   ansible.builtin.file:
     path: "{{ vms_vm_config_dir }}"
@@ -20,6 +27,8 @@
   loop_control:
     label: "{{ item.name }}"
 
+# `present` writes the config and leaves the qemu-vm@ unit alone, so an
+# operator can prepare a VM without starting it.
 - name: Manage service state for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
@@ -30,31 +39,31 @@
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
-  when: (item.state | default('present')) in ['started', 'stopped']
+  when: item.state in ['started', 'stopped']
 
+# A VM that fails to start leaves systemd in `activating` or `failed`, and the
+# play would otherwise report success for a VM that is not running.
 - name: Verify service is running for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
   register: _vms_service_check
   become: true
+  changed_when: false
   failed_when: _vms_service_check.status.ActiveState != 'active'
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
-  when: (item.state | default('present')) == 'started'
+  when: item.state == 'started'
 
-# ── Handle restart state ──────────────────────────────────
+# ── Restart and destroy ────────────────────────────────────
 - name: Restart VMs with state=restarted
   ansible.builtin.include_tasks: restart.yml
-  loop: "{{ vms_list }}"
+  loop: "{{ _vms_restart_vms }}"
   loop_control:
     label: "{{ item.name }}"
-  when: (item.state | default('present')) == 'restarted'
 
-# ── Handle destroy state ────────────────────────────────
 - name: Destroy VMs with state=absent
   ansible.builtin.include_tasks: destroy.yml
-  loop: "{{ vms_list }}"
+  loop: "{{ _vms_absent_vms }}"
   loop_control:
     label: "{{ item.name }}"
-  when: (item.state | default('present')) == 'absent'

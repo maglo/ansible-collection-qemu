@@ -1,16 +1,11 @@
 ---
-- name: Determine TPM-enabled VMs
-  ansible.builtin.set_fact:
-    _vms_tpm_vms: >-
-      {{ _vms_active_vms | selectattr('tpm', 'defined') | selectattr('tpm') | list
-         + (_vms_active_vms | rejectattr('tpm', 'defined') | list if vms_default_tpm else []) }}
+# Give every TPM VM its own swtpm instance and its own state directory.
 
 - name: Verify swtpm systemd template exists
   ansible.builtin.stat:
     path: /etc/systemd/system/swtpm@.service
   register: _vms_swtpm_template
   failed_when: not _vms_swtpm_template.stat.exists
-  when: _vms_tpm_vms | length > 0
 
 - name: Create swtpm base state directory
   ansible.builtin.file:
@@ -20,11 +15,10 @@
     group: "{{ vms_service_group }}"
     mode: "0755"
   become: true
-  when: _vms_tpm_vms | length > 0
 
 # ── Decide which VMs need a clean TPM ──────────────────────
-# TPM state is persistent: sealed key slots, persistent handles and the PCR
-# history survive a rebuild of the VM. A reset happens when
+# TPM state is persistent: the sealed key slots, the persistent handles and the
+# PCR history survive a rebuild of the VM. A reset happens when
 # `tpm_generation` increases, or when `vms_tpm_force_reset` is true.
 #
 # Only an increase resets. Lowering the generation, or deleting the key so that
@@ -35,7 +29,7 @@
 #
 # A VM that has no state file yet keeps its TPM state. The role only records
 # the generation for it, so an upgrade of the collection does not clear the
-# TPM of a VM that exists.
+# TPM of a VM that already exists.
 - name: Stat the TPM state file of {{ item.name }}
   ansible.builtin.stat:
     path: "{{ vms_swtpm_state_dir }}/{{ item.name }}.state"
@@ -45,48 +39,44 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Read the TPM state file of {{ item.0.name }}
+- name: Read the TPM state file of {{ item.item.name }}
   ansible.builtin.slurp:
-    src: "{{ vms_swtpm_state_dir }}/{{ item.0.name }}.state"
+    src: "{{ vms_swtpm_state_dir }}/{{ item.item.name }}.state"
   register: _vms_tpm_state_contents
   become: true
-  when: item.1.stat.exists
-  loop: "{{ _vms_tpm_vms | zip(_vms_tpm_states.results) | list }}"
+  when: item.stat.exists
+  loop: "{{ _vms_tpm_states.results }}"
   loop_control:
-    label: "{{ item.0.name }}"
+    label: "{{ item.item.name }}"
 
-- name: Reset the TPM plan list
+- name: Build the TPM plan
   ansible.builtin.set_fact:
-    _vms_tpm_plan: []
-
-- name: Build the TPM plan for {{ item.name }}
-  ansible.builtin.set_fact:
-    _vms_tpm_plan: "{{ _vms_tpm_plan + [_entry] }}"
+    _vms_tpm_plan: "{{ _vms_tpm_plan_json | from_json }}"
   vars:
-    _slurped: "{{ _vms_tpm_state_contents.results[_vms_tpm_index] }}"
-    _old_state: >-
-      {{ (_slurped.content | b64decode | from_json)
-         if (_slurped.content is defined) else {} }}
-    _generation: "{{ item.tpm_generation | default(1) }}"
-    _entry:
-      name: "{{ item.name }}"
-      reset: >-
-        {{ (vms_tpm_force_reset | bool)
-           or (_old_state | length > 0
-               and (_generation | int) > (_old_state.generation | default(1) | int)) }}
-      state:
-        generation: "{{ _generation }}"
-  loop: "{{ _vms_tpm_vms }}"
-  loop_control:
-    label: "{{ item.name }}"
-    index_var: _vms_tpm_index
+    _vms_tpm_plan_json: >-
+      {%- set _out = [] -%}
+      {%- for _vm in _vms_tpm_vms -%}
+      {%-   set _slurped = _vms_tpm_state_contents.results[loop.index0] -%}
+      {%-   set _old = (_slurped.content | b64decode | from_json)
+                       if (_slurped.content is defined) else {} -%}
+      {%-   set _ = _out.append({
+              'name': _vm.name,
+              'reset': (vms_tpm_force_reset | bool)
+                       or (_old | length > 0
+                           and (_vm.tpm_generation | int)
+                               > (_old.generation | default(1) | int)),
+              'state': {'generation': _vm.tpm_generation},
+            }) -%}
+      {%- endfor -%}
+      {{ _out | to_json }}
 
 - name: Collect the VMs that need a clean TPM
   ansible.builtin.set_fact:
-    _vms_tpm_resets: "{{ _vms_tpm_plan | selectattr('reset', 'equalto', true) | list }}"
+    _vms_tpm_resets: "{{ _vms_tpm_plan | selectattr('reset') | list }}"
 
+# ── Clear the state directory ──────────────────────────────
 # swtpm holds its state files open while the VM runs. Stop the VM first, then
-# swtpm, then clear the directory.
+# swtpm, then clear the directory, then start both again.
 - name: Get the service state before the TPM reset of {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
@@ -127,6 +117,7 @@
   loop_control:
     label: "{{ item.name }}"
 
+# ── Run swtpm ──────────────────────────────────────────────
 - name: Create swtpm state directory for {{ item.name }}
   ansible.builtin.file:
     path: "{{ vms_swtpm_state_dir }}/{{ item.name }}"
@@ -139,6 +130,40 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Create systemd drop-in directory for {{ item.name }}
+  ansible.builtin.file:
+    path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+  loop: "{{ _vms_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# The drop-in makes the VM require its swtpm instance, so systemd starts swtpm
+# first and stops it with the VM.
+- name: Deploy swtpm dependency override for {{ item.name }}
+  ansible.builtin.template:
+    src: qemu-vm-tpm-dependency.conf.j2
+    dest: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/tpm-dependency.conf"
+    mode: "0644"
+    owner: root
+    group: root
+  become: true
+  loop: "{{ _vms_tpm_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# systemd has to read the drop-in before the next task starts a unit, so this
+# is an explicit reload and not the handler, which would run at the end of the
+# play.
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  become: true
+
 - name: Enable and start swtpm for {{ item.name }}
   ansible.builtin.systemd_service:
     name: "swtpm@{{ item.name }}.service"
@@ -149,37 +174,8 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Create systemd drop-in directory for {{ item.name }}
-  ansible.builtin.file:
-    path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d"
-    state: directory
-    mode: '0755'
-    owner: root
-    group: root
-  become: true
-  loop: "{{ _vms_tpm_vms }}"
-  loop_control:
-    label: "{{ item.name }}"
-
-- name: Deploy swtpm dependency override for {{ item.name }}
-  ansible.builtin.template:
-    src: qemu-vm-tpm-dependency.conf.j2
-    dest: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/tpm-dependency.conf"
-    mode: '0644'
-    owner: root
-    group: root
-  become: true
-  loop: "{{ _vms_tpm_vms }}"
-  notify: Reload systemd
-  loop_control:
-    label: "{{ item.name }}"
-
-- name: Reload systemd daemon
-  ansible.builtin.systemd_service:
-    daemon_reload: true
-  become: true
-  when: _vms_tpm_vms | length > 0
-
+# Written last, so that a run which fails before this point resets the TPM
+# again at the next run instead of recording a generation it did not apply.
 - name: Write the TPM state file of {{ item.name }}
   ansible.builtin.copy:
     content: "{{ item.state | to_nice_json }}\n"
@@ -192,12 +188,12 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Start the VM again after the TPM reset of {{ item.0.name }}
+- name: Start the VM again after the TPM reset of {{ item.item.name }}
   ansible.builtin.systemd_service:
-    name: "qemu-vm@{{ item.0.name }}.service"
+    name: "qemu-vm@{{ item.item.name }}.service"
     state: started
   become: true
-  when: (item.1.status.ActiveState | default('inactive')) == 'active'
-  loop: "{{ _vms_tpm_resets | zip(_vms_tpm_pre_states.results) | list }}"
+  when: (item.status.ActiveState | default('inactive')) == 'active'
+  loop: "{{ _vms_tpm_pre_states.results }}"
   loop_control:
-    label: "{{ item.0.name }}"
+    label: "{{ item.item.name }}"

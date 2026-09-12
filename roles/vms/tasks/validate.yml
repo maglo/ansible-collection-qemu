@@ -1,0 +1,115 @@
+---
+# Check the whole VM list before the role changes anything on the host.
+# A run that would fail halfway leaves a host in a mixed state, so every
+# check that can be answered from `vms_list` alone belongs here.
+#
+# Each check is a single task over the whole list, not a loop over the VMs,
+# so the message names every VM at fault at once.
+
+- name: Validate that the VM names are usable
+  ansible.builtin.assert:
+    that:
+      - _vms_bad_names | length == 0
+    fail_msg: >-
+      These VM names are not usable: {{ _vms_bad_names | join(', ') }}.
+      A name becomes a systemd instance name, a file name and a directory
+      name, so it may hold only letters, digits and the characters . _ -
+      and it must start with a letter or a digit.
+    success_msg: "All {{ vms_list | length }} VM name(s) are usable."
+  vars:
+    _vms_bad_names: >-
+      {{ vms_list | map(attribute='name')
+                  | reject('match', '^[A-Za-z0-9][A-Za-z0-9_.-]*$') | list }}
+
+- name: Validate that the VM names are unique
+  ansible.builtin.assert:
+    that:
+      - _vms_names | length == _vms_names | unique | length
+    fail_msg: >-
+      vms_list holds a duplicate VM name: {{ _vms_dupe_names | join(', ') }}.
+      Two VMs with one name share a disk image and a systemd instance.
+  vars:
+    _vms_names: "{{ vms_list | map(attribute='name') | list }}"
+    _vms_dupe_names: "{{ _vms_names | difference(_vms_names | unique) | unique | list }}"
+
+- name: Validate that Secure Boot has UEFI
+  ansible.builtin.assert:
+    that:
+      - _vms_sb_without_uefi | length == 0
+    fail_msg: >-
+      These VMs have secure_boot enabled and uefi disabled:
+      {{ _vms_sb_without_uefi | join(', ') }}. Secure Boot is a property of
+      UEFI firmware. Set uefi: true, or remove secure_boot: true.
+  vars:
+    _vms_sb_without_uefi: >-
+      {{ _vms_active_vms | selectattr('secure_boot') | rejectattr('uefi')
+                         | map(attribute='name') | list }}
+
+- name: Validate that a VM with a backing image uses qcow2
+  ansible.builtin.assert:
+    that:
+      - item.disk_format == 'qcow2'
+    fail_msg: >-
+      VM '{{ item.name }}' sets disk_image_url and disk_format
+      '{{ item.disk_format }}'. Only qcow2 can hold a backing file, so the
+      overlay of a downloaded image must be qcow2.
+  loop: "{{ _vms_image_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# The role derives the VNC display and the MAC address from the VM name, so a
+# host with many VMs can hit a hash collision. Two VMs on one display means the
+# second QEMU fails to bind its console; two VMs with one MAC means a bridged
+# network drops frames of both. Neither failure names its cause, so check here.
+- name: Validate that no two VMs share a VNC display
+  ansible.builtin.assert:
+    that:
+      - _vms_displays | length == _vms_displays | unique | length
+    fail_msg: >-
+      Two VMs would use VNC display {{ _vms_dupe_displays | join(', ') }}.
+      The role derives the display from the VM name, and two names can give
+      the same number. Set the `vnc` key of one of the VMs.
+  vars:
+    _vms_displays: "{{ _vms_active_vms | map(attribute='vnc') | list }}"
+    _vms_dupe_displays: "{{ _vms_displays | difference(_vms_displays | unique) | unique | list }}"
+
+- name: Validate that no two VMs share a MAC address
+  ansible.builtin.assert:
+    that:
+      - _vms_macs | length == _vms_macs | unique | length
+    fail_msg: >-
+      Two VMs would use MAC address {{ _vms_dupe_macs | join(', ') }}.
+      The role derives the address from the VM name. Set the `mac_address`
+      key of one of the VMs.
+  vars:
+    _vms_macs: "{{ _vms_active_vms | map(attribute='mac_address') | list }}"
+    _vms_dupe_macs: "{{ _vms_macs | difference(_vms_macs | unique) | unique | list }}"
+
+- name: Validate that no two VMs share a noVNC port
+  ansible.builtin.assert:
+    that:
+      - _vms_ports | length == _vms_ports | unique | length
+    fail_msg: >-
+      Two VMs would listen on noVNC port {{ _vms_dupe_ports | join(', ') }}.
+      Set the `novnc_port` key of one of them, or leave vms_default_novnc_port
+      unset so that each VM gets 6080 plus its own VNC display.
+  vars:
+    _vms_ports: "{{ _vms_novnc_vms | map(attribute='novnc_port') | list }}"
+    _vms_dupe_ports: "{{ _vms_ports | difference(_vms_ports | unique) | unique | list }}"
+
+# Destroying a VM removes its disk image, so the operator has to ask for it
+# twice. The check runs here, before the creation phase, so that a run that
+# cannot finish changes nothing.
+- name: Validate force_destroy on the VMs to destroy
+  ansible.builtin.assert:
+    that:
+      - _vms_unforced | length == 0
+    fail_msg: >-
+      Cannot destroy {{ _vms_unforced | join(', ') }}: set force_destroy: true
+      on every VM that state: absent should remove. Destroying a VM removes
+      its disk image, its UEFI variable store and its TPM state.
+    success_msg: "force_destroy is confirmed for {{ _vms_absent_vms | length }} VM(s)."
+  vars:
+    _vms_unforced: >-
+      {{ _vms_absent_vms | rejectattr('force_destroy')
+                         | map(attribute='name') | list }}
