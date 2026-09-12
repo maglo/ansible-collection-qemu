@@ -9,9 +9,11 @@
 # plain VMs never evaluates the firmware, TPM or noVNC tasks.
 
 # ── Facts ──────────────────────────────────────────────────
-# The role needs ansible_distribution_major_version to pick the OVMF firmware
-# paths of the host. Gather the minimum when the play runs with
-# gather_facts: false, as a molecule verify re-run does.
+# deprecations.yml needs ansible_distribution_major_version to recognise an
+# EL9 host. Nothing else in the role reads a fact: the firmware paths are
+# fixed now that EL8 is gone. Gather the minimum when the play runs with
+# gather_facts: false, as a molecule verify re-run does. This task can go when
+# the EL9 deprecation notice does.
 - name: Gather distribution facts if not already collected
   ansible.builtin.setup:
     gather_subset: min
