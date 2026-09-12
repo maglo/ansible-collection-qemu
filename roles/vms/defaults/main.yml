@@ -38,14 +38,14 @@ vms_service_group: qemu
 vms_default_uefi: true
 
 # Path to OVMF firmware code (read-only, shared across VMs).
-# Defaults to the correct path for the detected OS major version (see vars/main.yml).
-# Override this variable if your firmware is installed in a non-standard location.
-vms_ovmf_code: "{{ _vms_ovmf_path_map[(ansible_distribution_major_version | default('9')) | string]['code'] }}"
+# Defaults to the path of the detected OS major version (see vars/main.yml).
+# Override this variable if your firmware is in a non-standard location.
+vms_ovmf_code: "{{ _vms_ovmf_paths['code'] }}"
 
 # Path to OVMF vars template (copied per-VM for writable NVRAM).
-# Defaults to the correct path for the detected OS major version (see vars/main.yml).
-# Override this variable if your firmware is installed in a non-standard location.
-vms_ovmf_vars_template: "{{ _vms_ovmf_path_map[(ansible_distribution_major_version | default('9')) | string]['vars'] }}"
+# Defaults to the path of the detected OS major version (see vars/main.yml).
+# Override this variable if your firmware is in a non-standard location.
+vms_ovmf_vars_template: "{{ _vms_ovmf_paths['vars'] }}"
 
 # Whether VMs default to UEFI Secure Boot (per-VM override with `secure_boot` key)
 vms_default_secure_boot: false

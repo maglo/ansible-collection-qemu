@@ -1,71 +1,41 @@
 ---
-# Build the list of UEFI VMs with resolved secure_boot flag
-- name: Identify UEFI VMs
-  ansible.builtin.set_fact:
-    _vms_uefi_vms: >-
-      {{ _vms_active_vms | selectattr('uefi', 'defined') | selectattr('uefi') | list
-         + (_vms_active_vms | rejectattr('uefi', 'defined') | list if vms_default_uefi else []) }}
+# Give every UEFI VM its own writable copy of an OVMF variable store.
+#
+# `vars/main.yml` already resolved which template each VM uses: the per-VM
+# `nvram_template` key when it is set, otherwise the global variable that
+# matches the resolved `secure_boot` flag.
 
-- name: Validate secure_boot requires UEFI for {{ item.name }}
-  ansible.builtin.assert:
-    that:
-      - item.uefi | default(vms_default_uefi)
-    fail_msg: >-
-      VM '{{ item.name }}' has secure_boot enabled but uefi is disabled.
-      Secure Boot requires UEFI firmware. Set uefi: true or remove secure_boot: true.
-  loop: "{{ _vms_active_vms | selectattr('secure_boot', 'defined') | selectattr('secure_boot') | list
-            + (_vms_active_vms | rejectattr('secure_boot', 'defined') | list if vms_default_secure_boot else []) }}"
-  loop_control:
-    label: "{{ item.name }}"
-
-# ── Resolve the wanted NVRAM state of each UEFI VM ─────────
-# The template comes from the per-VM `nvram_template` key when it is set.
-# Otherwise it comes from the global variable that matches the secure_boot flag.
-- name: Reset the NVRAM specification list
-  ansible.builtin.set_fact:
-    _vms_nvram_specs: []
-
-- name: Resolve the NVRAM specification for {{ item.name }}
-  ansible.builtin.set_fact:
-    _vms_nvram_specs: "{{ _vms_nvram_specs + [_spec] }}"
-  vars:
-    _sb: "{{ item.secure_boot | default(vms_default_secure_boot) | bool }}"
-    _spec:
-      name: "{{ item.name }}"
-      secure_boot: "{{ _sb }}"
-      template: "{{ item.nvram_template | default(vms_ovmf_vars_secboot_template if _sb else vms_ovmf_vars_template) }}"
-      generation: "{{ item.nvram_generation | default(1) }}"
+# ── Read the current state of each VM ──────────────────────
+- name: Stat the NVRAM template of {{ item.name }}
+  ansible.builtin.stat:
+    path: "{{ item.nvram_template }}"
+    checksum_algorithm: sha256
+  register: _vms_nvram_templates
+  become: true
   loop: "{{ _vms_uefi_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Stat the NVRAM template of {{ item.name }}
-  ansible.builtin.stat:
-    path: "{{ item.template }}"
-    checksum_algorithm: sha256
-  register: _vms_nvram_templates
-  become: true
-  loop: "{{ _vms_nvram_specs }}"
-  loop_control:
-    label: "{{ item.name }}"
-
-- name: Validate the NVRAM template of {{ item.0.name }}
+- name: Validate that every NVRAM template exists
   ansible.builtin.assert:
     that:
-      - item.1.stat.exists
+      - _vms_missing_templates | length == 0
     fail_msg: >-
-      NVRAM template '{{ item.0.template }}' for VM '{{ item.0.name }}' does not exist.
-      Install the firmware package or correct nvram_template.
-  loop: "{{ _vms_nvram_specs | zip(_vms_nvram_templates.results) | list }}"
-  loop_control:
-    label: "{{ item.0.name }}"
+      These NVRAM templates do not exist: {{ _vms_missing_templates | join(', ') }}.
+      Install the firmware package (edk2-ovmf on EL9 and later), or correct
+      vms_ovmf_vars_template, vms_ovmf_vars_secboot_template or the per-VM
+      nvram_template key.
+  vars:
+    _vms_missing_templates: >-
+      {{ _vms_nvram_templates.results | rejectattr('stat.exists')
+         | map(attribute='item.nvram_template') | unique | list }}
 
 - name: Stat the NVRAM file of {{ item.name }}
   ansible.builtin.stat:
     path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd"
   register: _vms_nvram_files
   become: true
-  loop: "{{ _vms_nvram_specs }}"
+  loop: "{{ _vms_uefi_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -74,87 +44,90 @@
     path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.state"
   register: _vms_nvram_states
   become: true
-  loop: "{{ _vms_nvram_specs }}"
+  loop: "{{ _vms_uefi_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
 # The marker file of collection versions before 0.4.0. It records only the
-# secure_boot flag by its presence.
+# secure_boot flag, by its presence.
 - name: Stat the legacy secure boot marker of {{ item.name }}
   ansible.builtin.stat:
     path: "{{ vms_image_dir }}/{{ item.name }}_VARS.fd.secboot"
   register: _vms_nvram_legacy
   become: true
-  loop: "{{ _vms_nvram_specs }}"
+  loop: "{{ _vms_uefi_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Read the NVRAM state file of {{ item.0.name }}
+- name: Read the NVRAM state file of {{ item.item.name }}
   ansible.builtin.slurp:
-    src: "{{ vms_image_dir }}/{{ item.0.name }}_VARS.fd.state"
+    src: "{{ vms_image_dir }}/{{ item.item.name }}_VARS.fd.state"
   register: _vms_nvram_state_contents
   become: true
-  when: item.1.stat.exists
-  loop: "{{ _vms_nvram_specs | zip(_vms_nvram_states.results) | list }}"
+  when: item.stat.exists
+  loop: "{{ _vms_nvram_states.results }}"
   loop_control:
-    label: "{{ item.0.name }}"
+    label: "{{ item.item.name }}"
 
 # ── Decide which VMs need a new NVRAM file ─────────────────
-# The decision uses a fingerprint string, not a comparison of data types.
-# A rewrite happens when one of these conditions is true:
+# The decision compares one fingerprint string, not a set of values of
+# different types. A rewrite happens when one of these is true:
 #   * vms_nvram_force_reset is true (a one-shot reset from the command line);
 #   * the NVRAM file is absent (a new VM);
-#   * the state file holds a different fingerprint (flag, template, content
-#     of the template, or generation changed);
-#   * no state file exists and the legacy marker disagrees with secure_boot.
+#   * the state file holds a different fingerprint, so the secure_boot flag,
+#     the template path, the content of the template, or the generation
+#     changed;
+#   * there is no state file and the legacy marker disagrees with secure_boot.
+#
 # A VM that has only a legacy marker that agrees with secure_boot keeps its
-# NVRAM file. The role writes a state file for it and removes the marker.
-- name: Reset the NVRAM plan list
+# NVRAM file: the role writes a state file for it and removes the marker. An
+# upgrade from an earlier version therefore keeps the UEFI boot entries of
+# every VM that already exists.
+- name: Build the NVRAM plan
   ansible.builtin.set_fact:
-    _vms_nvram_plan: []
-
-- name: Build the NVRAM plan for {{ item.name }}
-  ansible.builtin.set_fact:
-    _vms_nvram_plan: "{{ _vms_nvram_plan + [_entry] }}"
+    _vms_nvram_plan: "{{ _vms_nvram_plan_json | from_json }}"
   vars:
-    _slurped: "{{ _vms_nvram_state_contents.results[_vms_nvram_index] }}"
-    _old_state: >-
-      {{ (_slurped.content | b64decode | from_json)
-         if (_slurped.content is defined) else {} }}
-    _nvram_exists: "{{ _vms_nvram_files.results[_vms_nvram_index].stat.exists }}"
-    _legacy_exists: "{{ _vms_nvram_legacy.results[_vms_nvram_index].stat.exists }}"
-    _checksum: "{{ _vms_nvram_templates.results[_vms_nvram_index].stat.checksum }}"
-    _fingerprint: >-
-      {{ item.secure_boot | string }}|{{ item.template }}|{{ _checksum }}|{{ item.generation | string }}
-    _entry:
-      name: "{{ item.name }}"
-      template: "{{ item.template }}"
-      exists: "{{ _nvram_exists }}"
-      rewrite: >-
-        {{ (vms_nvram_force_reset | bool)
-           or (not _nvram_exists)
-           or (_old_state | length > 0 and _old_state.fingerprint | default('') != _fingerprint | trim)
-           or (_old_state | length == 0 and (item.secure_boot | bool) != _legacy_exists) }}
-      state:
-        fingerprint: "{{ _fingerprint | trim }}"
-        secure_boot: "{{ item.secure_boot }}"
-        template: "{{ item.template }}"
-        template_checksum: "{{ _checksum }}"
-        generation: "{{ item.generation }}"
-  loop: "{{ _vms_nvram_specs }}"
-  loop_control:
-    label: "{{ item.name }}"
-    index_var: _vms_nvram_index
+    _vms_nvram_plan_json: >-
+      {%- set _out = [] -%}
+      {%- for _vm in _vms_uefi_vms -%}
+      {%-   set _i = loop.index0 -%}
+      {%-   set _slurped = _vms_nvram_state_contents.results[_i] -%}
+      {%-   set _old = (_slurped.content | b64decode | from_json)
+                       if (_slurped.content is defined) else {} -%}
+      {%-   set _checksum = _vms_nvram_templates.results[_i].stat.checksum -%}
+      {%-   set _exists = _vms_nvram_files.results[_i].stat.exists -%}
+      {%-   set _legacy = _vms_nvram_legacy.results[_i].stat.exists -%}
+      {%-   set _fingerprint = (_vm.secure_boot | string) ~ '|' ~ _vm.nvram_template
+                               ~ '|' ~ _checksum ~ '|' ~ (_vm.nvram_generation | string) -%}
+      {%-   set _ = _out.append({
+              'name': _vm.name,
+              'template': _vm.nvram_template,
+              'exists': _exists,
+              'rewrite': (vms_nvram_force_reset | bool)
+                         or (not _exists)
+                         or (_old | length > 0 and _old.fingerprint | default('') != _fingerprint)
+                         or (_old | length == 0 and _vm.secure_boot != _legacy),
+              'state': {
+                'fingerprint': _fingerprint,
+                'secure_boot': _vm.secure_boot,
+                'template': _vm.nvram_template,
+                'template_checksum': _checksum,
+                'generation': _vm.nvram_generation,
+              },
+            }) -%}
+      {%- endfor -%}
+      {{ _out | to_json }}
 
 - name: Collect the VMs that need a new NVRAM file
   ansible.builtin.set_fact:
     _vms_nvram_resets: >-
-      {{ _vms_nvram_plan | selectattr('rewrite', 'equalto', true)
-                         | selectattr('exists', 'equalto', true) | list }}
+      {{ _vms_nvram_plan | selectattr('rewrite') | selectattr('exists') | list }}
 
 # ── Replace the NVRAM file ─────────────────────────────────
-# QEMU maps the NVRAM file as pflash while the VM runs. Stop the VM first,
-# then write the file, then start the VM again if it was active.
+# QEMU maps the NVRAM file as pflash while the VM runs, so a rewrite under a
+# running VM is lost or corrupts the store. Stop the VM first, write the file,
+# then start the VM again if it was running. A VM that has no NVRAM file yet
+# cannot be running, so it is not in _vms_nvram_resets.
 - name: Get the service state before the NVRAM reset of {{ item.name }}
   ansible.builtin.systemd_service:
     name: "qemu-vm@{{ item.name }}.service"
@@ -212,12 +185,12 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Start the VM again after the NVRAM reset of {{ item.0.name }}
+- name: Start the VM again after the NVRAM reset of {{ item.item.name }}
   ansible.builtin.systemd_service:
-    name: "qemu-vm@{{ item.0.name }}.service"
+    name: "qemu-vm@{{ item.item.name }}.service"
     state: started
   become: true
-  when: (item.1.status.ActiveState | default('inactive')) == 'active'
-  loop: "{{ _vms_nvram_resets | zip(_vms_nvram_pre_states.results) | list }}"
+  when: (item.status.ActiveState | default('inactive')) == 'active'
+  loop: "{{ _vms_nvram_pre_states.results }}"
   loop_control:
-    label: "{{ item.0.name }}"
+    label: "{{ item.item.name }}"

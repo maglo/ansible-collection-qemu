@@ -1,4 +1,6 @@
 ---
+# The QEMU bridge helper reads this ACL and refuses a bridge that is not
+# listed. The file holds every bridge that a VM in vms_list uses.
 - name: Write bridge.conf
   ansible.builtin.template:
     src: bridge.conf.j2
@@ -7,9 +9,3 @@
     group: root
     mode: "0644"
   become: true
-  when: >-
-    _vms_active_vms | selectattr('net_mode', 'defined')
-                          | selectattr('net_mode', 'equalto', 'bridge')
-                          | list | length > 0
-    or (_vms_active_vms | rejectattr('net_mode', 'defined') | list | length > 0
-        and vms_default_net_mode == 'bridge')

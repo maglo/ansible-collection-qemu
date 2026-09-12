@@ -15,7 +15,7 @@
     group: "{{ vms_service_group }}"
     mode: "0600"
   become: true
-  loop: "{{ _vms_smbios_vm.smbios_oem_strings | default([]) }}"
+  loop: "{{ _vms_smbios_vm.smbios_oem_strings }}"
   loop_control:
     index_var: _vms_smbios_index
     label: "{{ _vms_smbios_vm.name }}[{{ _vms_smbios_index }}]"
@@ -39,4 +39,4 @@
   loop: "{{ _vms_smbios_present.files }}"
   loop_control:
     label: "{{ item.path }}"
-  when: (item.path | basename | int) >= (_vms_smbios_vm.smbios_oem_strings | default([]) | length)
+  when: (item.path | basename | int) >= (_vms_smbios_vm.smbios_oem_strings | length)

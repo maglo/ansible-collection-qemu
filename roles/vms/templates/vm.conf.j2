@@ -1,59 +1,60 @@
 {{ ansible_managed | comment }}
-{% set _fmt = item.disk_format | default(vms_default_disk_format) %}
-{% set _memory = item.memory | default(vms_default_memory) %}
-{% set _cpus = item.cpus | default(vms_default_cpus) %}
-{% set _cpu = item.cpu_model | default(vms_default_cpu) %}
-{% set _uefi = item.uefi | default(vms_default_uefi) %}
-{% set _secure_boot = item.secure_boot | default(vms_default_secure_boot) %}
-{% set _tpm = item.tpm | default(vms_default_tpm) %}
-{% set _net_mode = item.net_mode | default(vms_default_net_mode) %}
-{% set _mac = item.mac_address | default('52:54:00:' ~ (item.name | hash('md5'))[0:2] ~ ':' ~ (item.name | hash('md5'))[2:4] ~ ':' ~ (item.name | hash('md5'))[4:6]) %}
+{#
+  The systemd unit reads this file as an EnvironmentFile and passes $QEMU_ARGS
+  to /usr/libexec/qemu-kvm unquoted, so systemd splits the value at each space.
+  An argument must therefore never contain a space. Where a value can, the role
+  writes it to a file and passes the path (see the SMBIOS block below).
+
+  Every `item` key is already resolved: `vars/main.yml` merged the per-VM keys
+  over the role defaults, so this template never needs `| default(...)`.
+#}
 {% set _args = [] %}
 {% set _ = _args.append('-name ' ~ item.name) %}
-{% if _secure_boot %}
+{% if item.secure_boot %}
+{#- SMM is what keeps the guest out of the variable store. -#}
 {% set _ = _args.append('-machine q35,accel=kvm,smm=on') %}
 {% else %}
 {% set _ = _args.append('-machine q35,accel=kvm') %}
 {% endif %}
-{% set _ = _args.append('-m ' ~ _memory) %}
-{% set _ = _args.append('-smp ' ~ _cpus) %}
-{% set _ = _args.append('-cpu ' ~ _cpu) %}
+{% set _ = _args.append('-m ' ~ item.memory) %}
+{% set _ = _args.append('-smp ' ~ item.cpus) %}
+{% set _ = _args.append('-cpu ' ~ item.cpu_model) %}
+{#
+  -nographic keeps the serial console on stdout, where systemd captures it into
+  the journal. -vnc comes after it and gives the graphical console its own
+  display, so both consoles work.
+#}
 {% set _ = _args.append('-nographic') %}
-{% set _vnc = item.vnc | default((item.name | hash('md5') | int(base=16)) % 100) %}
-{% set _ = _args.append('-vnc :' ~ _vnc) %}
+{% set _ = _args.append('-vnc :' ~ item.vnc) %}
 {% set _ = _args.append('-monitor unix:/var/lib/qemu/' ~ item.name ~ '/monitor.sock,server,nowait') %}
-{% set _disk_bus = item.disk_bus | default(vms_default_disk_bus) %}
-{% set _disk_file = vms_image_dir ~ '/' ~ item.name ~ '.' ~ _fmt %}
-{% if _disk_bus == 'virtio-scsi' %}
+{# ── System disk ─────────────────────────────────────────── #}
+{% set _disk_file = vms_image_dir ~ '/' ~ item.name ~ '.' ~ item.disk_format %}
+{% if item.disk_bus == 'virtio-scsi' %}
 {% set _ = _args.append('-device virtio-scsi-pci,id=scsi0') %}
-{% set _ = _args.append('-drive if=none,id=disk0,format=' ~ _fmt ~ ',file=' ~ _disk_file) %}
-{# bootindex 2 keeps the USB device (bootindex 1) ahead of the system disk #}
+{% set _ = _args.append('-drive if=none,id=disk0,format=' ~ item.disk_format ~ ',file=' ~ _disk_file) %}
+{#- bootindex 2 keeps the USB device (bootindex 1) ahead of the system disk. -#}
 {% set _ = _args.append('-device scsi-hd,drive=disk0,bus=scsi0.0,bootindex=2') %}
 {% else %}
-{% set _ = _args.append('-drive if=virtio,format=' ~ _fmt ~ ',file=' ~ _disk_file) %}
+{% set _ = _args.append('-drive if=virtio,format=' ~ item.disk_format ~ ',file=' ~ _disk_file) %}
 {% endif %}
+{# ── cloud-init seed ISO ─────────────────────────────────── #}
 {% if item.cloud_init_user_data is defined or item.cloud_init_meta_data is defined or item.cloud_init_network_config is defined %}
 {% set _ = _args.append('-drive if=virtio,format=raw,file=' ~ vms_image_dir ~ '/' ~ item.name ~ '-seed.iso,media=cdrom,readonly=on') %}
 {% endif %}
+{# ── USB disk image ──────────────────────────────────────── #}
 {% if item.usb_disk_image is defined and item.usb_disk_image %}
-{% set _usb_image = item.usb_disk_image %}
-{% set _usb_image_lower = _usb_image | lower %}
-{% if _usb_image_lower.endswith('.qcow2') %}
-{% set _usb_fmt = 'qcow2' %}
-{% else %}
-{% set _usb_fmt = 'raw' %}
-{% endif %}
-{% set _usb_boot_priority = item.usb_boot_priority | default(true) %}
+{% set _usb_fmt = 'qcow2' if (item.usb_disk_image | lower).endswith('.qcow2') else 'raw' %}
 {% set _ = _args.append('-device qemu-xhci,id=xhci') %}
-{% set _ = _args.append('-drive if=none,id=usb0,format=' ~ _usb_fmt ~ ',file=' ~ _usb_image) %}
-{% if _usb_boot_priority %}
+{% set _ = _args.append('-drive if=none,id=usb0,format=' ~ _usb_fmt ~ ',file=' ~ item.usb_disk_image) %}
+{% if item.usb_boot_priority %}
 {% set _ = _args.append('-device usb-storage,drive=usb0,bootindex=1') %}
 {% else %}
 {% set _ = _args.append('-device usb-storage,drive=usb0') %}
 {% endif %}
 {% endif %}
-{% if _uefi %}
-{% if _secure_boot %}
+{# ── UEFI firmware ───────────────────────────────────────── #}
+{% if item.uefi %}
+{% if item.secure_boot %}
 {% set _ = _args.append('-drive if=pflash,format=raw,readonly=on,file=' ~ vms_ovmf_code_secboot) %}
 {% set _ = _args.append('-drive if=pflash,format=raw,file=' ~ vms_image_dir ~ '/' ~ item.name ~ '_VARS.fd') %}
 {% set _ = _args.append('-global driver=cfi.pflash01,property=secure,value=on') %}
@@ -62,20 +63,21 @@
 {% set _ = _args.append('-drive if=pflash,format=raw,file=' ~ vms_image_dir ~ '/' ~ item.name ~ '_VARS.fd') %}
 {% endif %}
 {% endif %}
-{% if _tpm %}
+{# ── Emulated TPM ────────────────────────────────────────── #}
+{% if item.tpm %}
 {% set _ = _args.append('-chardev socket,id=chrtpm,path=' ~ vms_swtpm_state_dir ~ '/' ~ item.name ~ '/swtpm.sock') %}
 {% set _ = _args.append('-tpmdev emulator,id=tpm0,chardev=chrtpm') %}
 {% set _ = _args.append('-device tpm-tis,tpmdev=tpm0') %}
 {% endif %}
-{% set _smbios = item.smbios_oem_strings | default([]) %}
-{% for _oem_string in _smbios %}
+{# ── SMBIOS type 11 OEM strings ──────────────────────────── #}
+{% for _oem_string in item.smbios_oem_strings %}
 {% set _ = _args.append('-smbios type=11,path=/var/lib/qemu/' ~ item.name ~ '/smbios/' ~ ('%02d' | format(loop.index0))) %}
 {% endfor %}
-{% if _net_mode == 'user' %}
-{% set _ = _args.append('-nic user,model=virtio-net-pci,mac=' ~ _mac) %}
-{% elif _net_mode == 'bridge' %}
-{% set _bridge = item.net_bridge | default(vms_default_net_bridge) %}
-{% set _ = _args.append('-netdev bridge,id=net0,br=' ~ _bridge) %}
-{% set _ = _args.append('-device virtio-net-pci,netdev=net0,mac=' ~ _mac) %}
+{# ── Networking ──────────────────────────────────────────── #}
+{% if item.net_mode == 'user' %}
+{% set _ = _args.append('-nic user,model=virtio-net-pci,mac=' ~ item.mac_address) %}
+{% elif item.net_mode == 'bridge' %}
+{% set _ = _args.append('-netdev bridge,id=net0,br=' ~ item.net_bridge) %}
+{% set _ = _args.append('-device virtio-net-pci,netdev=net0,mac=' ~ item.mac_address) %}
 {% endif %}
 QEMU_ARGS="{{ _args | join(' ') }}"

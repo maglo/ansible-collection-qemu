@@ -1,12 +1,19 @@
 ---
 argument_specs:
   main:
-    short_description: Create QEMU/KVM virtual machine disk images.
+    short_description: Create and manage QEMU/KVM virtual machines.
     description:
-      - Creates qcow2 (or raw) disk images for QEMU/KVM virtual machines
-        and sets the correct ownership and permissions.
-      - "Prerequisite: apply C(maglo.qemu.host) first (or provide equivalent host setup)
-        to ensure QEMU binaries and required directories already exist."
+      - Creates the disk image, the UEFI variable store, the emulated TPM state,
+        the cloud-init seed ISO and the noVNC proxy of each VM in C(vms_list),
+        writes the QEMU arguments of the VM to
+        C(vms_vm_config_dir/<name>.conf), and brings the
+        C(qemu-vm@<name>) service to the state that the VM asks for.
+      - "Prerequisite: apply C(maglo.qemu.host) first (or provide an equivalent
+        host setup), so that the QEMU binaries, the systemd template units and
+        the directories already exist."
+      - >-
+        A configuration change is written to the C(.conf) file but does not
+        restart a running VM. Use C(state: restarted) to apply it now.
     options:
       vms_list:
         description:
@@ -38,7 +45,9 @@ argument_specs:
             C(cloud_init_network_config) (cloud-init network-config content; omitted from ISO if not set),
             C(novnc_enabled) (enable noVNC web console for this VM),
             C(novnc_port) (noVNC port, auto-assigned if not specified),
-            C(state) (C(started), C(stopped), or C(present))."
+            C(state) (C(present), C(started), C(stopped), C(restarted) or C(absent)),
+            C(force_destroy) (required by C(state: absent)),
+            C(shutdown_timeout) (seconds to wait for the guest to power down)."
         type: list
         elements: dict
         default: []
@@ -134,7 +143,10 @@ argument_specs:
             description: Bridge device for this VM. Overrides C(vms_default_net_bridge).
             type: str
           mac_address:
-            description: MAC address for this VM. Overrides the auto-generated deterministic MAC.
+            description: >-
+              MAC address for this VM. It overrides the address that the role
+              derives from a hash of the VM name. Two names can give the same
+              address; the role then fails the run and asks for an explicit value.
             type: str
           memory:
             description: Memory allocation for this VM (e.g. C(2G), C(4G)). Overrides C(vms_default_memory).
@@ -149,8 +161,10 @@ argument_specs:
             type: str
           vnc:
             description: >-
-              VNC display number for this VM (maps to port 5900+N).
-              If not specified, calculated from hash of VM name.
+              VNC display number for this VM (it maps to port 5900+N).
+              When it is not set, the role derives it from a hash of the VM name.
+              Two names can give the same number; the role then fails the run
+              and asks for an explicit value.
             type: int
           smbios_oem_strings:
             description:
@@ -192,7 +206,7 @@ argument_specs:
               Content for the cloud-init C(user-data) file (cloud-config YAML or shell script).
               When any C(cloud_init_*) key is set the role generates a seed ISO at
               C(vms_image_dir/<name>-seed.iso) and attaches it to the VM as a virtio CD-ROM.
-              Requires C(genisoimage) or C(xorriso) on the host.
+              Requires C(genisoimage) on the host; the C(host) role installs it.
               The guest image must have C(cloud-init) or C(cloudbase-init) installed.
             type: str
           cloud_init_meta_data:
@@ -217,10 +231,17 @@ argument_specs:
               If not specified, auto-assigned as 6080 + VNC display number.
             type: int
           state:
-            description: >-
-              Desired state of the VM service. C(started) enables and starts the service,
-              C(stopped) enables but stops the service, C(present) only writes config without managing the service,
-              C(restarted) performs a graceful stop and start, C(absent) destroys the VM and all artifacts.
+            description:
+              - >-
+                Desired state of the C(qemu-vm@<name>) service.
+                C(started) enables and starts it, C(stopped) enables but stops it,
+                C(present) writes the config and leaves the service alone,
+                C(restarted) shuts the guest down over the QEMU monitor and starts
+                it again, C(absent) destroys the VM and every artifact of it.
+              - >-
+                C(present) does not stop the swtpm and noVNC instances of the VM:
+                the role starts those whenever C(tpm) or C(novnc_enabled) is on,
+                so that the VM can be started by hand afterwards.
             type: str
             choices:
               - started
@@ -272,8 +293,10 @@ argument_specs:
         default: /var/lib/qemu/images/cache
       vms_verify_checksums:
         description: >-
-          Whether to verify checksums for downloaded images.
-          Currently unused but reserved for future enhancement.
+          Whether to compare the per-VM C(disk_image_checksum) against the
+          downloaded image. Set it to C(false) only for a mirror that
+          publishes no checksum. A VM that sets no C(disk_image_checksum) is
+          not verified either way.
         type: bool
         default: true
       vms_service_user:
@@ -404,7 +427,10 @@ argument_specs:
       vms_default_novnc_port:
         description: >-
           Default noVNC port for VMs that do not specify C(novnc_port).
-          If null, ports are auto-assigned as 6080 + VNC display number.
+          When it is null, each VM gets 6080 plus its own VNC display number.
+          A fixed value gives every VM the same port, so it suits a host with
+          one noVNC VM only; the role fails the run when two VMs would share
+          a port.
         type: int
       vms_default_shutdown_timeout:
         description: >-

@@ -1,119 +1,117 @@
 ---
-- name: Determine VMs with cloud-init configuration
-  ansible.builtin.set_fact:
-    _vms_cloud_init_vms: >-
-      {{ (_vms_active_vms | selectattr('cloud_init_user_data', 'defined') | list
-          + _vms_active_vms | selectattr('cloud_init_meta_data', 'defined') | list
-          + _vms_active_vms | selectattr('cloud_init_network_config', 'defined') | list)
-         | unique(attribute='name') }}
+# Build a cloud-init NoCloud seed ISO for each VM that sets a cloud_init_* key.
+# vm.conf.j2 attaches the ISO as a read-only virtio CD-ROM, and cloud-init in
+# the guest finds it by its `CIDATA` volume label.
 
-- name: Prepare and generate cloud-init seed ISOs
-  when: _vms_cloud_init_vms | length > 0
-  block:
-    - name: Check genisoimage is installed
-      ansible.builtin.command: which genisoimage
-      register: vms_genisoimage_check
-      changed_when: false
-      failed_when: false
+- name: Check genisoimage is installed
+  ansible.builtin.command: which genisoimage
+  register: _vms_genisoimage
+  changed_when: false
+  failed_when: false
 
-    - name: Assert genisoimage is installed
-      ansible.builtin.assert:
-        that: vms_genisoimage_check.rc == 0
-        fail_msg: >-
-          genisoimage not found on the host.
-          Run the maglo.qemu.host role to install it.
+- name: Assert genisoimage is installed
+  ansible.builtin.assert:
+    that: _vms_genisoimage.rc == 0
+    fail_msg: >-
+      genisoimage not found on the host.
+      Run the maglo.qemu.host role to install it.
 
-    - name: Create cloud-init staging directory for {{ item.name }}
-      ansible.builtin.file:
-        path: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
-        state: directory
-        owner: "{{ vms_service_user }}"
-        group: "{{ vms_service_group }}"
-        mode: "0700"
-      become: true
-      loop: "{{ _vms_cloud_init_vms }}"
-      loop_control:
-        label: "{{ item.name }}"
+# Mode 0700 and 0600: user-data commonly holds an SSH key or a password hash.
+- name: Create cloud-init staging directory for {{ item.name }}
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
+    state: directory
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0700"
+  become: true
+  loop: "{{ _vms_cloud_init_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-    - name: Write cloud-init meta-data for {{ item.name }}
-      ansible.builtin.template:
-        src: cloud-init-meta-data.j2
-        dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/meta-data"
-        owner: "{{ vms_service_user }}"
-        group: "{{ vms_service_group }}"
-        mode: "0600"
-      become: true
-      register: _vms_meta_data_results
-      loop: "{{ _vms_cloud_init_vms }}"
-      loop_control:
-        label: "{{ item.name }}"
+- name: Write cloud-init meta-data for {{ item.name }}
+  ansible.builtin.template:
+    src: cloud-init-meta-data.j2
+    dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/meta-data"
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0600"
+  become: true
+  register: _vms_meta_data_results
+  loop: "{{ _vms_cloud_init_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-    - name: Write cloud-init user-data for {{ item.name }}
-      ansible.builtin.copy:
-        dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/user-data"
-        content: "{{ item.cloud_init_user_data | default('#cloud-config\n') }}"
-        owner: "{{ vms_service_user }}"
-        group: "{{ vms_service_group }}"
-        mode: "0600"
-      become: true
-      register: _vms_user_data_results
-      loop: "{{ _vms_cloud_init_vms }}"
-      loop_control:
-        label: "{{ item.name }}"
+- name: Write cloud-init user-data for {{ item.name }}
+  ansible.builtin.copy:
+    dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/user-data"
+    content: "{{ item.cloud_init_user_data | default('#cloud-config\n') }}"
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0600"
+  become: true
+  register: _vms_user_data_results
+  loop: "{{ _vms_cloud_init_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-    - name: Write cloud-init network-config for {{ item.name }}
-      ansible.builtin.copy:
-        dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/network-config"
-        content: "{{ item.cloud_init_network_config }}"
-        owner: "{{ vms_service_user }}"
-        group: "{{ vms_service_group }}"
-        mode: "0600"
-      become: true
-      register: _vms_network_config_results
-      loop: "{{ _vms_cloud_init_vms }}"
-      loop_control:
-        label: "{{ item.name }}"
-      when: item.cloud_init_network_config is defined
+- name: Write cloud-init network-config for {{ item.name }}
+  ansible.builtin.copy:
+    dest: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}/network-config"
+    content: "{{ item.cloud_init_network_config }}"
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0600"
+  become: true
+  register: _vms_network_config_results
+  loop: "{{ _vms_cloud_init_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.cloud_init_network_config is defined
 
-    - name: Stat cloud-init seed ISO for {{ item.name }}
-      ansible.builtin.stat:
-        path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
-      register: _vms_iso_stats
-      loop: "{{ _vms_cloud_init_vms }}"
-      loop_control:
-        label: "{{ item.name }}"
+- name: Stat cloud-init seed ISO for {{ item.name }}
+  ansible.builtin.stat:
+    path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
+  register: _vms_iso_stats
+  become: true
+  loop: "{{ _vms_cloud_init_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-    - name: Generate cloud-init seed ISO
-      ansible.builtin.command:
-        argv: >-
-          {{ ['genisoimage',
-              '-output', vms_image_dir ~ '/' ~ item.name ~ '-seed.iso',
-              '-volid', 'CIDATA',
-              '-joliet',
-              '-rock',
-              'meta-data', 'user-data']
-             + (['network-config'] if item.cloud_init_network_config is defined else []) }}
-        chdir: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
-      become: true
-      changed_when: true
-      loop: "{{ _vms_cloud_init_vms }}"
-      loop_control:
-        label: "{{ item.name }} -> {{ vms_image_dir }}/{{ item.name }}-seed.iso"
-        extended: true
-      when: >-
-        not _vms_iso_stats.results[ansible_loop.index0].stat.exists
-        or _vms_meta_data_results.results[ansible_loop.index0].changed
-        or _vms_user_data_results.results[ansible_loop.index0].changed
-        or (item.cloud_init_network_config is defined
-            and _vms_network_config_results.results[ansible_loop.index0].changed)
+# genisoimage writes a new ISO every time it runs, so the task is not
+# idempotent by itself. Build only when the ISO is missing or one of the three
+# staged files changed in this run.
+- name: Generate cloud-init seed ISO
+  ansible.builtin.command:
+    argv: >-
+      {{ ['genisoimage',
+          '-output', vms_image_dir ~ '/' ~ item.name ~ '-seed.iso',
+          '-volid', 'CIDATA',
+          '-joliet',
+          '-rock',
+          'meta-data', 'user-data']
+         + (['network-config'] if item.cloud_init_network_config is defined else []) }}
+    chdir: "{{ vms_image_dir }}/.cloud-init-staging/{{ item.name }}"
+  become: true
+  changed_when: true
+  loop: "{{ _vms_cloud_init_vms }}"
+  loop_control:
+    label: "{{ item.name }} -> {{ vms_image_dir }}/{{ item.name }}-seed.iso"
+    extended: true
+  when: >-
+    not _vms_iso_stats.results[ansible_loop.index0].stat.exists
+    or _vms_meta_data_results.results[ansible_loop.index0].changed
+    or _vms_user_data_results.results[ansible_loop.index0].changed
+    or (item.cloud_init_network_config is defined
+        and _vms_network_config_results.results[ansible_loop.index0].changed)
 
-    - name: Set ownership of cloud-init seed ISO for {{ item.name }}
-      ansible.builtin.file:
-        path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
-        owner: "{{ vms_service_user }}"
-        group: "{{ vms_service_group }}"
-        mode: "0644"
-      become: true
-      loop: "{{ _vms_cloud_init_vms }}"
-      loop_control:
-        label: "{{ item.name }}"
+- name: Set ownership of cloud-init seed ISO for {{ item.name }}
+  ansible.builtin.file:
+    path: "{{ vms_image_dir }}/{{ item.name }}-seed.iso"
+    owner: "{{ vms_service_user }}"
+    group: "{{ vms_service_group }}"
+    mode: "0644"
+  become: true
+  loop: "{{ _vms_cloud_init_vms }}"
+  loop_control:
+    label: "{{ item.name }}"

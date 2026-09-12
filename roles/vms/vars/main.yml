@@ -1,6 +1,15 @@
 ---
-# OS-specific OVMF firmware paths, keyed by ansible_distribution_major_version.
-# EL8 ships edk2-ovmf under /usr/share/OVMF/; EL9+ uses /usr/share/edk2/ovmf/.
+# Internal role variables. Do not set these from a playbook.
+#
+# Ansible resolves a role variable lazily, at the moment a task reads it.
+# These definitions therefore cost no task, and they follow a change of
+# `vms_list` between two `include_role` calls in the same play. A `set_fact`
+# would not: a fact outranks a role variable and survives the whole play, so a
+# second call would read the list of the first one.
+
+# ── OVMF firmware paths ────────────────────────────────────
+# Keyed by ansible_distribution_major_version. EL8 ships edk2-ovmf under
+# /usr/share/OVMF/; EL9 and later use /usr/share/edk2/ovmf/.
 _vms_ovmf_path_map:
   "8":
     code: /usr/share/OVMF/OVMF_CODE.fd
@@ -11,3 +20,91 @@ _vms_ovmf_path_map:
   "10":
     code: /usr/share/edk2/ovmf/OVMF_CODE.fd
     vars: /usr/share/edk2/ovmf/OVMF_VARS.fd
+
+# The paths of the running host. An unknown major version falls back to the
+# EL9 layout. The role then reports "NVRAM template ... does not exist", which
+# names the file to fix, instead of a Jinja key error that names nothing.
+_vms_ovmf_paths: >-
+  {{ _vms_ovmf_path_map[(ansible_distribution_major_version | default('9')) | string]
+     | default(_vms_ovmf_path_map['9'], true) }}
+
+# ── Effective per-VM settings ──────────────────────────────
+# `vms_list` holds only the keys that the operator sets. Almost every task and
+# template needs the effective value instead: the per-VM key when it is
+# present, the role default otherwise.
+#
+# `_vms_resolved` performs that merge once. The rest of the role therefore
+# reads `item.tpm` instead of `item.tpm | default(vms_default_tpm)`, and
+# selects with `selectattr('tpm')` instead of a two-part expression that has to
+# treat "key absent" and "key set to false" separately.
+#
+# A key whose absence is meaningful stays absent: `disk_image_url`,
+# `disk_image_checksum`, `usb_disk_image`, `nvram_expected_db_cn` and the
+# `cloud_init_*` keys. Tasks test those with `is defined`.
+
+# Defaults that are the same for every VM.
+_vms_key_defaults:
+  state: present
+  disk_size: "{{ vms_default_disk_size }}"
+  disk_format: "{{ vms_default_disk_format }}"
+  disk_bus: "{{ vms_default_disk_bus }}"
+  uefi: "{{ vms_default_uefi }}"
+  nvram_generation: 1
+  tpm: "{{ vms_default_tpm }}"
+  tpm_generation: 1
+  net_mode: "{{ vms_default_net_mode }}"
+  net_bridge: "{{ vms_default_net_bridge }}"
+  memory: "{{ vms_default_memory }}"
+  cpus: "{{ vms_default_cpus }}"
+  cpu_model: "{{ vms_default_cpu }}"
+  novnc_enabled: "{{ vms_default_novnc_enabled }}"
+  shutdown_timeout: "{{ vms_default_shutdown_timeout }}"
+  smbios_oem_strings: []
+  usb_boot_priority: true
+  force_destroy: false
+
+# Defaults that depend on the VM itself. The VNC display and the MAC address
+# come from the VM name, so that a VM keeps the same console port and the same
+# link-layer address across a rebuild.
+#
+# The merge order is: shared defaults, then name-derived defaults, then the
+# keys the operator set. The last dictionary wins in `combine`.
+_vms_resolved_json: >-
+  {%- set _out = [] -%}
+  {%- for _vm in vms_list -%}
+  {%-   set _sb = (_vm.secure_boot | default(vms_default_secure_boot)) | bool -%}
+  {%-   set _md5 = _vm.name | hash('md5') -%}
+  {%-   set _vnc = _vm.vnc | default((_md5 | int(base=16)) % 100) | int -%}
+  {%-   set _derived = {
+          'secure_boot': _sb,
+          'nvram_template': _vm.nvram_template
+            | default(vms_ovmf_vars_secboot_template if _sb else vms_ovmf_vars_template),
+          'vnc': _vnc,
+          'novnc_port': vms_default_novnc_port | default(6080 + _vnc, true) | int,
+          'mac_address': '52:54:00:' ~ _md5[0:2] ~ ':' ~ _md5[2:4] ~ ':' ~ _md5[4:6],
+        } -%}
+  {%-   set _ = _out.append(_vms_key_defaults | combine(_derived, _vm)) -%}
+  {%- endfor -%}
+  {{ _out | to_json }}
+
+# JSON is the round trip, not the Python representation of the list: it keeps
+# every boolean and integer a boolean and an integer.
+_vms_resolved: "{{ _vms_resolved_json | from_json }}"
+
+# ── Selections used by the task files ──────────────────────
+_vms_active_vms: "{{ _vms_resolved | rejectattr('state', 'equalto', 'absent') | list }}"
+_vms_absent_vms: "{{ _vms_resolved | selectattr('state', 'equalto', 'absent') | list }}"
+_vms_restart_vms: "{{ _vms_resolved | selectattr('state', 'equalto', 'restarted') | list }}"
+_vms_uefi_vms: "{{ _vms_active_vms | selectattr('uefi') | list }}"
+_vms_secure_boot_vms: "{{ _vms_uefi_vms | selectattr('secure_boot') | list }}"
+_vms_tpm_vms: "{{ _vms_active_vms | selectattr('tpm') | list }}"
+_vms_novnc_vms: "{{ _vms_active_vms | selectattr('novnc_enabled') | list }}"
+_vms_bridge_vms: "{{ _vms_active_vms | selectattr('net_mode', 'equalto', 'bridge') | list }}"
+_vms_image_vms: "{{ _vms_active_vms | selectattr('disk_image_url', 'defined') | list }}"
+_vms_usb_vms: "{{ _vms_active_vms | selectattr('usb_disk_image', 'defined') | list }}"
+_vms_smbios_vms: "{{ _vms_active_vms | rejectattr('smbios_oem_strings', 'equalto', []) | list }}"
+_vms_cloud_init_vms: >-
+  {{ (_vms_active_vms | selectattr('cloud_init_user_data', 'defined') | list
+      + _vms_active_vms | selectattr('cloud_init_meta_data', 'defined') | list
+      + _vms_active_vms | selectattr('cloud_init_network_config', 'defined') | list)
+     | unique(attribute='name') | list }}

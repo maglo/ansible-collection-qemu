@@ -6,11 +6,25 @@
 # unquoted `$QEMU_ARGS`. systemd splits that variable at each space and does
 # not interpret quotation marks inside the value, so a string that contains a
 # space would become two arguments. A file holds the space instead.
-- name: Determine the VMs that set SMBIOS OEM strings
+
+# The per-VM tasks also remove the files of an earlier, longer list, so they
+# have to run for a VM whose key was deleted. Stat the directory to find those
+# VMs. A host where no VM ever used the key gets no per-VM tasks at all.
+- name: Stat the SMBIOS directory of {{ item.name }}
+  ansible.builtin.stat:
+    path: /var/lib/qemu/{{ item.name }}/smbios
+  register: _vms_smbios_dirs
+  become: true
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Collect the VMs that need SMBIOS files written or removed
   ansible.builtin.set_fact:
-    _vms_smbios_vms: >-
-      {{ _vms_active_vms | selectattr('smbios_oem_strings', 'defined')
-                         | rejectattr('smbios_oem_strings', 'equalto', []) | list }}
+    _vms_smbios_managed: >-
+      {{ _vms_smbios_vms
+         + (_vms_smbios_dirs.results | selectattr('stat.exists')
+            | map(attribute='item') | list) }}
 
 # An OEM string can hold a secret, for example
 # `io.systemd.credential:mypassword=...`. Only the QEMU user may read it.
@@ -26,12 +40,9 @@
   loop_control:
     label: "{{ item.name }}"
 
-# The loop covers every VM, not only the VMs that set the key now. A VM whose
-# list you delete must lose its files, and a VM that keeps its list must lose
-# the files of a longer list of an earlier run.
 - name: Write the SMBIOS OEM strings of {{ _vms_smbios_vm.name }}
   ansible.builtin.include_tasks: smbios_strings.yml
-  loop: "{{ _vms_active_vms }}"
+  loop: "{{ _vms_smbios_managed | unique(attribute='name') | list }}"
   loop_control:
     label: "{{ _vms_smbios_vm.name }}"
     loop_var: _vms_smbios_vm

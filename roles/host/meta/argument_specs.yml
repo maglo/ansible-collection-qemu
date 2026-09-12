@@ -3,8 +3,12 @@ argument_specs:
   main:
     short_description: Install and configure a QEMU/KVM host on Enterprise Linux.
     description:
-      - Installs QEMU/KVM packages, deploys a systemd template unit for managing VMs,
-        and optionally installs the noVNC package (per-VM configuration managed by vms role).
+      - Installs the QEMU/KVM packages, deploys the C(qemu-vm@.service) and
+        C(swtpm@.service) systemd template units, and installs a small SELinux
+        policy module when SELinux is enforcing.
+      - Optionally installs the noVNC package and the C(novnc@.service)
+        template unit. The per-VM instances of all three units are managed by
+        the C(vms) role.
     options:
       host_packages:
         description: Packages to install for QEMU/KVM host.
@@ -19,11 +23,16 @@ argument_specs:
           - genisoimage
           - edk2-ovmf
       host_vm_config_dir:
-        description: Directory containing QEMU VM configuration files (one C(.conf) per VM).
+        description: >-
+          Directory containing QEMU VM configuration files (one C(.conf) per VM).
+          The template units read it, so it must match C(vms_vm_config_dir) of
+          the C(vms) role.
         type: path
         default: /etc/qemu/vms
       host_vm_image_dir:
-        description: Directory containing QEMU VM disk images.
+        description: >-
+          Directory containing QEMU VM disk images. It must match
+          C(vms_image_dir) of the C(vms) role.
         type: path
         default: /var/lib/qemu/images
       host_service_user:
@@ -34,6 +43,13 @@ argument_specs:
         description: Group for the QEMU systemd service.
         type: str
         default: qemu
+      host_swtpm_state_dir:
+        description: >-
+          Base directory for the per-VM swtpm state directories. The
+          C(swtpm@.service) template unit reads it, so it must match
+          C(vms_swtpm_state_dir) of the C(vms) role.
+        type: path
+        default: /var/lib/swtpm
       host_novnc_enabled:
         description: >-
           Whether to install the noVNC package and deploy the C(novnc@.service) systemd template

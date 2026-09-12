@@ -1,11 +1,7 @@
 ---
-# Determine which VMs need image downloads
-- name: Determine VMs with disk_image_url
-  ansible.builtin.set_fact:
-    _vms_image_vms: >-
-      {{ vms_list | selectattr('disk_image_url', 'defined') | list }}
+# Download the backing image of every VM that sets disk_image_url, once per
+# URL, into a cache directory that all VMs share.
 
-# Create cache directory if any VM needs downloads
 - name: Create disk image cache directory
   ansible.builtin.file:
     path: "{{ vms_image_cache_dir }}"
@@ -14,25 +10,30 @@
     group: "{{ vms_service_group }}"
     mode: "0755"
   become: true
-  when: _vms_image_vms | length > 0
 
-# Download images (with checksum verification)
+# `force: false` keeps a cached image. A VM that wants a newer build of the
+# same URL needs a new file name, or the cached file has to be removed.
+#
+# The checksum comes from the per-VM disk_image_checksum key. Setting
+# vms_verify_checksums to false skips the comparison, which is for a mirror
+# that publishes no checksum. Leave it on.
 - name: Download disk images to cache
   ansible.builtin.get_url:
     url: "{{ item.disk_image_url }}"
     dest: "{{ vms_image_cache_dir }}/{{ item.disk_image_url | basename }}"
-    checksum: "{{ item.disk_image_checksum | default(omit) }}"
+    checksum: "{{ item.disk_image_checksum | default(omit) if (vms_verify_checksums | bool) else omit }}"
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0644"
-    force: false  # Don't re-download if file exists
+    force: false
   become: true
   loop: "{{ _vms_image_vms }}"
   loop_control:
     label: "{{ item.name }} - {{ item.disk_image_url | basename }}"
-  when: item.disk_image_url is defined
 
-# Validate downloaded images are valid qcow2
+# An overlay can only sit on a qcow2 backing file, and a truncated download
+# gives a file that qemu-img cannot read at all. Check both here, so the
+# failure names the image instead of appearing later as a VM that will not boot.
 - name: Validate cached images are valid qcow2 format
   ansible.builtin.command:
     cmd: "qemu-img info {{ vms_image_cache_dir }}/{{ item.disk_image_url | basename }}"
@@ -42,4 +43,3 @@
   loop: "{{ _vms_image_vms }}"
   loop_control:
     label: "{{ item.name }} - {{ item.disk_image_url | basename }}"
-  when: item.disk_image_url is defined

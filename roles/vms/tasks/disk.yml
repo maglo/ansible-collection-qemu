@@ -1,36 +1,39 @@
 ---
-# Create blank disk images for VMs WITHOUT disk_image_url
-- name: Create blank disk image
+# `creates:` makes both qemu-img calls idempotent: an existing disk image is
+# never rewritten, so a converge run does not discard the data of a VM.
+
+- name: Create blank disk image for {{ item.name }}
   ansible.builtin.command:
     cmd: >-
-      qemu-img create -f {{ item.disk_format | default(vms_default_disk_format) }}
-      {{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}
-      {{ item.disk_size | default(vms_default_disk_size) }}
-    creates: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}"
+      qemu-img create -f {{ item.disk_format }}
+      {{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format }}
+      {{ item.disk_size }}
+    creates: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format }}"
   become: true
   loop: "{{ _vms_active_vms | rejectattr('disk_image_url', 'defined') | list }}"
   loop_control:
     label: "{{ item.name }}"
 
-# Create overlay disk images for VMs WITH disk_image_url (using backing file)
-- name: Create overlay disk image with backing file
+# A VM with disk_image_url gets an overlay on the cached image instead of a
+# blank disk, so several VMs share one download. disk_size is the virtual size
+# of the overlay and may be larger than the backing image.
+- name: Create overlay disk image for {{ item.name }}
   ansible.builtin.command:
     cmd: >-
-      qemu-img create -f {{ item.disk_format | default(vms_default_disk_format) }}
+      qemu-img create -f {{ item.disk_format }}
       -b {{ vms_image_cache_dir }}/{{ item.disk_image_url | basename }}
       -F qcow2
-      {{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}
-      {{ item.disk_size | default(vms_default_disk_size) }}
-    creates: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}"
+      {{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format }}
+      {{ item.disk_size }}
+    creates: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format }}"
   become: true
-  loop: "{{ _vms_active_vms | selectattr('disk_image_url', 'defined') | list }}"
+  loop: "{{ _vms_image_vms }}"
   loop_control:
     label: "{{ item.name }}"
 
-# Set ownership and permissions on ALL disk images (both blank and overlay)
-- name: Set ownership and permissions on disk images
+- name: Set ownership and permissions on the disk image of {{ item.name }}
   ansible.builtin.file:
-    path: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format | default(vms_default_disk_format) }}"
+    path: "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format }}"
     owner: "{{ vms_service_user }}"
     group: "{{ vms_service_group }}"
     mode: "0644"

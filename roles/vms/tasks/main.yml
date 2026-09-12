@@ -1,8 +1,17 @@
 ---
-# ── Ensure distribution facts are available ────────────────
-# The role needs ansible_distribution_major_version to select OS-specific
-# OVMF firmware paths. Gather minimum facts when called from a play with
-# gather_facts: false (e.g. molecule verify re-runs).
+# The role resolves the effective settings of every VM once, in vars/main.yml.
+# Each task file below reads a ready-made selection from there
+# (_vms_uefi_vms, _vms_tpm_vms, _vms_novnc_vms, ...) instead of filtering
+# vms_list again, and reads `item.tpm` instead of
+# `item.tpm | default(vms_default_tpm)`.
+#
+# Each import is gated on the selection it works on, so a play that manages
+# plain VMs never evaluates the firmware, TPM or noVNC tasks.
+
+# ── Facts ──────────────────────────────────────────────────
+# The role needs ansible_distribution_major_version to pick the OVMF firmware
+# paths of the host. Gather the minimum when the play runs with
+# gather_facts: false, as a molecule verify re-run does.
 - name: Gather distribution facts if not already collected
   ansible.builtin.setup:
     gather_subset: min
@@ -12,26 +21,24 @@
 - name: Report deprecations
   ansible.builtin.import_tasks: deprecations.yml
 
-# ── Filter VMs for creation (exclude those being destroyed) ──
-- name: Filter VMs for creation
-  ansible.builtin.set_fact:
-    _vms_active_vms: >-
-      {{ vms_list | rejectattr('state', 'defined') | list
-         + vms_list | selectattr('state', 'defined') | rejectattr('state', 'equalto', 'absent') | list }}
+# ── Validation ─────────────────────────────────────────────
+- name: Validate the VM list
+  ansible.builtin.import_tasks: validate.yml
 
-# ── Creation phase (only for non-absent VMs) ──
+# ── Creation phase (every VM whose state is not `absent`) ──
 - name: Ensure UEFI firmware is available
   ansible.builtin.import_tasks: firmware.yml
-  when: _vms_active_vms | length > 0
+  when: _vms_uefi_vms | length > 0
 
 - name: Verify the Secure Boot variable stores
   ansible.builtin.import_tasks: firmware_verify.yml
   when:
-    - _vms_active_vms | length > 0
+    - _vms_secure_boot_vms | length > 0
     - vms_nvram_verify | bool
 
 - name: Download and cache disk images
   ansible.builtin.import_tasks: disk_image.yml
+  when: _vms_image_vms | length > 0
 
 - name: Create VM disk images
   ansible.builtin.import_tasks: disk.yml
@@ -39,15 +46,15 @@
 
 - name: Configure per-VM TPM emulation
   ansible.builtin.import_tasks: tpm.yml
-  when: _vms_active_vms | length > 0
+  when: _vms_tpm_vms | length > 0
 
 - name: Configure VM networking
   ansible.builtin.import_tasks: network.yml
-  when: _vms_active_vms | length > 0
+  when: _vms_bridge_vms | length > 0
 
 - name: Configure noVNC for VMs
   ansible.builtin.import_tasks: novnc.yml
-  when: _vms_active_vms | selectattr('novnc_enabled', 'defined') | selectattr('novnc_enabled') | list | length > 0
+  when: _vms_novnc_vms | length > 0
 
 - name: Setup QEMU monitor sockets
   ansible.builtin.import_tasks: monitor.yml
@@ -59,11 +66,12 @@
 
 - name: Validate USB disk image attachments
   ansible.builtin.import_tasks: usb_disk.yml
-  when: _vms_active_vms | length > 0
+  when: _vms_usb_vms | length > 0
 
 - name: Generate cloud-init seed ISOs
   ansible.builtin.import_tasks: cloud_init.yml
-  when: _vms_active_vms | length > 0
+  when: _vms_cloud_init_vms | length > 0
 
+# ── Service phase, then the `restarted` and `absent` states ──
 - name: Generate VM config and manage service
   ansible.builtin.import_tasks: service.yml

@@ -1,6 +1,8 @@
 ---
-# Configure QEMU monitor sockets for VM lifecycle management
-- name: Create monitor socket directory for {{ item.name }}
+# Each VM gets a runtime directory. QEMU opens its monitor socket there, and
+# the SMBIOS OEM string files live in a subdirectory of it. The graceful
+# shutdown path writes `system_powerdown` to the monitor socket.
+- name: Create runtime directory for {{ item.name }}
   ansible.builtin.file:
     path: /var/lib/qemu/{{ item.name }}
     state: directory
@@ -11,4 +13,3 @@
   loop: "{{ _vms_active_vms }}"
   loop_control:
     label: "{{ item.name }}"
-  when: (item.state | default('present')) != 'absent'
