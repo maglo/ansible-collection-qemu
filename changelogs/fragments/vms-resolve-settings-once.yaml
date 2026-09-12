@@ -49,3 +49,5 @@ bugfixes:
     because the task it tested had ``failed_when: false``."
 trivial:
   - "host role - declare ``host_swtpm_state_dir`` in ``meta/argument_specs.yml``."
+  - "docs - correct the role READMEs and the collection README against the
+    code, and document the 0.3.x and 0.4.0 features that had no prose."

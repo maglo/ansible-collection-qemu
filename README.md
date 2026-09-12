@@ -33,7 +33,7 @@ If you need an Ansible-driven, version-controlled alternative to manually runnin
 | Enterprise Linux (RHEL, Rocky, Alma, CentOS) | 10 | Supported |
 | Enterprise Linux (RHEL, Rocky, Alma, CentOS) | 9 | **Deprecated** — see below |
 
-**Ansible compatibility:** >= 2.15
+**Ansible compatibility:** >= 2.15. CI runs the sanity tests against ansible-core `stable-2.16` and `stable-2.17`.
 
 ### Enterprise Linux 9 is deprecated
 
@@ -85,7 +85,7 @@ If the command returns `0` or the module is missing, check your BIOS/UEFI settin
 
 ### Package repositories
 
-The `maglo.qemu.host` role installs packages (`swtpm`, `swtpm-tools`, `socat`, and optionally `novnc`) that are only available from **EPEL** (Extra Packages for Enterprise Linux). Ensure EPEL — or an equivalent mirror — is enabled on the target host before running the collection:
+The `maglo.qemu.host` role installs packages (`swtpm`, `swtpm-tools`, `socat`, `genisoimage`, and optionally `novnc`) that are only available from **EPEL** (Extra Packages for Enterprise Linux). Ensure EPEL — or an equivalent mirror — is enabled on the target host before running the collection:
 
 ```bash
 dnf install epel-release
@@ -118,15 +118,19 @@ dnf install epel-release
             state: started
           - name: installer
             disk_size: 40G
+            # The image must already exist on the host; the role does not
+            # create it, and fails the run when the path is missing.
             usb_disk_image: /var/lib/qemu/images/installer.iso
             usb_boot_priority: true
 ```
 
-The `host` role installs QEMU/KVM packages and deploys the `qemu-vm@.service` and `swtpm@.service` systemd template units. The `vms` role creates a disk image (qcow2 by default) and, when UEFI is enabled (the default), copies per-VM OVMF NVRAM files, then manages the `qemu-vm@<name>.service` instance.
+The `host` role installs the QEMU/KVM packages, deploys the `qemu-vm@.service` and `swtpm@.service` systemd template units, and installs an SELinux policy module when SELinux is enforcing.
+
+The `vms` role checks the whole VM list first, then creates a disk image (qcow2 by default), copies a per-VM OVMF variable store when UEFI is enabled (the default), writes `/etc/qemu/vms/<name>.conf`, and manages the `qemu-vm@<name>.service` instance.
 
 ### Manage VMs with systemd
 
-VMs are managed as `qemu-vm@<name>.service` instances. The `vms` role writes a `.conf` file for each VM containing QEMU arguments, and manages the service state. You can also manage VMs manually:
+VMs are managed as `qemu-vm@<name>.service` instances. The `vms` role writes `/etc/qemu/vms/<name>.conf` with the QEMU arguments and manages the service state. You can also drive the units by hand:
 
 ```bash
 systemctl start qemu-vm@web01
@@ -134,13 +138,18 @@ systemctl enable qemu-vm@web01
 systemctl status qemu-vm@web01
 ```
 
+Two things to know:
+
+- The role overwrites `<name>.conf` on every run, so edit `vms_list`, not the file.
+- `systemctl stop` sends SIGTERM to QEMU, which exits at once. Use `state: restarted` or `state: absent` when the guest should power itself down first.
+
 ## Feature Overview
 
 ### Disk image management
 
 - **Blank disks:** qcow2 (default) or raw format with configurable size
 - **URL-provisioned images:** Download a cloud image (QCOW2) from a URL and use it as a backing file; multiple VMs share the same cached base image (copy-on-write)
-- **Checksum verification:** Optional SHA256 checksum validation for downloaded images
+- **Checksum verification:** optional SHA256 checksum with `disk_image_checksum`; `vms_verify_checksums: false` skips the comparison for every VM
 - **Idempotent:** Existing images are never recreated
 - **Disk bus:** `virtio-blk` by default. Set `disk_bus: virtio-scsi` per VM to attach the disk through a `virtio-scsi-pci` controller, which is the bus that production images usually use. The cloud-init seed ISO stays on virtio-blk
 
@@ -172,24 +181,29 @@ systemctl status qemu-vm@web01
 - `systemd-stub` ignores these strings under confidential computing, and they measure into PCR 12
 - OpenStack Nova has no equivalent knob. This feature is a convenience of this collection only
 
+### SELinux
+
+- On EL9 and EL10 the VM unit runs as `init_t`, which may not execute `/usr/libexec/qemu-kvm` or `/usr/bin/swtpm`
+- When `getenforce` reports `Enforcing`, the `host` role compiles and loads a small policy module that allows it. The step is skipped when SELinux is permissive or disabled
+
 ### TPM 2.0 emulation
 
 - Software TPM via `swtpm`, managed as `swtpm@<name>.service`
 - Per-VM state directories under `/var/lib/swtpm/`
 - Systemd dependency ensures swtpm starts before QEMU
 - Enable per VM with `tpm: true`
-- **TPM reset**: TPM state is persistent. Sealed key slots, persistent handles and the PCR history survive a rebuild of the VM. Increase `tpm_generation` to clear `/var/lib/swtpm/<name>`. The role stops the VM and swtpm first, and starts them again afterwards
+- **TPM reset**: TPM state is persistent. Sealed key slots, persistent handles and the PCR history survive a rebuild of the VM. Increase `tpm_generation` to clear `/var/lib/swtpm/<name>`. The role stops the VM and swtpm first, and starts them again afterwards. Only an increase resets: lowering the value, or removing the key, leaves the TPM alone
 
 ### Networking
 
 - **User mode (default):** NAT outbound connectivity via SLIRP, no host configuration needed
 - **Bridge mode:** Attach to a host bridge (`br0` or custom) via `qemu-bridge-helper`
-- **MAC addresses:** Deterministic hash-based generation (QEMU OUI `52:54:00`) or manual override
+- **MAC addresses:** derived from the VM name (QEMU OUI `52:54:00`), or set with `mac_address`. The role fails the run when two names give the same address
 
 ### VNC console
 
-- Every VM gets a VNC console; display number is deterministic (hash of VM name mod 100)
-- Override with `vnc: N` per VM; port = 5900 + N
+- Every VM gets a VNC console. The display number is the MD5 hash of the VM name modulo 100, so it is stable across a rebuild
+- Override with `vnc: N` per VM; the port is 5900 + N. The role fails the run when two names give the same display
 
 ### noVNC web console
 
@@ -223,19 +237,25 @@ systemctl status qemu-vm@web01
 - Auto-generate a NoCloud seed ISO from inline per-VM content (`cloud_init_user_data`, `cloud_init_meta_data`, `cloud_init_network_config`)
 - ISO is placed automatically at `vms_image_dir/<name>-seed.iso` and attached as a virtio CD-ROM
 - `meta-data` is auto-generated from the VM name when `cloud_init_meta_data` is omitted
-- Requires `genisoimage` or `xorriso` on the host; guest image must have `cloud-init` installed
+- Needs `genisoimage` on the host, which the `host` role installs; the guest image must have `cloud-init` installed
 
 ### VM lifecycle management
 
 | State | Behaviour |
 |-------|-----------|
-| `present` | Write config only; do not manage the service |
-| `started` | Enable and start the service |
-| `stopped` | Enable but stop the service |
-| `restarted` | Graceful ACPI shutdown then start |
-| `absent` | Destroy VM and all artifacts (requires `force_destroy: true`) |
+| `present` | Write the config; leave the `qemu-vm@` unit alone. The swtpm and noVNC instances of the VM are still started |
+| `started` | Enable and start the unit, then check that it is active |
+| `stopped` | Enable the unit but stop it |
+| `restarted` | Shut the guest down, then start the VM again |
+| `absent` | Destroy the VM and every artifact of it (needs `force_destroy: true`) |
 
-Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits up to `shutdown_timeout` seconds (default: 120) before forcing a stop.
+A graceful shutdown writes `system_powerdown` to the QEMU monitor socket, which the guest sees as an ACPI power button press, and waits up to `shutdown_timeout` seconds (default 120). The role then stops the unit either way, because a guest may ignore the request.
+
+A configuration change is written to the `.conf` file but does not restart a running VM. Use `state: restarted` to apply it.
+
+### Input validation
+
+The `vms` role checks the whole list before it writes anything to the host, so a run that cannot finish leaves the host as it was. It fails on a duplicate VM name, a name that cannot be a systemd instance name, `secure_boot` without `uefi`, a `disk_image_url` with a non-qcow2 `disk_format`, two VMs that would share a VNC display, a MAC address or a noVNC port, and `state: absent` without `force_destroy`.
 
 ## Key Variables
 
@@ -268,10 +288,12 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `vms_default_net_mode` | `user` | Default networking mode |
 | `vms_default_memory` | `2G` | Default memory |
 | `vms_default_cpus` | `2` | Default CPUs |
+| `vms_default_cpu` | `host` | Default CPU model for the QEMU `-cpu` flag |
 | `vms_default_novnc_enabled` | `false` | noVNC by default |
 | `vms_default_shutdown_timeout` | `120` | Graceful shutdown timeout (seconds) |
 | `vms_image_dir` | `/var/lib/qemu/images` | Disk images directory |
 | `vms_image_cache_dir` | `/var/lib/qemu/images/cache` | Downloaded image cache |
+| `vms_verify_checksums` | `true` | Compare `disk_image_checksum` against the downloaded image |
 
 ### Per-VM keys in `vms_list`
 
@@ -293,16 +315,17 @@ Graceful shutdown sends an ACPI powerdown via the QEMU monitor socket and waits 
 | `tpm` | no | `vms_default_tpm` | TPM 2.0 emulation |
 | `net_mode` | no | `vms_default_net_mode` | `user` or `bridge` |
 | `net_bridge` | no | `br0` | Bridge device (bridge mode) |
-| `mac_address` | no | auto | MAC address override |
+| `mac_address` | no | derived from the name | MAC address override |
 | `memory` | no | `vms_default_memory` | Memory (e.g. `4G`) |
 | `cpus` | no | `vms_default_cpus` | Number of vCPUs |
-| `vnc` | no | hash-based | VNC display number |
+| `cpu_model` | no | `vms_default_cpu` | CPU model for the QEMU `-cpu` flag (for example `host`, `kvm64`) |
+| `vnc` | no | derived from the name | VNC display number |
 | `usb_disk_image` | no | — | Path to USB image to attach |
-| `usb_boot_priority` | no | `true` | Boot USB first |
+| `usb_boot_priority` | no | `true` when `usb_disk_image` is set | Boot USB first |
 | `cloud_init_user_data` | no | — | cloud-init `user-data` content; triggers seed ISO generation |
 | `cloud_init_meta_data` | no | auto-generated | cloud-init `meta-data` content |
 | `cloud_init_network_config` | no | — | cloud-init `network-config` content |
-| `novnc_enabled` | no | `false` | Enable noVNC web console |
+| `novnc_enabled` | no | `vms_default_novnc_enabled` | Enable noVNC web console |
 | `novnc_port` | no | `6080 + vnc` | noVNC port |
 | `state` | no | `present` | Service state |
 | `force_destroy` | no | `false` | Required for `state: absent` |
@@ -317,6 +340,22 @@ See the [example playbooks](https://github.com/maglo/ansible-collection-qemu/tre
 | [`basic_host.yml`](https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/basic_host.yml) | Minimal host setup |
 | [`vms.yml`](https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/vms.yml) | Host setup + basic VM creation |
 | [`vms_with_novnc.yml`](https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/vms_with_novnc.yml) | Host + VMs with noVNC enabled |
+| [`novnc_host.yml`](https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/novnc_host.yml) | **Deprecated.** Use `vms_with_novnc.yml` |
+
+`playbooks/inventory.example.yml` shows the inventory groups the playbooks expect.
+
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [`roles/host/README.md`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/host/README.md) | Every `host_*` variable, the systemd units, SELinux |
+| [`roles/vms/README.md`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/vms/README.md) | Every `vms_*` variable and per-VM key. The reference |
+| [`guide_host.rst`](https://github.com/maglo/ansible-collection-qemu/blob/main/docs/docsite/rst/guide_host.rst) | Setting up a QEMU/KVM host |
+| [`guide_vm_management.rst`](https://github.com/maglo/ansible-collection-qemu/blob/main/docs/docsite/rst/guide_vm_management.rst) | Creating and running VMs |
+| [`guide_manual_testing.rst`](https://github.com/maglo/ansible-collection-qemu/blob/main/docs/docsite/rst/guide_manual_testing.rst) | Validating a release candidate on a real host |
+| [`CHANGELOG.rst`](https://github.com/maglo/ansible-collection-qemu/blob/main/CHANGELOG.rst) | Release notes |
+
+The role READMEs are the reference for variables. This README is an overview.
 
 ## Contributing
 
