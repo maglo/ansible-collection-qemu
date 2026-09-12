@@ -74,8 +74,10 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 6. The `.github/workflows/release.yml` workflow fires automatically, creates a GitHub
    Release, and attaches the tarball.
 
-To publish to Ansible Galaxy: set `GALAXY_API_KEY` in the environment and uncomment the
-`publish` target in `Makefile` (and the corresponding step in `release.yml`).
+Publishing to Ansible Galaxy is automatic: `release.yml` ends with a "Publish to Ansible
+Galaxy" step that runs `ansible-galaxy collection publish` on every `v*` tag, using the
+`GALAXY_API_KEY` repository secret. To publish by hand, set `GALAXY_API_KEY` in the
+environment and run `make publish`.
 
 ### Makefile targets
 
@@ -84,7 +86,7 @@ To publish to Ansible Galaxy: set `GALAXY_API_KEY` in the environment and uncomm
 | `build`   | Build the collection tarball with `ansible-galaxy`                  |
 | `clean`   | Remove built tarballs (`maglo-qemu-*.tar.gz`)                       |
 | `release` | Compile changelog, bump version, build. Usage: `make release VERSION=x.y.z` |
-| `publish` | (Commented out) Publish to Galaxy with `GALAXY_API_KEY`             |
+| `publish` | Build, then publish to Galaxy with `GALAXY_API_KEY`                  |
 
 Run `make help` for a quick reference.
 

@@ -4,7 +4,7 @@ Contributions are welcome! This document covers how to set up a development envi
 
 ## Prerequisites
 
-- Python >= 3.9
+- Python >= 3.9. Every CI job runs Python 3.12, so develop against 3.12 when you can.
 - Ansible >= 2.15
 - Docker or Podman (for Molecule tests)
 - Git
@@ -30,6 +30,10 @@ pip install ansible-core ansible-lint molecule "molecule-plugins[podman]"
 
 ## Running Tests
 
+CI runs five jobs — lint, sanity, docs, molecule and changelog — and the `CI`
+gate job aggregates them. That gate must pass before a PR can be merged, so run
+the same commands locally first.
+
 ### Lint
 
 ```bash
@@ -44,8 +48,43 @@ Sanity tests must run from within the expected collection path:
 mkdir -p /tmp/collections/ansible_collections/maglo
 ln -s "$(pwd)" /tmp/collections/ansible_collections/maglo/qemu
 cd /tmp/collections/ansible_collections/maglo/qemu
-ansible-test sanity --color -v
+ansible-test sanity --color yes -v
 ```
+
+CI runs this command against two ansible-core versions, `stable-2.16` and
+`stable-2.17`. A change that needs a newer ansible-core breaks the `stable-2.16`
+job.
+
+### Docs
+
+The docs job checks that every role has a `README.md`, that `ansible-doc` can
+read each role argument spec, and that the collection documentation passes the
+antsibull-docs linter:
+
+```bash
+pip install ansible-core antsibull-docs
+
+# Every role must have a README.md
+ls roles/*/README.md
+
+# Each role argument spec must be readable
+mkdir -p /tmp/collections/ansible_collections/maglo
+ln -s "$(pwd)" /tmp/collections/ansible_collections/maglo/qemu
+ANSIBLE_COLLECTIONS_PATH=/tmp/collections ansible-doc -t role maglo.qemu.host
+ANSIBLE_COLLECTIONS_PATH=/tmp/collections ansible-doc -t role maglo.qemu.vms
+
+# Lint the collection docs, including docs/docsite/rst
+antsibull-docs lint-collection-docs --plugin-docs /tmp/collections/ansible_collections/maglo/qemu
+```
+
+### Changelog
+
+```bash
+pip install antsibull-changelog
+antsibull-changelog lint
+```
+
+See [Changelog fragment](#changelog-fragment) below for what to add to a PR.
 
 ### Molecule tests
 
@@ -55,16 +94,26 @@ Molecule uses Docker by default. To use Podman instead, set `DRIVER` before runn
 export DRIVER=podman
 ```
 
-Run all scenarios for a role:
+Every scenario builds its container from
+`geerlingguy/docker-rockylinux${EL_VERSION:-9}-ansible`, so `EL_VERSION`
+selects the Enterprise Linux major version. It defaults to 9. CI runs every
+gated scenario on both 9 and 10:
+
+```bash
+export EL_VERSION=10
+```
+
+Run all scenarios of a role. A bare `molecule test` runs the `default` scenario
+only, so pass `--all`:
 
 ```bash
 cd roles/host
-molecule test
+molecule test --all
 ```
 
 ```bash
 cd roles/vms
-molecule test
+molecule test --all
 ```
 
 Run a specific scenario:
@@ -74,10 +123,25 @@ cd roles/host
 molecule test -s novnc
 ```
 
+The scenarios are:
+
+| Role   | Scenario     | Gated by CI | What it covers |
+|--------|--------------|-------------|----------------|
+| `host` | `default`    | yes         | Packages, directories, `qemu-vm@.service` and `swtpm@.service` |
+| `host` | `novnc`      | yes         | `host_novnc_enabled` — the `novnc` package and `novnc@.service` |
+| `vms`  | `default`    | yes         | Disk images, config files, UEFI NVRAM, TPM, networking |
+| `vms`  | `disk_image` | **no**      | `disk_image_url` provisioning — it downloads a multi-gigabyte cloud image, so CI does not run it. Run it by hand before a release |
+| `vms`  | `lifecycle`  | yes         | `state: absent` with and without `force_destroy` |
+| `vms`  | `novnc`      | yes         | Per-VM `novnc_enabled`, drop-ins and the noVNC environment file |
+| `vms`  | `secureboot` | yes         | Secure Boot variable stores, `nvram_template`, `nvram_generation`, the NVRAM verification and the pre-0.4.0 upgrade path |
+
+When you add a scenario, add it to the matrix in `.github/workflows/ci.yml` and
+to this table.
+
 ### Manual testing
 
-For end-to-end testing on real KVM hardware — required for VM lifecycle tests
-(`started`, `restarted`, `absent`) and cloud-init seed ISO tests that cannot run in
+For end-to-end testing on real KVM hardware — required for the VM states that
+boot a guest (`started`, `stopped`, `restarted`) and for tests that cannot run in
 containers — follow the [Manual Testing Guide](docs/docsite/rst/guide_manual_testing.rst).
 
 ## Git Workflow
@@ -86,6 +150,43 @@ containers — follow the [Manual Testing Guide](docs/docsite/rst/guide_manual_t
 - PRs should close a GitHub issue. Create an issue first if one doesn't exist, and reference it in the PR body (e.g., `Closes #123`).
 - Keep commits atomic — don't introduce something broken and fix it in a follow-up commit within the same PR.
 
+## Changelog fragment
+
+**Every PR with a user-visible change must include a changelog fragment.** The
+`changelog` CI job runs `antsibull-changelog lint`, and the `CI` gate job needs
+it to pass.
+
+- Put the fragment in `changelogs/fragments/`.
+- Name it `<pr-number>-<short-slug>.yaml`, for example `42-fix-validation.yaml`.
+  Use a descriptive slug without a PR number for a change that spans several
+  commits.
+- Format:
+
+  ```yaml
+  ---
+  minor_changes:
+    - "role_name - Description of the change (closes #N)."
+  ```
+
+- Valid top-level keys:
+
+  | Key | When to use |
+  |-----|-------------|
+  | `major_changes` | Significant new functionality |
+  | `minor_changes` | Small new features, enhancements |
+  | `breaking_changes` | Backwards-incompatible changes |
+  | `bugfixes` | Bug fixes |
+  | `deprecated_features` | Features that will be removed |
+  | `removed_features` | Features removed in this release |
+  | `security_fixes` | Security-related fixes |
+  | `trivial` | CI, tooling and docs changes that end users never see |
+  | `release_summary` | One-line release headline (at most one per release) |
+
+- One fragment file may hold several keys.
+- Lint the fragment before you open the PR: `antsibull-changelog lint`
+- **Do not edit `CHANGELOG.rst` or `changelogs/changelog.yaml` by hand.**
+  `antsibull-changelog` writes both files at release time.
+
 ## Adding a New Role
 
 1. Create the role directory under `roles/<role_name>/` with at minimum:
@@ -93,10 +194,18 @@ containers — follow the [Manual Testing Guide](docs/docsite/rst/guide_manual_t
    - `defaults/main.yml`
    - `meta/main.yml` (with `galaxy_info` and `dependencies`)
    - `meta/argument_specs.yml` (for `ansible-doc` support and runtime validation)
-   - `README.md`
+   - `README.md` covering the purpose, variables, dependencies and an example playbook
 2. Add Molecule tests under `roles/<role_name>/molecule/default/`.
 3. Add the role to the CI matrix in `.github/workflows/ci.yml`.
-4. Add the role to the table in the root `README.md`.
+4. Add the role to the roles table in the root `README.md`, and to the Quick Start
+   section of that file.
+5. Add an example playbook under `playbooks/`.
+6. Add the role and its scenarios to the [Molecule tests](#molecule-tests) table above.
+7. Add a changelog fragment.
+
+Every variable the role reads must be declared in `meta/argument_specs.yml` with
+its type, description and default, and `defaults/main.yml` must agree with it.
+CI fails when the two drift apart.
 
 ## Releasing
 
@@ -117,8 +226,11 @@ Only maintainers with push access to the repository can cut releases.
    git tag -a vX.Y.Z -m "Release vX.Y.Z"
    git push origin vX.Y.Z
    ```
-   The `release` GitHub Actions workflow fires automatically and creates a GitHub Release
-   with the tarball attached.
+   The `release` GitHub Actions workflow fires automatically. It builds the
+   tarball, creates a GitHub Release with the tarball attached, and publishes the
+   collection to Ansible Galaxy with `ansible-galaxy collection publish`. The
+   publish step reads the `GALAXY_API_KEY` repository secret, so a tag releases
+   to Galaxy as well.
 
 ### Makefile
 
@@ -126,8 +238,12 @@ Only maintainers with push access to the repository can cut releases.
 make build                   # build the collection tarball
 make clean                   # remove built tarballs
 make release VERSION=x.y.z  # compile changelog, bump version, build
+make publish                 # build, then publish to Galaxy (needs GALAXY_API_KEY)
 make help                    # list all targets
 ```
+
+`make publish` is for a release by hand. The tag workflow already publishes, so
+you rarely need it.
 
 ## Reporting Issues
 
