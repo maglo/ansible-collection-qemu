@@ -81,7 +81,7 @@ Verify that the ``host`` role installs packages and deploys systemd template uni
 .. code-block:: bash
 
    # Packages installed
-   rpm -q qemu-kvm qemu-img swtpm swtpm-tools socat genisoimage
+   rpm -q qemu-kvm qemu-img swtpm swtpm-tools socat genisoimage edk2-ovmf
 
    # Systemd units deployed
    systemctl cat qemu-vm@.service
@@ -195,8 +195,13 @@ Test 5: UEFI Secure Boot
    grep "OVMF_CODE.secboot.fd" /etc/qemu/vms/secboot-vm.conf
    grep "cfi.pflash01" /etc/qemu/vms/secboot-vm.conf
 
-   # Secure boot marker exists
-   ls /var/lib/qemu/images/secboot-vm_VARS.fd.secboot
+   # NVRAM state file written next to the variable store
+   cat /var/lib/qemu/images/secboot-vm_VARS.fd.state
+   # Expected keys: fingerprint, secure_boot (true), template,
+   # template_checksum (sha256 of the template) and generation (1)
+
+   # The marker file of collection versions before 0.4.0 is removed on every run
+   ls /var/lib/qemu/images/secboot-vm_VARS.fd.secboot 2>&1 | grep "No such file"
 
 Test 6: TPM 2.0 emulation
 ---------------------------
@@ -302,6 +307,8 @@ Test 8: noVNC web console
 Test 9: URL-based disk image provisioning
 ------------------------------------------
 
+**Playbook** (``test_url.yml``):
+
 .. code-block:: yaml
 
    - name: cloud-vm
@@ -329,9 +336,10 @@ Test 10: USB disk attachment
 
 .. code-block:: bash
 
-   # Create a test ISO (or use a real installer)
-   dd if=/dev/zero bs=1M count=10 | gzip > /tmp/test.iso
-   # For a real test, use an actual ISO
+   # Create a 10 MiB raw test image (or use a real installer ISO)
+   truncate -s 10M /tmp/test.iso
+   # The role checks the file name extension only, and vm.conf.j2 attaches
+   # anything that is not .qcow2 as format=raw. Use a real ISO to test a boot.
 
 .. code-block:: yaml
 
@@ -351,7 +359,9 @@ Test 10: USB disk attachment
 Test 11: VM lifecycle
 ----------------------
 
-Run all lifecycle states on a test VM (requires KVM to be available for ``started``/``stopped``/``restarted``):
+Run all lifecycle states on a test VM (requires KVM to be available for ``started``/``stopped``/``restarted``).
+
+**Playbook** (``test_lifecycle.yml``):
 
 .. code-block:: yaml
 
@@ -484,15 +494,406 @@ and that re-running the playbook with unchanged variables produces no changes.
    ls /var/lib/qemu/images/cloud-init-vm-seed.iso 2>&1 | grep "No such file"
    ls /var/lib/qemu/images/.cloud-init-staging/cloud-init-vm 2>&1 | grep "No such file"
 
+Test 13: Disk bus
+------------------
+
+Verify that ``disk_bus`` selects how the system disk is attached.
+
+**Playbook** (``test_disk_bus.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: scsi-vm
+               disk_size: 5G
+               disk_bus: virtio-scsi
+               state: present
+             - name: blk-vm
+               disk_size: 5G
+               state: present
+
+**Run:**
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_disk_bus.yml
+
+**Verify:**
+
+.. code-block:: bash
+
+   # virtio-scsi: a controller plus an scsi-hd device
+   grep "virtio-scsi-pci,id=scsi0" /etc/qemu/vms/scsi-vm.conf
+   grep "scsi-hd,drive=disk0,bus=scsi0.0,bootindex=2" /etc/qemu/vms/scsi-vm.conf
+
+   # virtio-blk (the default): a single -drive if=virtio
+   grep "drive if=virtio" /etc/qemu/vms/blk-vm.conf
+
+Test 14: SMBIOS type 11 OEM strings
+------------------------------------
+
+Verify that each OEM string is written to its own file and passed to QEMU by path.
+
+**Playbook** (``test_smbios.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: smbios-vm
+               disk_size: 5G
+               state: present
+               smbios_oem_strings:
+                 - "io.systemd.stub.kernel-cmdline-extra=rd.debug systemd.log_level=debug"
+                 - "io.systemd.credential:mycred=abc"
+
+**Run:**
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_smbios.yml
+
+**Verify:**
+
+.. code-block:: bash
+
+   # One file per string, mode 0600, owned by the QEMU user
+   ls -l /var/lib/qemu/smbios-vm/smbios/
+   cat /var/lib/qemu/smbios-vm/smbios/00
+   cat /var/lib/qemu/smbios-vm/smbios/01
+
+   # The config passes the paths, so a string may contain spaces
+   grep "smbios type=11,path=/var/lib/qemu/smbios-vm/smbios/00" /etc/qemu/vms/smbios-vm.conf
+
+   # Remove the second string from the playbook and re-run:
+   # the file of the deleted string must be gone
+   ls /var/lib/qemu/smbios-vm/smbios/01 2>&1 | grep "No such file"
+
+Test 15: NVRAM template and NVRAM reset
+----------------------------------------
+
+Verify that ``nvram_template`` selects the variable store template, and that
+``nvram_generation`` and ``vms_nvram_force_reset`` rewrite the store.
+
+**Playbook** (``test_nvram.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: nvram-vm
+               disk_size: 5G
+               nvram_template: /usr/share/edk2/ovmf/OVMF_VARS.fd
+               nvram_generation: 1
+               state: present
+
+**Run:**
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_nvram.yml
+
+**Verify the template choice:**
+
+.. code-block:: bash
+
+   cat /var/lib/qemu/images/nvram-vm_VARS.fd.state
+   # template: /usr/share/edk2/ovmf/OVMF_VARS.fd, generation: 1
+   # template_checksum: sha256 of that file
+
+**Verify the generation reset:**
+
+.. code-block:: bash
+
+   # Mark the current store, so a rewrite is visible
+   printf 'X' | dd of=/var/lib/qemu/images/nvram-vm_VARS.fd bs=1 seek=0 conv=notrunc
+
+Set ``nvram_generation: 2`` and re-run the playbook.
+
+.. code-block:: bash
+
+   # The store matches the template again, and the state file records generation 2
+   cmp /var/lib/qemu/images/nvram-vm_VARS.fd /usr/share/edk2/ovmf/OVMF_VARS.fd
+   grep generation /var/lib/qemu/images/nvram-vm_VARS.fd.state
+
+**Verify the one-shot reset:**
+
+.. code-block:: bash
+
+   printf 'X' | dd of=/var/lib/qemu/images/nvram-vm_VARS.fd bs=1 seek=0 conv=notrunc
+   ansible-playbook -i inventory.yml test_nvram.yml -e vms_nvram_force_reset=true
+   cmp /var/lib/qemu/images/nvram-vm_VARS.fd /usr/share/edk2/ovmf/OVMF_VARS.fd
+
+An unchanged re-run without either flag must report zero changed tasks and
+must leave the store alone.
+
+Test 16: Secure Boot variable store verification
+-------------------------------------------------
+
+Verify that ``vms_nvram_verify`` asserts the keys of a Secure Boot store, and
+that ``nvram_expected_db_cn`` asserts a certificate in the db.
+
+The check needs ``virt-fw-vars`` from the package ``python3-virt-firmware``,
+which is in EPEL on EL9:
+
+.. code-block:: bash
+
+   dnf install python3-virt-firmware
+
+**Playbook** (``test_nvram_verify.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_nvram_verify: true
+           vms_list:
+             - name: secboot-vm
+               disk_size: 5G
+               secure_boot: true
+               nvram_expected_db_cn: "Microsoft Corporation UEFI CA 2011"
+               state: present
+
+**Run:**
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_nvram_verify.yml
+
+**Expected result:**
+
+- The task ``Assert the Secure Boot keys of secboot-vm`` passes: the store
+  holds PK, KEK and db, and ``SecureBootEnable`` is ON.
+- The task ``Assert the expected db certificate of secboot-vm`` passes.
+- Change ``nvram_expected_db_cn`` to a CN that the db does not hold. The run
+  must fail and name the VM.
+- Remove ``python3-virt-firmware`` and re-run. The role must print a skip
+  message instead of failing.
+
+Test 17: TPM reset
+-------------------
+
+Verify that ``tpm_generation`` and ``vms_tpm_force_reset`` clear the swtpm state.
+
+**Playbook** (``test_tpm_reset.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: tpm-vm
+               disk_size: 5G
+               tpm: true
+               tpm_generation: 1
+               state: present
+
+**Run and mark the state:**
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_tpm_reset.yml
+   cat /var/lib/swtpm/tpm-vm.state          # {"generation": 1}
+   touch /var/lib/swtpm/tpm-vm/marker
+
+Set ``tpm_generation: 2`` and re-run the playbook.
+
+**Verify:**
+
+.. code-block:: bash
+
+   # The state directory was cleared and recreated
+   ls /var/lib/swtpm/tpm-vm/marker 2>&1 | grep "No such file"
+   cat /var/lib/swtpm/tpm-vm.state          # {"generation": 2}
+   systemctl status swtpm@tpm-vm            # running again
+
+**One-shot reset:**
+
+.. code-block:: bash
+
+   touch /var/lib/swtpm/tpm-vm/marker
+   ansible-playbook -i inventory.yml test_tpm_reset.yml -e vms_tpm_force_reset=true
+   ls /var/lib/swtpm/tpm-vm/marker 2>&1 | grep "No such file"
+
+Test 18: CPU model
+-------------------
+
+Verify that ``cpu_model`` reaches the QEMU command line.
+
+**Playbook** (``test_cpu_model.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: cpu-vm
+               disk_size: 5G
+               cpu_model: Nehalem
+               state: present
+             - name: cpu-default-vm
+               disk_size: 5G
+               state: present
+
+**Verify:**
+
+.. code-block:: bash
+
+   grep -- "-cpu Nehalem" /etc/qemu/vms/cpu-vm.conf
+
+   # vms_default_cpu is `host`
+   grep -- "-cpu host" /etc/qemu/vms/cpu-default-vm.conf
+
+Test 19: Upgrade from a version before 0.4.0
+---------------------------------------------
+
+A VM created by an earlier version has an NVRAM file and a
+``<name>_VARS.fd.secboot`` marker, and no ``.state`` file. The role must adopt
+that VM: keep the NVRAM file with its UEFI boot entries, write a state file,
+and remove the marker.
+
+**Set up the old layout on the host:**
+
+.. code-block:: bash
+
+   install -d -o qemu -g qemu /var/lib/qemu/images
+   printf 'legacy-boot-entries\n' > /var/lib/qemu/images/legacyvm_VARS.fd
+   touch /var/lib/qemu/images/legacyvm_VARS.fd.secboot
+   chown qemu:qemu /var/lib/qemu/images/legacyvm_VARS.fd /var/lib/qemu/images/legacyvm_VARS.fd.secboot
+
+The marker means the VM ran with Secure Boot, so declare it the same way.
+
+**Playbook** (``test_upgrade.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: legacyvm
+               disk_size: 5G
+               secure_boot: true
+               state: present
+
+**Run:**
+
+.. code-block:: bash
+
+   ansible-playbook -i inventory.yml test_upgrade.yml
+
+**Verify:**
+
+.. code-block:: bash
+
+   # The NVRAM file is untouched
+   cat /var/lib/qemu/images/legacyvm_VARS.fd    # legacy-boot-entries
+
+   # A state file replaced the marker
+   cat /var/lib/qemu/images/legacyvm_VARS.fd.state
+   ls /var/lib/qemu/images/legacyvm_VARS.fd.secboot 2>&1 | grep "No such file"
+
+Declaring the same VM with ``secure_boot: false`` instead is the opposite
+case: the marker disagrees with the flag, so the role rewrites the NVRAM file
+from the plain template.
+
+Test 20: VM list validation
+----------------------------
+
+The role validates the whole list before it touches the host. Each playbook
+below must fail, and it must fail before any file is written.
+
+**Duplicate VM name:**
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: dup-vm
+       disk_size: 5G
+     - name: dup-vm
+       disk_size: 5G
+
+**Two VMs on one VNC display:**
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: vnc-a
+       disk_size: 5G
+       vnc: 5
+     - name: vnc-b
+       disk_size: 5G
+       vnc: 5
+
+**Secure Boot without UEFI:**
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: bad-secboot
+       disk_size: 5G
+       uefi: false
+       secure_boot: true
+
+**Expected result:**
+
+- Each run fails in the ``Validate the VM list`` block, and the message names
+  the VMs at fault.
+- No disk image, no ``.conf`` file and no NVRAM file is created:
+
+  .. code-block:: bash
+
+     ls /etc/qemu/vms/
+     ls /var/lib/qemu/images/
+
+Two more cases behave the same way: a name that systemd cannot use as an
+instance name (for example ``web/01``), and ``state: absent`` without
+``force_destroy`` (see Test 11).
+
 Known RC limitations
 ---------------------
 
-- Molecule tests run with ``state: present`` only (no live KVM in containers);
-  lifecycle tests (``started``, ``restarted``, ``absent``) require a real KVM host
+- Molecule cannot boot a guest, because a container has no KVM. The
+  ``started``, ``stopped`` and ``restarted`` states therefore need a real KVM
+  host. ``state: present`` and ``state: absent`` do run in Molecule: the
+  ``lifecycle`` scenario of the ``vms`` role exercises ``state: absent`` with
+  and without ``force_destroy``, and CI runs that scenario
 - noVNC serves unencrypted WebSocket by default; add a TLS reverse proxy for production
 - Bridge mode requires the bridge device to already exist on the host; this collection
   does not create bridges
 - Only QCOW2 format is supported for URL-based image provisioning; the role validates
   this and fails if a non-QCOW2 image is downloaded
-- ``vms_verify_checksums`` is declared but currently unused (checksums are validated
-  by Ansible's ``get_url`` module when ``disk_image_checksum`` is specified)
+- ``vms_verify_checksums`` controls whether the per-VM ``disk_image_checksum``
+  is compared against the download. A VM that sets no ``disk_image_checksum``
+  is not verified either way
