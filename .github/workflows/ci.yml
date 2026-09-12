@@ -94,21 +94,30 @@ jobs:
         run: antsibull-docs lint-collection-docs --plugin-docs ansible_collections/maglo/qemu
 
   molecule:
-    name: Molecule - ${{ matrix.role }} (${{ matrix.scenario }}) - EL${{ matrix.el_version }}
+    name: Molecule - ${{ matrix.target.role }} (${{ matrix.target.scenario }}) - EL${{ matrix.el_version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # Two real axes, so this is a 6 x 2 cross product: twelve jobs.
+      #
+      # Do not move the scenarios back into `include:`. An `include:` entry is
+      # merged into every existing combination of the other axes, and a later
+      # entry overwrites the keys an earlier one set. Six entries that all set
+      # `role` and `scenario` therefore collapse to one job per el_version,
+      # running whichever scenario is listed last.
+      #
+      # `disk_image` is left out on purpose: it downloads a multi-gigabyte
+      # cloud image on every run. Run it by hand with
+      # `cd roles/vms && molecule test -s disk_image`.
       matrix:
         el_version: [9, 10]
-        include:
-          - role: host
-            scenario: default
-          - role: host
-            scenario: novnc
-          - role: vms
-            scenario: default
-          - role: vms
-            scenario: secureboot
+        target:
+          - {role: host, scenario: default}
+          - {role: host, scenario: novnc}
+          - {role: vms, scenario: default}
+          - {role: vms, scenario: secureboot}
+          - {role: vms, scenario: lifecycle}
+          - {role: vms, scenario: novnc}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -122,8 +131,8 @@ jobs:
         run: pip install molecule molecule-plugins[docker] ansible-core
 
       - name: Run Molecule
-        run: molecule test -s ${{ matrix.scenario }}
-        working-directory: roles/${{ matrix.role }}
+        run: molecule test -s ${{ matrix.target.scenario }}
+        working-directory: roles/${{ matrix.target.role }}
         env:
           EL_VERSION: ${{ matrix.el_version }}
 
