@@ -1,0 +1,166 @@
+/* Copyright (c) maglo — GPL-3.0-only
+ *
+ * Styling for the pieces Furo does not ship: the landing page hero, the
+ * feature cards, and a couple of tweaks for the generated role reference.
+ */
+
+:root {
+  --qemu-hero-from: #0b5d8f;
+  --qemu-hero-to: #12a4d9;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+/* Furo sizes the logo to the sidebar width; ours is a small square mark. */
+.sidebar-logo {
+  max-width: 4.5rem;
+  border-radius: 12px;
+}
+
+.sidebar-brand-text {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.qemu-hero {
+  margin: -1.5rem -1.5rem 2.5rem;
+  padding: 3.25rem 2rem 2.75rem;
+  border-radius: 0 0 18px 18px;
+  background: linear-gradient(135deg, var(--qemu-hero-from), var(--qemu-hero-to));
+  color: #fff;
+  text-align: center;
+}
+
+.qemu-hero h1 {
+  margin: 0;
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.qemu-hero .qemu-hero-tagline {
+  margin: 0.75rem auto 0;
+  max-width: 44rem;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.qemu-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1.4rem;
+}
+
+.qemu-hero-badges span {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.qemu-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.8rem;
+}
+
+.qemu-hero-actions a {
+  padding: 0.6rem 1.35rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.qemu-hero-actions a:hover {
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.qemu-hero-actions .qemu-btn-primary {
+  background: #fff;
+  color: var(--qemu-hero-from);
+}
+
+.qemu-hero-actions .qemu-btn-secondary {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+}
+
+.qemu-hero-actions .qemu-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.qemu-install {
+  margin: 1.6rem auto 0;
+  max-width: 30rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  font-family: var(--font-stack--monospace);
+  font-size: 0.92rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.qemu-install::before {
+  content: "$ ";
+  opacity: 0.6;
+}
+
+@media (max-width: 46em) {
+  .qemu-hero {
+    padding: 2.25rem 1.1rem 2rem;
+  }
+
+  .qemu-hero h1 {
+    font-size: 2rem;
+  }
+}
+
+/* The landing page has no document title of its own — the hero is it — so its
+ * sections are top-level and Sphinx renders them as <h1>. Bring them down to
+ * the size a second-level heading would have, without touching the real page
+ * titles elsewhere on the site. */
+.qemu-hero ~ section > h1 {
+  font-size: 1.8rem;
+  margin-top: 2.2rem;
+}
+
+/* --------------------------------------------------------------- sections */
+
+.qemu-section-lead {
+  font-size: 1.02rem;
+  color: var(--color-foreground-secondary);
+}
+
+/* Let the sphinx-design cards breathe and line up with the hero. */
+.sd-card {
+  border-radius: 12px;
+  border-color: var(--color-background-border);
+  background: var(--color-background-secondary);
+}
+
+.sd-card .sd-card-title {
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------- generated role tables */
+
+/* The antsibull option tables are wide; keep them scrollable instead of
+ * letting them push the page out. */
+.ansible-option-table {
+  display: block;
+  overflow-x: auto;
+}

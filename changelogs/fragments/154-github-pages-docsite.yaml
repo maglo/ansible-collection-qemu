@@ -1,0 +1,11 @@
+---
+minor_changes:
+  - "Documentation - The guides and the role reference are now published as a
+    documentation site at https://maglo.github.io/ansible-collection-qemu/,
+    built from ``docs/`` with antsibull-docs and Sphinx and deployed to GitHub
+    Pages on every push to ``main``. New guides cover installation, every VM
+    feature, and the example playbooks. The README keeps a short overview of
+    the collection and points at the site, so the page that Ansible Galaxy and
+    the GitHub repository show is no longer the full reference (closes #154)."
+  - "galaxy.yml - The ``documentation`` and ``homepage`` URLs now point at the
+    documentation site instead of the README."
