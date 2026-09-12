@@ -26,6 +26,13 @@
 # TPM state is persistent: sealed key slots, persistent handles and the PCR
 # history survive a rebuild of the VM. A reset happens when
 # `tpm_generation` increases, or when `vms_tpm_force_reset` is true.
+#
+# Only an increase resets. Lowering the generation, or deleting the key so that
+# it falls back to 1, leaves the TPM alone: tidying a `tpm_generation: 2` line
+# out of a playbook must not wipe the sealed keys of a running guest. The role
+# records the generation it was asked for either way, so raising it again
+# resets again.
+#
 # A VM that has no state file yet keeps its TPM state. The role only records
 # the generation for it, so an upgrade of the collection does not clear the
 # TPM of a VM that exists.
@@ -66,7 +73,7 @@
       reset: >-
         {{ (vms_tpm_force_reset | bool)
            or (_old_state | length > 0
-               and (_old_state.generation | default(1) | string) != (_generation | string)) }}
+               and (_generation | int) > (_old_state.generation | default(1) | int)) }}
       state:
         generation: "{{ _generation }}"
   loop: "{{ _vms_tpm_vms }}"

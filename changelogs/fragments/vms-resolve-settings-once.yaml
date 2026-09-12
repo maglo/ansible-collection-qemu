@@ -1,0 +1,7 @@
+---
+bugfixes:
+  - "vms role - clear the swtpm state only when ``tpm_generation`` increases.
+    The role compared the generation for inequality, so lowering the value, or
+    tidying a spent ``tpm_generation: 2`` line out of a playbook so that it
+    fell back to 1, silently wiped the sealed key slots, the persistent handles
+    and the PCR history of a running guest."
