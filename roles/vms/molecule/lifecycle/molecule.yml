@@ -1,29 +1,49 @@
 ---
-dependency:
-  name: galaxy
-  options:
-    requirements-file: ../../molecule_requirements.yml
-
 driver:
   name: ${DRIVER:-docker}
-
 platforms:
-  - name: el9-lifecycle
-    image: geerlingguy/docker-rockylinux9-ansible:latest
+  - name: create-vm-lifecycle
+    image: "geerlingguy/docker-rockylinux${EL_VERSION:-9}-ansible:latest"
     command: ""
+    privileged: true
+    pre_build_image: true
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
     cgroupns_mode: host
-    privileged: true
-    pre_build_image: true
-
+    tmpfs:
+      - /run
+      - /tmp
 provisioner:
   name: ansible
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../../../"
-  playbooks:
-    converge: converge.yml
-    verify: verify.yml
-
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    # Docker containers run as root; su works reliably root→root without
+    # PAM account management, whereas sudo may fail in minimal containers.
+    ANSIBLE_BECOME_METHOD: su
 verifier:
   name: ansible
+# The default sequence, without `idempotence`.
+#
+# This scenario cannot be idempotent, by construction. Its converge creates
+# `lifecycle-test-tpm` and then destroys it, so a second converge recreates the
+# disk image, the swtpm state and the drop-in, and destroys them again. That is
+# the behaviour under test, not a defect: `state: absent` is meant to change
+# the host.
+#
+# Nothing else is dropped. `verify` still runs and asserts that the destroyed
+# VM is gone and that the VM whose destroy was refused survived. The scenarios
+# that converge to a steady state — default, secureboot, novnc, and both host
+# scenarios — keep the idempotence check.
+scenario:
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify
+    - cleanup
+    - destroy

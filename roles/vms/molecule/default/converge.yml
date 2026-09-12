@@ -82,8 +82,13 @@
             - "io.systemd.stub.kernel-cmdline-extra=rd.debug systemd.log_level=debug"
             - "io.systemd.credential:mycred=abc"
           state: present
+        # `testvm-cpu` and `testvm-tpm` both hash to VNC display 97, so this
+        # VM needs an explicit display. On a real host the second QEMU of the
+        # pair would fail to bind port 5997; the role now rejects the pair
+        # before it writes anything.
         - name: testvm-cpu
           disk_size: 1G
           uefi: false
           cpu_model: kvm64
+          vnc: 11
           state: present

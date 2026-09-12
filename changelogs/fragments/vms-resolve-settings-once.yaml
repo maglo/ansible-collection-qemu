@@ -23,11 +23,6 @@ minor_changes:
     defaults. The role no longer gathers distribution facts, which were read
     only to pick between the two layouts."
 bugfixes:
-  - "vms role - clear the swtpm state only when ``tpm_generation`` increases.
-    The role compared the generation for inequality, so lowering the value, or
-    tidying a spent ``tpm_generation: 2`` line out of a playbook so that it
-    fell back to 1, silently wiped the sealed key slots, the persistent handles
-    and the PCR history of a running guest."
   - "vms role - honour ``vms_default_novnc_enabled``. A VM that did not set the
     per-VM ``novnc_enabled`` key was never configured for noVNC, even with the
     role default set to ``true``, while ``state: restarted`` and
@@ -47,9 +42,33 @@ bugfixes:
   - "vms role - fall back to stopping the unit when the guest ignores the ACPI
     powerdown. The condition that triggered the fallback could never be true,
     because the task it tested had ``failed_when: false``."
+  - "vms role - clear the swtpm state only when ``tpm_generation`` increases.
+    The role compared the generation for inequality, so lowering the value, or
+    tidying a spent ``tpm_generation: 2`` line out of a playbook so that it
+    fell back to 1, silently wiped the sealed key slots, the persistent handles
+    and the PCR history of a running guest."
 trivial:
+  - "vms role - fix the ``default`` molecule scenario, which asserted that the
+    legacy ``<name>_VARS.fd.secboot`` marker exists. 0.4.0 replaced it with the
+    ``<name>_VARS.fd.state`` file and removes the marker."
+  - "vms role - fix the ``lifecycle`` molecule scenario, which required a
+    requirements file that is not in the repository."
+  - "ci - run every molecule scenario. The matrix listed the scenarios under
+    ``include:``, which merges each entry into every combination of the other
+    axes and lets a later entry overwrite an earlier one, so the six entries
+    collapsed to one job per EL version and only the last scenario in the list
+    ever ran. Make the scenarios a real matrix axis, so all six run on both EL9
+    and EL10."
+  - "ci - set ``ANSIBLE_BECOME_METHOD: su`` in every molecule scenario. Without
+    it, ``become`` fails in the container with a sudo PAM error."
+  - "ci - leave ``idempotence`` out of the test sequence of the ``lifecycle``
+    molecule scenario. Its converge creates a VM and then destroys it, so a
+    second converge recreates and destroys it again; the scenario cannot be
+    idempotent by construction. Every other scenario keeps the check."
   - "host role - declare ``host_swtpm_state_dir`` in ``meta/argument_specs.yml``."
-  - "docs - correct the role READMEs and the collection README against the
-    code, and document the 0.3.x and 0.4.0 features that had no prose."
-  - "docs - correct the docsite guides and CONTRIBUTING against the code, and
-    add manual tests for the 0.4.0 features and the new validation."
+  - "vms role - give ``testvm-cpu`` an explicit VNC display in the ``default``
+    molecule scenario. It hashes to the same display as ``testvm-tpm``, which
+    the new validation rejects, and which would have stopped the second of the
+    two VMs from starting on a real host."
+  - "docs - correct the READMEs, the docsite guides and CONTRIBUTING against
+    the code, and document the 0.3.x and 0.4.0 features that had no prose."

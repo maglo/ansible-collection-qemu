@@ -5,12 +5,12 @@
     # Include host role first
     - name: Include host role
       ansible.builtin.include_role:
-        name: maglo.qemu.host
+        name: host
 
     # Phase 1: Create VMs in various states
     - name: Create test VMs
       ansible.builtin.include_role:
-        name: maglo.qemu.vms
+        name: vms
       vars:
         vms_list:
           - name: lifecycle-test-present
@@ -21,28 +21,41 @@
             tpm: true
             state: present
 
-    # Phase 2: Test destroy safety check (should fail without force_destroy)
-    - name: Attempt destroy without force_destroy (should fail)
-      ansible.builtin.include_role:
-        name: maglo.qemu.vms
-      vars:
-        vms_list:
-          - name: lifecycle-test-present
-            state: absent
-      ignore_errors: true
-      register: vms_destroy_without_force
+    # Phase 2: the destroy safety check must refuse a VM without force_destroy.
+    #
+    # block/rescue, not `ignore_errors` on the include: `ignore_errors` on
+    # `include_role` does not reach the tasks inside the role, so the play
+    # would stop at the assert the test is trying to provoke. A rescue does
+    # catch it.
+    - name: Attempt destroy without force_destroy
+      block:
+        - name: Run the role with state absent and no force_destroy
+          ansible.builtin.include_role:
+            name: vms
+          vars:
+            vms_list:
+              - name: lifecycle-test-present
+                state: absent
+
+        - name: Record that the role allowed the destroy
+          ansible.builtin.set_fact:
+            vms_lifecycle_destroy_refused: false
+      rescue:
+        - name: Record that the role refused the destroy
+          ansible.builtin.set_fact:
+            vms_lifecycle_destroy_refused: true
 
     - name: Verify destroy without force_destroy failed
       ansible.builtin.assert:
         that:
-          - vms_destroy_without_force is failed
+          - vms_lifecycle_destroy_refused
         fail_msg: "Destroy without force_destroy should have failed but didn't"
         success_msg: "Destroy safety check working correctly"
 
     # Phase 3: Destroy VM with force_destroy
     - name: Destroy lifecycle-test-tpm
       ansible.builtin.include_role:
-        name: maglo.qemu.vms
+        name: vms
       vars:
         vms_list:
           - name: lifecycle-test-tpm

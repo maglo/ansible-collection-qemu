@@ -430,25 +430,46 @@
           - secboot_nvram_file.stat.gr_name == 'qemu'
           - secboot_nvram_file.stat.mode == '0644'
 
-    - name: Stat secure boot marker file
-      ansible.builtin.stat:
-        path: /var/lib/qemu/images/testvm-secboot_VARS.fd.secboot
-      register: secboot_marker
+    # 0.4.0 replaced the `_VARS.fd.secboot` marker file, which recorded only the
+    # secure_boot flag by its presence, with a `_VARS.fd.state` JSON file that
+    # records the whole fingerprint of the variable store.
+    - name: Read the NVRAM state file of each UEFI VM
+      ansible.builtin.slurp:
+        src: "/var/lib/qemu/images/{{ item }}_VARS.fd.state"
+      register: nvram_states
+      loop:
+        - testvm
+        - testvm-secboot
 
-    - name: Assert secure boot marker exists
+    - name: Assert the NVRAM state files record the secure_boot flag
       ansible.builtin.assert:
         that:
-          - secboot_marker.stat.exists
+          - _plain.secure_boot == false
+          - _plain.template == '/usr/share/edk2/ovmf/OVMF_VARS.fd'
+          - _plain.generation == 1
+          - _plain.fingerprint is match('^False\\|')
+          - _secboot.secure_boot == true
+          - _secboot.template == '/usr/share/edk2/ovmf/OVMF_VARS.secboot.fd'
+          - _secboot.generation == 1
+          - _secboot.fingerprint is match('^True\\|')
+      vars:
+        _plain: "{{ nvram_states.results[0].content | b64decode | from_json }}"
+        _secboot: "{{ nvram_states.results[1].content | b64decode | from_json }}"
 
-    - name: Verify no secure boot marker for standard UEFI VM
+    - name: Stat the legacy secure boot marker files
       ansible.builtin.stat:
-        path: /var/lib/qemu/images/testvm_VARS.fd.secboot
-      register: testvm_no_secboot_marker
+        path: "/var/lib/qemu/images/{{ item }}_VARS.fd.secboot"
+      register: legacy_markers
+      loop:
+        - testvm
+        - testvm-secboot
 
-    - name: Assert standard UEFI VM has no secure boot marker
+    - name: Assert no legacy secure boot marker is left behind
       ansible.builtin.assert:
         that:
-          - not testvm_no_secboot_marker.stat.exists
+          - legacy_markers.results | rejectattr('stat.exists') | list | length == 2
+        fail_msg: >-
+          0.4.0 replaced the marker file with the state file and must remove it.
 
     # ── VM config — testvm-secboot (Secure Boot + UEFI) ───
     - name: Read testvm-secboot config
@@ -645,10 +666,13 @@
             uefi: false
             cloud_init_user_data: "#cloud-config\n"
             state: present
+          # Same explicit display as in converge.yml: testvm-cpu and
+          # testvm-tpm both hash to VNC display 97.
           - name: testvm-cpu
             disk_size: 1G
             uefi: false
             cpu_model: kvm64
+            vnc: 11
             state: present
 
     - name: Record image modification time after re-run
@@ -686,6 +710,10 @@
         that:
           - nvram_before_rerun.stat.mtime == nvram_after_rerun.stat.mtime
 
+    # The re-run above leaves `tpm_generation` off testvm-tpm, so it falls back
+    # to 1 while the state file records 2 from the reset test earlier in this
+    # play. A lower generation must not clear the TPM, so the directory must
+    # keep its modification time.
     - name: Assert swtpm state directory was not recreated
       ansible.builtin.assert:
         that:

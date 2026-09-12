@@ -131,12 +131,16 @@ The scenarios are:
 | `host` | `novnc`      | yes         | `host_novnc_enabled` — the `novnc` package and `novnc@.service` |
 | `vms`  | `default`    | yes         | Disk images, config files, UEFI NVRAM, TPM, networking |
 | `vms`  | `disk_image` | **no**      | `disk_image_url` provisioning — it downloads a multi-gigabyte cloud image, so CI does not run it. Run it by hand before a release |
-| `vms`  | `lifecycle`  | yes         | `state: absent` with and without `force_destroy` |
+| `vms`  | `lifecycle`  | yes         | `state: absent` with and without `force_destroy`. It creates a VM and then destroys it, so it cannot be idempotent; its `test_sequence` leaves out `idempotence` |
 | `vms`  | `novnc`      | yes         | Per-VM `novnc_enabled`, drop-ins and the noVNC environment file |
 | `vms`  | `secureboot` | yes         | Secure Boot variable stores, `nvram_template`, `nvram_generation`, the NVRAM verification and the pre-0.4.0 upgrade path |
 
 When you add a scenario, add it to the matrix in `.github/workflows/ci.yml` and
-to this table.
+to this table. The matrix has two axes, `el_version` and `target`; add a
+`{role: ..., scenario: ...}` entry to `target`. Do not move the scenarios into
+`include:` — an `include:` entry is merged into every combination of the other
+axes and a later entry overwrites an earlier one, so several entries setting
+the same keys collapse into a single job.
 
 ### Manual testing
 
