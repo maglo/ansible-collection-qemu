@@ -1,0 +1,4 @@
+---
+trivial:
+  - "CI - update the GitHub Actions used by the CI and release workflows to majors that run on the Node 24 Actions runtime, clearing the Node 20 deprecation warnings the runner emits on every job (https://github.com/maglo/ansible-collection-qemu/issues/151)."
+  - "CI - pre-fetch ``ansible.posix`` alongside ``community.docker`` in the molecule jobs, so neither of the two collections the docker driver requires is left exposed to a reset connection from Galaxy."

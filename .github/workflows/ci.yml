@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -36,12 +36,12 @@ jobs:
           - stable-2.17
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: ansible_collections/maglo/qemu
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -57,12 +57,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: ansible_collections/maglo/qemu
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -130,30 +130,37 @@ jobs:
           - {role: vms, scenario: novnc}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Install dependencies
         run: pip install molecule molecule-plugins[docker] ansible-core
 
-      # Molecule fetches community.docker from Galaxy in its `dependency`
-      # step, once per job. Twelve jobs start within the same second, and
-      # Galaxy answers some of those requests with a reset connection. That
-      # fails the job before a single test task runs. Fetch the collection
-      # here instead, and retry: molecule looks in ~/.ansible/collections
+      # Molecule fetches the docker driver's collections from Galaxy in its
+      # `dependency` step, once per job. Twelve jobs start within the same
+      # second, and Galaxy answers some of those requests with a reset
+      # connection. That fails the job before a single test task runs. Fetch
+      # them here instead, and retry: molecule looks in ~/.ansible/collections
       # before it asks Galaxy, so its own fetch then finds nothing to do.
-      - name: Install the community.docker collection
+      #
+      # Both collections must be listed. The driver asks for both, so covering
+      # only one leaves the other exposed to the same reset. Keep the names and
+      # versions in step with `required_collections` in the driver:
+      # molecule_plugins/docker/driver.py.
+      - name: Install the collections the docker driver needs
         run: |
-          for delay in 5 15 30 60; do
-            ansible-galaxy collection install 'community.docker:>=3.10.2' && exit 0
-            echo "Galaxy did not answer; retrying in ${delay}s"
-            sleep "$delay"
+          for collection in 'community.docker:>=3.10.2' 'ansible.posix:>=1.4.0'; do
+            for delay in 5 15 30 60; do
+              ansible-galaxy collection install "$collection" && continue 2
+              echo "Galaxy did not answer for ${collection}; retrying in ${delay}s"
+              sleep "$delay"
+            done
+            ansible-galaxy collection install "$collection"
           done
-          ansible-galaxy collection install 'community.docker:>=3.10.2'
 
       - name: Run Molecule
         run: molecule test -s ${{ matrix.target.scenario }}
@@ -166,10 +173,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
