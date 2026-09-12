@@ -130,6 +130,21 @@ jobs:
       - name: Install dependencies
         run: pip install molecule molecule-plugins[docker] ansible-core
 
+      # Molecule fetches community.docker from Galaxy in its `dependency`
+      # step, once per job. Twelve jobs start within the same second, and
+      # Galaxy answers some of those requests with a reset connection. That
+      # fails the job before a single test task runs. Fetch the collection
+      # here instead, and retry: molecule looks in ~/.ansible/collections
+      # before it asks Galaxy, so its own fetch then finds nothing to do.
+      - name: Install the community.docker collection
+        run: |
+          for delay in 5 15 30 60; do
+            ansible-galaxy collection install 'community.docker:>=3.10.2' && exit 0
+            echo "Galaxy did not answer; retrying in ${delay}s"
+            sleep "$delay"
+          done
+          ansible-galaxy collection install 'community.docker:>=3.10.2'
+
       - name: Run Molecule
         run: molecule test -s ${{ matrix.target.scenario }}
         working-directory: roles/${{ matrix.target.role }}
