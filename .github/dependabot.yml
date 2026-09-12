@@ -1,0 +1,20 @@
+---
+# Keep the GitHub Actions used by the workflows from going stale. Nothing else
+# here watches action versions, so a major that drops out from under us (the
+# Node 20 runtime, for instance) would otherwise only surface as a deprecation
+# warning or a broken build.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    # Required, but not meaningful for this ecosystem: Dependabot always scans
+    # .github/workflows/ regardless of the value.
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      # One grouped PR per interval. With a handful of actions across three
+      # workflow files, per-action PRs are several CI runs reviewing the same
+      # class of change.
+      actions:
+        patterns:
+          - "*"
