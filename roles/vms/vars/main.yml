@@ -7,27 +7,6 @@
 # would not: a fact outranks a role variable and survives the whole play, so a
 # second call would read the list of the first one.
 
-# ── OVMF firmware paths ────────────────────────────────────
-# Keyed by ansible_distribution_major_version. EL8 ships edk2-ovmf under
-# /usr/share/OVMF/; EL9 and later use /usr/share/edk2/ovmf/.
-_vms_ovmf_path_map:
-  "8":
-    code: /usr/share/OVMF/OVMF_CODE.fd
-    vars: /usr/share/OVMF/OVMF_VARS.fd
-  "9":
-    code: /usr/share/edk2/ovmf/OVMF_CODE.fd
-    vars: /usr/share/edk2/ovmf/OVMF_VARS.fd
-  "10":
-    code: /usr/share/edk2/ovmf/OVMF_CODE.fd
-    vars: /usr/share/edk2/ovmf/OVMF_VARS.fd
-
-# The paths of the running host. An unknown major version falls back to the
-# EL9 layout. The role then reports "NVRAM template ... does not exist", which
-# names the file to fix, instead of a Jinja key error that names nothing.
-_vms_ovmf_paths: >-
-  {{ _vms_ovmf_path_map[(ansible_distribution_major_version | default('9')) | string]
-     | default(_vms_ovmf_path_map['9'], true) }}
-
 # ── Effective per-VM settings ──────────────────────────────
 # `vms_list` holds only the keys that the operator sets. Almost every task and
 # template needs the effective value instead: the per-VM key when it is
