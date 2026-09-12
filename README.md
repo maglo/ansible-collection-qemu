@@ -14,7 +14,7 @@ This collection is for **developers** who need repeatable, idempotent provisioni
 |-----------|--------|
 | **Libvirt-free** | VMs are driven directly by `qemu-system-*` — no libvirtd, no XML, no virsh |
 | **Systemd-native** | VM lifecycle is managed via `qemu-vm@<name>.service` template units |
-| **Enterprise Linux focused** | Targets RHEL, Rocky, Alma, and CentOS 9+ exclusively |
+| **Enterprise Linux focused** | Targets RHEL, Rocky, Alma, and CentOS 10 exclusively (9 is deprecated) |
 | **Minimal footprint** | No heavy infrastructure dependencies; only QEMU, swtpm, and optionally noVNC |
 
 If you need an Ansible-driven, version-controlled alternative to manually running QEMU commands or heavyweight platforms (Proxmox, oVirt, VMware), this collection is for you.
@@ -28,11 +28,31 @@ If you need an Ansible-driven, version-controlled alternative to manually runnin
 
 ## Supported Platforms
 
-| Platform | Versions |
-|----------|----------|
-| Enterprise Linux (RHEL, Rocky, Alma, CentOS) | 9, 10 |
+| Platform | Versions | Status |
+|----------|----------|--------|
+| Enterprise Linux (RHEL, Rocky, Alma, CentOS) | 10 | Supported |
+| Enterprise Linux (RHEL, Rocky, Alma, CentOS) | 9 | **Deprecated** — see below |
 
 **Ansible compatibility:** >= 2.15
+
+### Enterprise Linux 9 is deprecated
+
+Support for **EL9 hosts** is deprecated and will be removed in a release after the
+next one. Until then EL9 remains fully supported and stays in the CI matrix, so
+nothing breaks today. Plan an upgrade of your QEMU hosts to Enterprise Linux 10.
+
+Both roles print a warning when they run on an EL9 host. Once you have
+acknowledged the deprecation you can silence it:
+
+```yaml
+host_el9_deprecation_warning: false
+vms_el9_deprecation_warning: false
+```
+
+This deprecation covers the **host** only. A VM may keep running an EL9 guest
+image for as long as you like — the guest OS is not the collection's concern.
+
+Progress is tracked in [issue #149](https://github.com/maglo/ansible-collection-qemu/issues/149).
 
 ## Installation
 

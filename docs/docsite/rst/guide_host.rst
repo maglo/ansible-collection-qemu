@@ -8,7 +8,9 @@ This guide walks through setting up a QEMU/KVM hypervisor host using the ``maglo
 Prerequisites
 -------------
 
-- A target host running Enterprise Linux 9 or 10 (RHEL, Rocky, Alma, CentOS)
+- A target host running Enterprise Linux 10 (RHEL, Rocky, Alma, CentOS). Enterprise
+  Linux 9 still works, but its support is deprecated and will be removed in a
+  release after the next one
 - Ansible >= 2.15
 - The ``maglo.qemu`` collection installed
 

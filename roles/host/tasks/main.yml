@@ -1,4 +1,7 @@
 ---
+- name: Report deprecations
+  ansible.builtin.import_tasks: deprecations.yml
+
 - name: Install QEMU/KVM packages
   ansible.builtin.import_tasks: install.yml
 

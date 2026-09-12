@@ -7,7 +7,7 @@ The role installs QEMU/KVM packages, deploys systemd template units for managing
 ## Requirements
 
 - Ansible >= 2.15
-- Target hosts running Enterprise Linux 9 or 10
+- Target hosts running Enterprise Linux 10 (Enterprise Linux 9 still works but is [deprecated](https://github.com/maglo/ansible-collection-qemu/issues/149))
 - **EPEL** (or equivalent mirror) enabled on the target host — several packages installed by this role (`swtpm`, `swtpm-tools`, `socat`, `genisoimage`, and optionally `novnc`) are only available from EPEL. The collection intentionally does not manage EPEL setup to support airgapped deployments.
 
 ## Role Variables
@@ -21,6 +21,7 @@ The role installs QEMU/KVM packages, deploys systemd template units for managing
 | `host_service_group` | `qemu` | Group for the QEMU systemd service |
 | `host_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state (used by `swtpm@.service` template) |
 | `host_novnc_enabled` | `false` | Install the noVNC package from EPEL and deploy the `novnc@.service` systemd template (per-VM service instances managed by `maglo.qemu.vms` role) |
+| `host_el9_deprecation_warning` | `true` | Warn when the role runs on a deprecated Enterprise Linux 9 host. Set to `false` to silence the notice |
 
 ## Dependencies
 

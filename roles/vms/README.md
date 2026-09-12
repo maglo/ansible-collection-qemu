@@ -7,7 +7,9 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 ## Requirements
 
 - Ansible >= 2.15
-- Target hosts running Enterprise Linux 9 or 10
+- Target hosts running Enterprise Linux 10 (Enterprise Linux 9 still works but is [deprecated](https://github.com/maglo/ansible-collection-qemu/issues/149))
+
+  This covers the **host**. A VM may run any guest image, including an EL9 one.
 
 ## Dependencies
 
@@ -47,6 +49,7 @@ The role creates disk images, configures UEFI firmware, TPM emulation, and netwo
 | `vms_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
 | `vms_default_novnc_port` | `null` | Default noVNC port (null = auto-assign as 6080 + VNC display number) |
 | `vms_default_shutdown_timeout` | `120` | Default timeout in seconds for graceful ACPI shutdown |
+| `vms_el9_deprecation_warning` | `true` | Warn when the role runs on a deprecated Enterprise Linux 9 host. Set to `false` to silence the notice |
 
 ### VM definition
 

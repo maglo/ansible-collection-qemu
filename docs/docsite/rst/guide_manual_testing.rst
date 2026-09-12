@@ -15,7 +15,8 @@ Prerequisites
 **Host requirements:**
 
 - A bare-metal machine or a VM with nested virtualisation enabled (``/dev/kvm`` must exist)
-- Enterprise Linux 9 or 10 (RHEL, Rocky, Alma, or CentOS Stream)
+- Enterprise Linux 10 (RHEL, Rocky, Alma, or CentOS Stream). Enterprise Linux 9
+  still works, but its support is deprecated
 - At least 8 GB RAM and 50 GB free disk space
 - Internet access (for downloading cloud images in URL provisioning tests)
 

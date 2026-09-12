@@ -112,3 +112,8 @@ vms_default_novnc_port: null
 
 # Default shutdown timeout for graceful ACPI powerdown (seconds)
 vms_default_shutdown_timeout: 120
+
+# Whether to warn when the role runs on a deprecated Enterprise Linux 9 host.
+# This covers the host only; a VM may still run an EL9 guest image.
+# Set to false to silence the notice until EL9 support is removed.
+vms_el9_deprecation_warning: true

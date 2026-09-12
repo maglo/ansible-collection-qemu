@@ -1,0 +1,7 @@
+---
+deprecated_features:
+  - "host role - support for Enterprise Linux 9 is deprecated and will be removed in a release after the next one. Until then EL9 stays supported and stays in the CI matrix. Plan an upgrade of the host to Enterprise Linux 10. The role prints a warning when it runs on EL9; set ``host_el9_deprecation_warning`` to ``false`` to silence it (https://github.com/maglo/ansible-collection-qemu/issues/149)."
+  - "vms role - support for Enterprise Linux 9 is deprecated and will be removed in a release after the next one. This covers the EL9 *host* only; a VM may keep running an EL9 guest image. The role prints a warning when it runs on an EL9 host; set ``vms_el9_deprecation_warning`` to ``false`` to silence it (https://github.com/maglo/ansible-collection-qemu/issues/149)."
+minor_changes:
+  - "host role - add the ``host_el9_deprecation_warning`` variable. It controls the warning that the role prints on an Enterprise Linux 9 host (https://github.com/maglo/ansible-collection-qemu/issues/149)."
+  - "vms role - add the ``vms_el9_deprecation_warning`` variable. It controls the warning that the role prints on an Enterprise Linux 9 host (https://github.com/maglo/ansible-collection-qemu/issues/149)."
