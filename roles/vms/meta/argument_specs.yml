@@ -410,3 +410,11 @@ argument_specs:
           Used when VMs do not specify C(shutdown_timeout).
         type: int
         default: 120
+      vms_el9_deprecation_warning:
+        description:
+          - Whether the role warns when it runs on an Enterprise Linux 9 host.
+          - Support for Enterprise Linux 9 is deprecated and will be removed in a future release.
+          - This covers the host only. A VM may still run an EL9 guest image.
+          - Set to C(false) to silence the notice until then.
+        type: bool
+        default: true

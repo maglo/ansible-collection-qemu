@@ -1,0 +1,20 @@
+---
+# Deprecation notices for the vms role.
+#
+# Support for Enterprise Linux 9 is deprecated. When it is removed, delete this
+# file, its import in main.yml, the vms_el9_deprecation_warning default and its
+# argument spec.
+
+# main.yml has already ensured that ansible_distribution_major_version is set.
+
+- name: Warn that Enterprise Linux 9 support is deprecated
+  ansible.builtin.debug:
+    msg: >-
+      DEPRECATION WARNING: this host runs Enterprise Linux
+      {{ ansible_distribution_major_version }}. Support for Enterprise Linux 9
+      is deprecated in maglo.qemu and will be removed in a future release.
+      Plan an upgrade of the host to Enterprise Linux 10. Set
+      vms_el9_deprecation_warning to false to silence this message.
+  when:
+    - ansible_distribution_major_version | string == "9"
+    - vms_el9_deprecation_warning | bool

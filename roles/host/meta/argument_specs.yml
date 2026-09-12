@@ -41,3 +41,10 @@ argument_specs:
           Per-VM noVNC service instances are managed by the C(vms) role.
         type: bool
         default: false
+      host_el9_deprecation_warning:
+        description:
+          - Whether the role warns when it runs on an Enterprise Linux 9 host.
+          - Support for Enterprise Linux 9 is deprecated and will be removed in a future release.
+          - Set to C(false) to silence the notice until then.
+        type: bool
+        default: true

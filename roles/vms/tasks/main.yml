@@ -8,6 +8,10 @@
     gather_subset: min
   when: ansible_distribution_major_version is undefined
 
+# ── Deprecation notices ───────────────────────────────
+- name: Report deprecations
+  ansible.builtin.import_tasks: deprecations.yml
+
 # ── Filter VMs for creation (exclude those being destroyed) ──
 - name: Filter VMs for creation
   ansible.builtin.set_fact:
