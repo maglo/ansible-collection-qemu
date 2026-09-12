@@ -40,7 +40,7 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 
 ## Documentation
 
-The published documentation is <https://maglo.github.io/ansible-collection-qemu/>,
+The published documentation is <https://magnusloof.se/ansible-collection-qemu/>,
 built from `docs/` by `.github/workflows/docs.yml`. The root `README.md` is the
 landing page on GitHub and Ansible Galaxy: keep it short and let it point at
 the site. Reference documentation belongs in the argument specs and the guides,

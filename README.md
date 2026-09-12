@@ -1,13 +1,13 @@
 # Ansible Collection — maglo.qemu
 
 [![CI](https://github.com/maglo/ansible-collection-qemu/actions/workflows/ci.yml/badge.svg)](https://github.com/maglo/ansible-collection-qemu/actions/workflows/ci.yml)
-[![Docs](https://github.com/maglo/ansible-collection-qemu/actions/workflows/docs.yml/badge.svg)](https://maglo.github.io/ansible-collection-qemu/)
+[![Docs](https://github.com/maglo/ansible-collection-qemu/actions/workflows/docs.yml/badge.svg)](https://magnusloof.se/ansible-collection-qemu/)
 [![Galaxy](https://img.shields.io/badge/galaxy-maglo.qemu-660198)](https://galaxy.ansible.com/ui/repo/published/maglo/qemu/)
 
 QEMU/KVM hosts and virtual machines on Enterprise Linux (RHEL, Rocky, Alma,
 CentOS), driven by Ansible and systemd — no libvirtd, no XML, no virsh.
 
-📖 **[Read the documentation](https://maglo.github.io/ansible-collection-qemu/)**
+📖 **[Read the documentation](https://magnusloof.se/ansible-collection-qemu/)**
 
 ## Why this collection
 
@@ -38,13 +38,13 @@ is for you.
 
 - A host running Enterprise Linux 10 with hardware virtualization enabled.
   EL9 works but [its support is
-  deprecated](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_installation.html#enterprise-linux-9-is-deprecated).
+  deprecated](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_installation.html#enterprise-linux-9-is-deprecated).
 - The EPEL repository, or a mirror carrying `swtpm`, `socat`, `genisoimage`
   and `novnc`. The collection does not enable EPEL itself.
 - `ansible-core` >= 2.15 on the control node.
 
 The [installation
-guide](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_installation.html)
+guide](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_installation.html)
 has the details, including how to check a host for KVM support.
 
 ## Installation
@@ -95,22 +95,22 @@ journalctl -u qemu-vm@web01
 
 More playbooks live in [`playbooks/`](https://github.com/maglo/ansible-collection-qemu/tree/main/playbooks/) and in the [example
 playbooks
-guide](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_examples.html).
+guide](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_examples.html).
 
 ## Documentation
 
 Everything is on the documentation site:
-**<https://maglo.github.io/ansible-collection-qemu/>**
+**<https://magnusloof.se/ansible-collection-qemu/>**
 
 | Page | Contents |
 |------|----------|
-| [Installation](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_installation.html) | Requirements, EPEL, hardware virtualization, supported platforms |
-| [Host setup](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_host.html) | Preparing a hypervisor: packages, directories, systemd units, SELinux |
-| [VM management](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_vm_management.html) | Creating, starting, restarting and destroying VMs |
-| [Feature guide](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_features.html) | Disks, UEFI and Secure Boot, TPM, networking, consoles, cloud-init |
-| [Example playbooks](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_examples.html) | Ready-to-run playbooks |
-| [`host` role reference](https://maglo.github.io/ansible-collection-qemu/collection/host_role.html) | Every `host_*` variable, generated from the role argument spec |
-| [`vms` role reference](https://maglo.github.io/ansible-collection-qemu/collection/vms_role.html) | Every `vms_*` variable and per-VM key |
+| [Installation](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_installation.html) | Requirements, EPEL, hardware virtualization, supported platforms |
+| [Host setup](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_host.html) | Preparing a hypervisor: packages, directories, systemd units, SELinux |
+| [VM management](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_vm_management.html) | Creating, starting, restarting and destroying VMs |
+| [Feature guide](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_features.html) | Disks, UEFI and Secure Boot, TPM, networking, consoles, cloud-init |
+| [Example playbooks](https://magnusloof.se/ansible-collection-qemu/collection/docsite/guide_examples.html) | Ready-to-run playbooks |
+| [`host` role reference](https://magnusloof.se/ansible-collection-qemu/collection/host_role.html) | Every `host_*` variable, generated from the role argument spec |
+| [`vms` role reference](https://magnusloof.se/ansible-collection-qemu/collection/vms_role.html) | Every `vms_*` variable and per-VM key |
 | [CHANGELOG.rst](https://github.com/maglo/ansible-collection-qemu/blob/main/CHANGELOG.rst) | Release notes |
 
 Offline, `ansible-doc -t role maglo.qemu.host` and `ansible-doc -t role

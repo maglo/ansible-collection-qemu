@@ -2,7 +2,7 @@
 
 > 📖 Full documentation, including the guides and the generated variable
 > reference, is at
-> <https://maglo.github.io/ansible-collection-qemu/>.
+> <https://magnusloof.se/ansible-collection-qemu/>.
 
 Install and configure a QEMU/KVM host on Enterprise Linux (RHEL, Rocky, Alma, CentOS).
 

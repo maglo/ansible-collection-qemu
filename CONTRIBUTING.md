@@ -79,9 +79,12 @@ antsibull-docs lint-collection-docs --plugin-docs /tmp/collections/ansible_colle
 
 ### Documentation site
 
-<https://maglo.github.io/ansible-collection-qemu/> is built from this
+<https://magnusloof.se/ansible-collection-qemu/> is built from this
 repository by the `Docs site` workflow on every push to `main`, and the `docs`
-CI job builds it on every PR. Build it locally the same way:
+CI job builds it on every PR. The host is the account-level GitHub Pages custom
+domain, so the site lives under `magnusloof.se/<repo>/` rather than
+`maglo.github.io/<repo>/`; GitHub redirects the latter. Build it locally the
+same way:
 
 ```bash
 pip install -r docs/site/requirements.txt

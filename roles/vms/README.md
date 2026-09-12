@@ -2,7 +2,7 @@
 
 > 📖 Full documentation, including the guides and the generated variable
 > reference, is at
-> <https://maglo.github.io/ansible-collection-qemu/>.
+> <https://magnusloof.se/ansible-collection-qemu/>.
 
 Create QEMU/KVM virtual machines on an Enterprise Linux host.
 

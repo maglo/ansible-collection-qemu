@@ -1,7 +1,7 @@
 ---
 minor_changes:
   - "Documentation - The guides and the role reference are now published as a
-    documentation site at https://maglo.github.io/ansible-collection-qemu/,
+    documentation site at https://magnusloof.se/ansible-collection-qemu/,
     built from ``docs/`` with antsibull-docs and Sphinx and deployed to GitHub
     Pages on every push to ``main``. New guides cover installation, every VM
     feature, and the example playbooks. The README keeps a short overview of
