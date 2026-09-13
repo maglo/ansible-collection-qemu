@@ -1,0 +1,11 @@
+---
+trivial:
+  - "CI - run each job only when the change can affect it. A ``changes`` job
+    diffs the pull request against its base (or a push against the tip it moved
+    away from) and each of ``lint``, ``sanity``, ``docs``, ``molecule`` and
+    ``changelog`` is gated on the result, so a release commit or a change to
+    ``CONTRIBUTING.md`` no longer runs the twelve molecule jobs. The filtering
+    is done inside the workflow rather than with ``on.<event>.paths``, because
+    an event filter would stop the required ``CI`` gate from ever reporting.
+    The gate itself still runs on every event and treats a skipped job as
+    passing. ``workflow_dispatch`` runs the full suite on demand."

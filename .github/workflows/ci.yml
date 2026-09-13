@@ -6,10 +6,130 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Run every job, whatever changed. Use this before cutting a release, or to
+  # re-run a suite that the path filters below decided to skip.
+  workflow_dispatch:
 
 jobs:
+  # Work out which of the jobs below the change can actually affect, so a
+  # release commit (CHANGELOG.rst, changelogs/changelog.yaml, galaxy.yml) or a
+  # docs-only change no longer pays for twelve molecule jobs.
+  #
+  # The filtering happens *inside* the workflow, not with `on.<event>.paths`.
+  # A workflow that an event filters out never reports its checks, and the
+  # `CI` gate below is a required status check on `main` — a PR would wait for
+  # a check that is never coming. The gate always runs; a job the filter turns
+  # off ends up `skipped`, which the gate accepts.
+  #
+  # Filters err towards running. Each one lists what feeds the job, plus this
+  # workflow itself, so a change to CI is always tested by the full suite.
+  changes:
+    name: Changed files
+    runs-on: ubuntu-latest
+    outputs:
+      lint: ${{ steps.filter.outputs.lint }}
+      sanity: ${{ steps.filter.outputs.sanity }}
+      docs: ${{ steps.filter.outputs.docs }}
+      molecule: ${{ steps.filter.outputs.molecule }}
+      changelog: ${{ steps.filter.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Both ends of the comparison have to be in the local history.
+          fetch-depth: 0
+
+      - name: Work out which jobs the change needs
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          # On a pull request, compare the head against the base branch. On a
+          # push to main, compare against the tip the push moved away from.
+          BASE: >-
+            ${{ github.event_name == 'pull_request'
+                && github.event.pull_request.base.sha
+                || github.event.before }}
+          HEAD: >-
+            ${{ github.event_name == 'pull_request'
+                && github.event.pull_request.head.sha
+                || github.sha }}
+        run: |
+          set -euo pipefail
+
+          emit() {
+            echo "$1=$2" >> "$GITHUB_OUTPUT"
+            printf '  %-10s %s\n' "$1:" "$2"
+          }
+
+          run_everything() {
+            echo "$1 - running every job."
+            for job in lint sanity docs molecule changelog; do
+              emit "$job" true
+            done
+            exit 0
+          }
+
+          if [ "$EVENT" = workflow_dispatch ]; then
+            run_everything "Started by hand"
+          fi
+
+          # A new branch pushes with an all-zero `before`, and a force push
+          # can leave a `before` that is no longer reachable. Neither can be
+          # compared against, so take no chances and run the lot.
+          if [ -z "$BASE" ] ||
+             ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            run_everything "No base commit to compare against"
+          fi
+
+          # `A...B` is the diff from the point the two branches parted, so a
+          # pull request is read as one change however many commits it holds,
+          # and a commit that landed on main after the branch forked is not
+          # counted against it. Two unrelated histories have no such point and
+          # git refuses the range; fall back to running everything rather than
+          # failing the gate with it.
+          if ! changed="$(git diff --name-only "$BASE...$HEAD")"; then
+            run_everything "Cannot diff ${BASE}...${HEAD}"
+          fi
+
+          echo "Changed files:"
+          printf '%s\n' "$changed" | sed 's/^/  /'
+          echo
+
+          decide() {  # decide <output> <extended regex>
+            if printf '%s\n' "$changed" | grep -qE "$2"; then
+              emit "$1" true
+            else
+              emit "$1" false
+            fi
+          }
+
+          # What the collection actually does on a host. Every job depends
+          # on it, and so does this workflow, which describes them all.
+          content='^(roles|playbooks|meta|plugins)/'
+          workflow='^\.github/workflows/ci\.yml$'
+          always="${content}|${workflow}"
+
+          lint_paths='^\.ansible-lint$|^galaxy\.yml$'
+          sanity_paths='^galaxy\.yml$|^README\.md$|^docs/docsite/'
+          # The `docs` job builds the same site that .github/workflows/docs.yml
+          # publishes, so it is what validates a change to that workflow too.
+          docs_paths='^docs/|^README\.md$|^galaxy\.yml$'
+          docs_paths="${docs_paths}"'|^\.github/workflows/docs\.yml$'
+
+          echo "Jobs to run:"
+          decide lint      "${always}|${lint_paths}"
+          decide sanity    "${always}|${sanity_paths}"
+          decide docs      "${always}|${docs_paths}"
+          decide changelog "${workflow}|^changelogs/"
+          # Molecule converges the roles in a container, so only the content it
+          # runs matters. Role READMEs live under roles/, so a docs-only edit
+          # there still books twelve jobs; that is the safe side to be on.
+          decide molecule  "${always}"
+
   lint:
     name: Lint
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,6 +148,8 @@ jobs:
 
   sanity:
     name: Sanity
+    needs: changes
+    if: needs.changes.outputs.sanity == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -54,6 +176,8 @@ jobs:
 
   docs:
     name: Docs
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -105,6 +229,8 @@ jobs:
 
   molecule:
     name: Molecule - ${{ matrix.target.role }} (${{ matrix.target.scenario }}) - EL${{ matrix.el_version }}
+    needs: changes
+    if: needs.changes.outputs.molecule == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -170,6 +296,8 @@ jobs:
 
   changelog:
     name: Changelog
+    needs: changes
+    if: needs.changes.outputs.changelog == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -186,10 +314,13 @@ jobs:
       - name: Lint changelog fragments
         run: antsibull-changelog lint
 
+  # The required status check on `main`. It runs on every event, so it always
+  # reports, and it only objects to a job that ran and did not pass: a job the
+  # path filters turned off reports `skipped`, which is not a failure.
   gate:
     name: CI
     if: always()
-    needs: [lint, sanity, docs, molecule, changelog]
+    needs: [changes, lint, sanity, docs, molecule, changelog]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
