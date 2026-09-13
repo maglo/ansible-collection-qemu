@@ -4,6 +4,42 @@ maglo.qemu Release Notes
 
 .. contents:: Topics
 
+v0.5.0
+======
+
+Release Summary
+---------------
+
+Correctness release for the ``vms`` role, alongside a published documentation site and the deprecation of Enterprise Linux 9. The role now resolves the effective settings of every VM once and validates the whole list before it changes anything on the host, which turns a name collision or a contradictory key into an error instead of a VM that will not start. Several defaults that were documented but never read are honoured, a destroyed VM loses all of its state, and a guest is shut down gracefully before the role stops it.
+
+Minor Changes
+-------------
+
+- Documentation - The guides and the role reference are now published as a documentation site at https://maglo.github.io/ansible-collection-qemu/, built from ``docs/`` with antsibull-docs and Sphinx and deployed to GitHub Pages on every push to ``main``. New guides cover installation, every VM feature, and the example playbooks. The README keeps a short overview of the collection and points at the site, so the page that Ansible Galaxy and the GitHub repository show is no longer the full reference (closes #154).
+- galaxy.yml - The ``documentation`` and ``homepage`` URLs now point at the documentation site instead of the README.
+- host role - add the ``host_el9_deprecation_warning`` variable. It controls the warning that the role prints on an Enterprise Linux 9 host (https://github.com/maglo/ansible-collection-qemu/issues/149).
+- vms role - ``vms_verify_checksums`` now controls whether the per-VM ``disk_image_checksum`` is compared against the downloaded image. The variable was documented as reserved and had no effect.
+- vms role - add the ``vms_el9_deprecation_warning`` variable. It controls the warning that the role prints on an Enterprise Linux 9 host (https://github.com/maglo/ansible-collection-qemu/issues/149).
+- vms role - check the whole VM list before the role changes anything on the host. The new checks reject a duplicate VM name, a name that cannot be a systemd instance name, ``secure_boot`` without ``uefi``, a ``disk_image_url`` with a non-qcow2 ``disk_format``, and two VMs that would share a VNC display, a MAC address or a noVNC port. The role derives the display and the address from the VM name, so two names can collide; the run now fails with the names instead of leaving the second VM unable to start.
+- vms role - drop the EL8 OVMF firmware paths. The collection supports EL9 and EL10, which share one layout, so ``vms_ovmf_code`` and ``vms_ovmf_vars_template`` are now plain paths like the two Secure Boot variables beside them, and ``meta/argument_specs.yml`` states their defaults. The role no longer gathers distribution facts, which were read only to pick between the two layouts.
+- vms role - resolve the effective settings of every VM once, before the first task runs. Each task file now reads a ready-made selection (the UEFI VMs, the TPM VMs, the noVNC VMs, and so on) instead of filtering ``vms_list`` again with an expression that had to treat "key absent" and "key set to false" separately. The role also skips the firmware, TPM, noVNC, cloud-init and USB task files entirely when no VM uses them.
+
+Deprecated Features
+-------------------
+
+- host role - support for Enterprise Linux 9 is deprecated and will be removed in a release after the next one. Until then EL9 stays supported and stays in the CI matrix. Plan an upgrade of the host to Enterprise Linux 10. The role prints a warning when it runs on EL9; set ``host_el9_deprecation_warning`` to ``false`` to silence it (https://github.com/maglo/ansible-collection-qemu/issues/149).
+- vms role - support for Enterprise Linux 9 is deprecated and will be removed in a release after the next one. This covers the EL9 *host* only; a VM may keep running an EL9 guest image. The role prints a warning when it runs on an EL9 host; set ``vms_el9_deprecation_warning`` to ``false`` to silence it (https://github.com/maglo/ansible-collection-qemu/issues/149).
+
+Bugfixes
+--------
+
+- vms role - clear the swtpm state only when ``tpm_generation`` increases. The role compared the generation for inequality, so lowering the value, or tidying a spent ``tpm_generation: 2`` line out of a playbook so that it fell back to 1, silently wiped the sealed key slots, the persistent handles and the PCR history of a running guest.
+- vms role - fall back to stopping the unit when the guest ignores the ACPI powerdown. The condition that triggered the fallback could never be true, because the task it tested had ``failed_when: false``.
+- vms role - honour ``vms_default_novnc_enabled``. A VM that did not set the per-VM ``novnc_enabled`` key was never configured for noVNC, even with the role default set to ``true``, while ``state: restarted`` and ``state: absent`` did honour the default.
+- vms role - honour ``vms_default_novnc_port``. The variable was declared and documented but never read; every VM got 6080 plus its VNC display.
+- vms role - remove every artifact of a destroyed VM. The UEFI variable store, the TPM state directory and the TPM state file were removed only when the VM still carried ``uefi: true`` or ``tpm: true``, so an operator who dropped the key in the same change that set ``state: absent`` left the state behind for the next VM of that name to adopt.
+- vms role - shut the guest down over the QEMU monitor before destroying a VM. ``state: absent`` stopped and disabled the service first, which left the graceful shutdown with nothing to do, so the guest got a SIGTERM and its file systems stayed dirty. ``state: restarted`` had the same problem for a noVNC VM, whose service the role stopped first.
+
 v0.4.0
 ======
 
