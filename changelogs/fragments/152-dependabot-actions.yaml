@@ -1,3 +1,0 @@
----
-trivial:
-  - "CI - add a Dependabot configuration for the ``github-actions`` ecosystem, so stale action majors are found by a monthly grouped update PR rather than by a deprecation warning or a broken build (https://github.com/maglo/ansible-collection-qemu/issues/152)."
