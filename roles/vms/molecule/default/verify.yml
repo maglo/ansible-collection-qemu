@@ -140,8 +140,9 @@
           - "'-vnc :' in _content"
           - "'-chardev socket,id=ser0,path=/var/lib/qemu/testvm/serial.sock,server=on,wait=off' in _content"
           - "'-serial chardev:ser0' in _content"
-          - "'-monitor unix:/var/lib/qemu/testvm/monitor.sock,server=on,wait=off' in _content"
           - "'-qmp unix:/var/lib/qemu/testvm/qmp.sock,server=on,wait=off' in _content"
+          # QMP is the whole control channel; there is no human monitor.
+          - "'-monitor' not in _content"
           # The short form logs a deprecation on every VM start.
           - "'server,nowait' not in _content"
           - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
@@ -580,8 +581,7 @@
           - "'-chardev socket,id=ser0,path=/var/lib/qemu/testvm-console/console.sock,server=on,wait=off' in _content"
           - "'-serial chardev:ser0' in _content"
           - "'-qmp unix:/var/lib/qemu/testvm-console/control.sock,server=on,wait=off' in _content"
-          # The monitor socket keeps its fixed path.
-          - "'-monitor unix:/var/lib/qemu/testvm-console/monitor.sock,server=on,wait=off' in _content"
+          - "'-monitor' not in _content"
 
     - name: Stat testvm-console runtime directory
       ansible.builtin.stat:

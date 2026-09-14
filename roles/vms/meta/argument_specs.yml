@@ -204,9 +204,14 @@ argument_specs:
                 Overrides C(vms_default_qmp_socket).
               - >-
                 When neither is set, the VM gets
-                C(/var/lib/qemu/<name>/qmp.sock). QMP is machine readable and
-                carries typed commands such as C(send-key) and C(screendump).
-                The human monitor stays on C(monitor.sock).
+                C(/var/lib/qemu/<name>/qmp.sock). QMP is the whole control
+                channel of a VM: it is machine readable, it carries typed
+                commands such as C(send-key) and C(screendump), and the role
+                sends C(system_powerdown) over it on a graceful shutdown.
+              - >-
+                A VM has no C(-monitor) socket. QMP carries every human monitor
+                command through C(human-monitor-command), so the monitor
+                vocabulary is reachable here.
               - >-
                 The same directory rule and space rule as C(serial_socket)
                 apply.
@@ -281,7 +286,7 @@ argument_specs:
                 Desired state of the C(qemu-vm@<name>) service.
                 C(started) enables and starts it, C(stopped) enables but stops it,
                 C(present) writes the config and leaves the service alone,
-                C(restarted) shuts the guest down over the QEMU monitor and starts
+                C(restarted) shuts the guest down over QMP and starts
                 it again, C(absent) destroys the VM and every artifact of it.
               - >-
                 C(present) does not stop the swtpm and noVNC instances of the VM:
@@ -304,6 +309,7 @@ argument_specs:
             description: >-
               Timeout in seconds to wait for graceful ACPI shutdown before forcing stop.
               Used by C(state: restarted) and C(state: absent).
+              The role waits only when QEMU acknowledges the QMP command.
             type: int
             default: 120
       vms_default_disk_size:

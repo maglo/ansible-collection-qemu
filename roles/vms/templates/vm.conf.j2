@@ -19,10 +19,14 @@
 {% set _ = _args.append('-m ' ~ item.memory) %}
 {% set _ = _args.append('-smp ' ~ item.cpus) %}
 {% set _ = _args.append('-cpu ' ~ item.cpu_model) %}
-{# ── Consoles and control sockets ─────────────────────────
+{# ── Consoles and control socket ──────────────────────────
   -display none makes the arguments below the only source of truth for a
-  console. -nographic also muxes the monitor onto stdio when no -monitor is
-  given, which hides where a console goes.
+  console. -nographic would mux a monitor onto stdio, which hides where a
+  console goes.
+
+  QMP is the whole control channel. It answers with typed results and
+  structured errors, and it carries the human monitor commands through
+  human-monitor-command, so nothing is lost by having no -monitor.
 
   server=on,wait=off lets QEMU create each socket and carry on. With wait=on
   the process stops before it opens its QMP socket, and it never starts.
@@ -32,7 +36,6 @@
 {% set _ = _args.append('-serial chardev:ser0') %}
 {#- An empty vnc_address binds every interface, which is what -vnc :N does. -#}
 {% set _ = _args.append('-vnc ' ~ (item.vnc_address or '') ~ ':' ~ item.vnc) %}
-{% set _ = _args.append('-monitor unix:/var/lib/qemu/' ~ item.name ~ '/monitor.sock,server=on,wait=off') %}
 {% set _ = _args.append('-qmp unix:' ~ item.qmp_socket ~ ',server=on,wait=off') %}
 {# ── System disk ─────────────────────────────────────────── #}
 {% set _disk_file = vms_image_dir ~ '/' ~ item.name ~ '.' ~ item.disk_format %}

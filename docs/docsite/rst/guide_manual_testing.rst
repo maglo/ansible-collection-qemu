@@ -936,12 +936,21 @@ asserts the rendered arguments only.
    {"execute": "query-status"}
    {"execute": "screendump", "arguments": {"filename": "/tmp/console-vm.ppm"}}
 
+   # The human monitor vocabulary still works, over QMP
+   {"execute": "human-monitor-command", "arguments": {"command-line": "info block"}}
+
    # The VNC console binds loopback only
    ss -ltnp | grep 5900
 
-   # `-nographic` is gone, and the short-form booleans are gone
+   # `-nographic` is gone, the short-form booleans are gone, and so is
+   # `-monitor`
    grep -- "-display none" /etc/qemu/vms/console-vm.conf
    ! grep -- "server,nowait" /etc/qemu/vms/console-vm.conf
+   ! grep -- "-monitor" /etc/qemu/vms/console-vm.conf
+
+   # A graceful shutdown goes over QMP. Set `state: restarted` and re-run,
+   # then confirm the guest powered down rather than being killed.
+   journalctl -u qemu-vm@console-vm | grep -i "power\|shutdown"
 
 **Expected result:**
 

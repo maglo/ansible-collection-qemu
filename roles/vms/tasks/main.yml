@@ -9,7 +9,7 @@
 # plain VMs never evaluates the firmware, TPM or noVNC tasks.
 #
 # The three files that work on the whole of `_vms_active_vms` — disk.yml,
-# monitor.yml and smbios.yml — carry no such gate, on purpose. `import_tasks`
+# runtime_dir.yml and smbios.yml — carry no such gate, on purpose. `import_tasks`
 # is static, so a `when` on the import is copied onto every task of the file
 # rather than skipping the file, and Ansible builds a task's loop before it
 # evaluates that task's `when`. A loop that reads a variable the same file
@@ -59,8 +59,8 @@
   ansible.builtin.import_tasks: novnc.yml
   when: _vms_novnc_vms | length > 0
 
-- name: Setup QEMU monitor sockets
-  ansible.builtin.import_tasks: monitor.yml
+- name: Create the per-VM runtime directories
+  ansible.builtin.import_tasks: runtime_dir.yml
 
 - name: Write per-VM SMBIOS OEM strings
   ansible.builtin.import_tasks: smbios.yml

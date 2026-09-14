@@ -105,21 +105,22 @@
              | map(attribute='item') | list | join(', ') }}
         success_msg: "The destroy-only run removed every lifecycle-test-solo artifact"
 
-    # Verify monitor socket directory created for existing VM
-    - name: Check monitor runtime dir exists for lifecycle-test-present
+    # Verify the runtime directory that holds the sockets
+    - name: Check runtime dir exists for lifecycle-test-present
       ansible.builtin.stat:
         path: /var/lib/qemu/lifecycle-test-present
-      register: _monitor_dir
+      register: _runtime_dir
 
-    - name: Assert monitor runtime dir exists
+    - name: Assert runtime dir exists
       ansible.builtin.assert:
         that:
-          - _monitor_dir.stat.exists
-          - _monitor_dir.stat.isdir
-        fail_msg: "Monitor runtime directory should exist for lifecycle-test-present"
-        success_msg: "Monitor runtime directory exists as expected"
+          - _runtime_dir.stat.exists
+          - _runtime_dir.stat.isdir
+        fail_msg: "Runtime directory should exist for lifecycle-test-present"
+        success_msg: "Runtime directory exists as expected"
 
-    # Verify config contains monitor socket argument
+    # Verify config contains the QMP socket argument. The shutdown path sends
+    # system_powerdown over it, so a VM without it cannot stop gracefully.
     - name: Read lifecycle-test-present config
       ansible.builtin.slurp:
         src: /etc/qemu/vms/lifecycle-test-present.conf
@@ -129,8 +130,10 @@
       ansible.builtin.set_fact:
         _config_content: "{{ _vm_config.content | b64decode }}"
 
-    - name: Assert monitor socket in config
+    - name: Assert QMP socket in config
       ansible.builtin.assert:
-        that: "'-monitor unix:/var/lib/qemu/lifecycle-test-present/monitor.sock,server=on,wait=off' in _config_content"
-        fail_msg: "Monitor socket argument should be in VM config"
-        success_msg: "Monitor socket correctly configured in VM config"
+        that:
+          - "'-qmp unix:/var/lib/qemu/lifecycle-test-present/qmp.sock,server=on,wait=off' in _config_content"
+          - "'-monitor' not in _config_content"
+        fail_msg: "QMP socket argument should be in VM config, and -monitor should not"
+        success_msg: "QMP socket correctly configured in VM config"
