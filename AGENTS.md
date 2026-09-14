@@ -30,7 +30,9 @@ An issue can have multiple labels (e.g. `documentation` + `ci` for a docs-lintin
 
 - Pipeline failures are **critical** and must be resolved before any other work proceeds.
 - All tests must pass before a PR can be merged.
-- The `CI` gate job in `.github/workflows/ci.yml` **must pass** before merging any PR to `main`. This job aggregates all other CI jobs (lint, sanity, docs, molecule).
+- The `CI` gate job in `.github/workflows/ci.yml` **must pass** before merging any PR to `main`. This job aggregates all other CI jobs (lint, sanity, docs, molecule, changelog).
+- Those jobs are gated on a `changes` job that diffs the branch against its base, so a change that cannot affect a job skips it. The gate accepts a skipped job. Never filter a job with `on.<event>.paths` instead — the required `CI` check would then never report and the PR could not be merged.
+- When you add a file that a job depends on, add it to that job's filter in the `changes` job. Filters err towards running: a change under `roles/`, `playbooks/`, `meta/` or `plugins/`, or to `ci.yml` itself, runs everything.
 
 ## Branch protection
 

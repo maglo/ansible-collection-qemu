@@ -34,6 +34,17 @@ CI runs five jobs — lint, sanity, docs, molecule and changelog — and the `CI
 gate job aggregates them. That gate must pass before a PR can be merged, so run
 the same commands locally first.
 
+Each job runs only when the change can affect it. A `changes` job at the top of
+`.github/workflows/ci.yml` compares the PR against its base branch and decides
+which of the five to run; a change that touches only `CONTRIBUTING.md`, or a
+release commit that touches only `CHANGELOG.rst`, `changelogs/changelog.yaml`
+and `galaxy.yml`, does not run the molecule matrix. A job that is filtered out
+shows as *skipped*, and the `CI` gate treats that as a pass — it always runs,
+so the required status check always reports. Anything under `roles/`,
+`playbooks/`, `meta/` or `plugins/`, and any change to the workflow itself,
+runs everything. To force the full suite regardless, start the **CI** workflow
+by hand from the Actions tab (`workflow_dispatch`).
+
 ### Lint
 
 ```bash
@@ -246,7 +257,11 @@ CI fails when the two drift apart.
 
 Only maintainers with push access to the repository can cut releases.
 
-1. Ensure all planned changes are merged to `main` and CI is green.
+1. Ensure all planned changes are merged to `main` and CI is green. The release
+   commit changes no role content, so its own CI run skips the molecule matrix
+   — the code being released is what `main` was already tested with. Run the
+   **CI** workflow by hand from the Actions tab if you want the full suite
+   against the release commit anyway.
 2. Run `make release VERSION=x.y.z`. This compiles changelog fragments, bumps the
    version in `galaxy.yml`, and builds the collection tarball.
 3. Review the diff and commit:
