@@ -20,7 +20,7 @@ template unit.
 |-----------|--------|
 | **Libvirt-free** | VMs are driven directly by `qemu-system-*` — no libvirtd, no XML, no virsh |
 | **Systemd-native** | VM lifecycle is managed via `qemu-vm@<name>.service` template units |
-| **Enterprise Linux focused** | Targets RHEL, Rocky, Alma and CentOS 10 (9 is deprecated) |
+| **Enterprise Linux focused** | Targets RHEL, Rocky, Alma and CentOS 10 exclusively |
 | **Minimal footprint** | No heavy infrastructure dependencies; only QEMU, swtpm, and optionally noVNC |
 
 If you want an Ansible-driven, version-controlled alternative to running QEMU
@@ -37,8 +37,6 @@ is for you.
 ## Requirements
 
 - A host running Enterprise Linux 10 with hardware virtualization enabled.
-  EL9 works but [its support is
-  deprecated](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_installation.html#enterprise-linux-9-is-deprecated).
 - The EPEL repository, or a mirror carrying `swtpm`, `socat`, `genisoimage`
   and `novnc`. The collection does not enable EPEL itself.
 - `ansible-core` >= 2.15 on the control node.

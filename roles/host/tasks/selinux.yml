@@ -1,6 +1,6 @@
 ---
 # Install a minimal SELinux policy module to allow qemu-vm@.service to
-# execute /usr/libexec/qemu-kvm on EL9/EL10 with SELinux enforcing.
+# execute /usr/libexec/qemu-kvm on EL10 with SELinux enforcing.
 # Skipped entirely when SELinux is Permissive or Disabled.
 
 - name: Check SELinux enforcement status

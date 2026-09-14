@@ -15,8 +15,7 @@ Prerequisites
 **Host requirements:**
 
 - A bare-metal machine or a VM with nested virtualisation enabled (``/dev/kvm`` must exist)
-- Enterprise Linux 10 (RHEL, Rocky, Alma, or CentOS Stream). Enterprise Linux 9
-  still works, but its support is deprecated
+- Enterprise Linux 10 (RHEL, Rocky, Alma, or CentOS Stream)
 - At least 8 GB RAM and 50 GB free disk space
 - Internet access (for downloading cloud images in URL provisioning tests)
 
@@ -649,8 +648,7 @@ Test 16: Secure Boot variable store verification
 Verify that ``vms_nvram_verify`` asserts the keys of a Secure Boot store, and
 that ``nvram_expected_db_cn`` asserts a certificate in the db.
 
-The check needs ``virt-fw-vars`` from the package ``python3-virt-firmware``,
-which is in EPEL on EL9:
+The check needs ``virt-fw-vars`` from the package ``python3-virt-firmware``:
 
 .. code-block:: bash
 

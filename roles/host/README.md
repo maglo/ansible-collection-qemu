@@ -19,7 +19,7 @@ It sets up the host only. The per-VM instances of all three template units are m
 ## Requirements
 
 - Ansible >= 2.15
-- Target hosts running Enterprise Linux 10 (Enterprise Linux 9 still works but is [deprecated](https://github.com/maglo/ansible-collection-qemu/issues/149))
+- Target hosts running Enterprise Linux 10
 - **EPEL** (or equivalent mirror) enabled on the target host — several packages installed by this role (`swtpm`, `swtpm-tools`, `socat`, `genisoimage`, and optionally `novnc`) are only available from EPEL. The collection intentionally does not manage EPEL setup to support airgapped deployments.
 
 ## Role Variables
@@ -33,7 +33,6 @@ It sets up the host only. The per-VM instances of all three template units are m
 | `host_service_group` | `qemu` | Group for the QEMU systemd service |
 | `host_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state, read by the `swtpm@.service` template (must match `vms_swtpm_state_dir`) |
 | `host_novnc_enabled` | `false` | Install the noVNC package from EPEL and deploy the `novnc@.service` systemd template (per-VM service instances managed by `maglo.qemu.vms` role) |
-| `host_el9_deprecation_warning` | `true` | Warn when the role runs on a deprecated Enterprise Linux 9 host. Set to `false` to silence the notice |
 
 The three "must match" variables above have a counterpart in the `vms` role. The template units read the `host_*` value, and the `vms` role writes to the `vms_*` value. Change one and you must change the other, or the units will look for files that the `vms` role never wrote.
 
@@ -51,7 +50,7 @@ The three "must match" variables above have a counterpart in the `vms` role. The
 
 ## SELinux
 
-`qemu-vm@.service` runs as `init_t` on EL9 and EL10, which is not allowed to execute `/usr/libexec/qemu-kvm` or `/usr/bin/swtpm`. When `getenforce` reports `Enforcing`, the role installs `checkpolicy` and `policycoreutils`, compiles the policy module in `files/selinux/qemu_vm.te`, and loads it. The step is skipped when SELinux is permissive or disabled.
+`qemu-vm@.service` runs as `init_t`, which is not allowed to execute `/usr/libexec/qemu-kvm` or `/usr/bin/swtpm`. When `getenforce` reports `Enforcing`, the role installs `checkpolicy` and `policycoreutils`, compiles the policy module in `files/selinux/qemu_vm.te`, and loads it. The step is skipped when SELinux is permissive or disabled.
 
 ## Dependencies
 

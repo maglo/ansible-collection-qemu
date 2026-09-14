@@ -22,9 +22,8 @@
       - _vms_missing_templates | length == 0
     fail_msg: >-
       These NVRAM templates do not exist: {{ _vms_missing_templates | join(', ') }}.
-      Install the firmware package (edk2-ovmf on EL9 and later), or correct
-      vms_ovmf_vars_template, vms_ovmf_vars_secboot_template or the per-VM
-      nvram_template key.
+      Install the firmware package (edk2-ovmf), or correct vms_ovmf_vars_template,
+      vms_ovmf_vars_secboot_template or the per-VM nvram_template key.
   vars:
     _vms_missing_templates: >-
       {{ _vms_nvram_templates.results | rejectattr('stat.exists')

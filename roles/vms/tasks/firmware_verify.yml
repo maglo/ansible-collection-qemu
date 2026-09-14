@@ -23,7 +23,7 @@
     msg: >-
       Skipping the NVRAM verification of {{ _vms_secure_boot_vms | length }} VM(s):
       virt-fw-vars is not installed. Install the package python3-virt-firmware
-      to enable the verification. On EL9 the package is in EPEL.
+      to enable the verification. The package is in EPEL.
   when: _vms_nvram_tool.rc != 0
 
 - name: Read the UEFI variables of {{ item.name }}

@@ -25,7 +25,3 @@ host_novnc_enabled: false
 
 # Base directory for per-VM swtpm state
 host_swtpm_state_dir: /var/lib/swtpm
-
-# Whether to warn when the role runs on a deprecated Enterprise Linux 9 host.
-# Set to false to silence the notice until EL9 support is removed.
-host_el9_deprecation_warning: true
