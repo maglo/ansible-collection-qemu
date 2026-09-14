@@ -37,6 +37,9 @@ argument_specs:
             C(cpus) (overrides C(vms_default_cpus)),
             C(cpu_model) (overrides C(vms_default_cpu)),
             C(vnc) (VNC display number, auto-generated from VM name if not specified),
+            C(vnc_address) (address that the VNC console binds),
+            C(serial_socket) (path of the serial console socket),
+            C(qmp_socket) (path of the QMP socket),
             C(smbios_oem_strings) (list of SMBIOS type 11 OEM strings),
             C(usb_disk_image) (path to USB disk image: iso/raw/img/qcow2),
             C(usb_boot_priority) (boot from attached USB first; defaults to true when usb image is set),
@@ -166,6 +169,48 @@ argument_specs:
               Two names can give the same number; the role then fails the run
               and asks for an explicit value.
             type: int
+          vnc_address:
+            description:
+              - >-
+                Address that the VNC console of this VM binds.
+                Overrides C(vms_default_vnc_address).
+              - >-
+                An empty string binds every interface. C(127.0.0.1) reaches the
+                console through the host only, which suits a console service
+                that proxies it. Wrap an IPv6 address in brackets, for example
+                C([::1]).
+              - >-
+                The noVNC instance of a VM connects to C(localhost), so it
+                keeps working with a loopback address.
+            type: str
+          serial_socket:
+            description:
+              - >-
+                Path of the UNIX socket that carries the guest serial console.
+                Overrides C(vms_default_serial_socket).
+              - >-
+                When neither is set, the VM gets
+                C(/var/lib/qemu/<name>/serial.sock). The role creates that
+                directory. A path anywhere else needs a directory that the
+                deployer creates and that the QEMU user can write.
+              - >-
+                The path may not hold a space, because systemd splits
+                C($QEMU_ARGS) at each space.
+            type: str
+          qmp_socket:
+            description:
+              - >-
+                Path of the QMP control socket of this VM.
+                Overrides C(vms_default_qmp_socket).
+              - >-
+                When neither is set, the VM gets
+                C(/var/lib/qemu/<name>/qmp.sock). QMP is machine readable and
+                carries typed commands such as C(send-key) and C(screendump).
+                The human monitor stays on C(monitor.sock).
+              - >-
+                The same directory rule and space rule as C(serial_socket)
+                apply.
+            type: str
           smbios_oem_strings:
             description:
               - List of SMBIOS type 11 OEM strings for this VM.
@@ -434,3 +479,45 @@ argument_specs:
           Used when VMs do not specify C(shutdown_timeout).
         type: int
         default: 120
+      vms_default_vnc_address:
+        description:
+          - >-
+            Default address that the VNC console binds for VMs that do not
+            specify C(vnc_address).
+          - >-
+            An empty string binds every interface, which is what QEMU does for
+            C(-vnc :N).
+          - >-
+            This default is deprecated. The next release changes it to
+            C(127.0.0.1), so that the console of a VM is reachable through the
+            host only. Set C(vnc_address) per VM, or set this variable, to
+            choose the address yourself.
+        type: str
+        default: ""
+      vms_vnc_address_deprecation_warning:
+        description: >-
+          Whether to warn when a VM leaves C(vnc_address) unset and therefore
+          relies on the default that the next release changes.
+          Set it to C(false) to silence the notice.
+        type: bool
+        default: true
+      vms_default_serial_socket:
+        description:
+          - >-
+            Default path of the serial console socket for VMs that do not
+            specify C(serial_socket).
+          - >-
+            When it is null, each VM gets
+            C(/var/lib/qemu/<name>/serial.sock). A fixed value gives every VM
+            the same path, so it suits a host with one VM only; the role fails
+            the run when two VMs would share a socket.
+        type: str
+      vms_default_qmp_socket:
+        description:
+          - >-
+            Default path of the QMP socket for VMs that do not specify
+            C(qmp_socket).
+          - >-
+            When it is null, each VM gets C(/var/lib/qemu/<name>/qmp.sock).
+            The role fails the run when two VMs would share a socket.
+        type: str

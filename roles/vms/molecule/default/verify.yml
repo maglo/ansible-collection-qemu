@@ -135,8 +135,15 @@
           - "'-m 2G' in _content"
           - "'-smp 2' in _content"
           - "'-cpu host' in _content"
-          - "'-nographic' in _content"
+          - "'-display none' in _content"
+          - "'-nographic' not in _content"
           - "'-vnc :' in _content"
+          - "'-chardev socket,id=ser0,path=/var/lib/qemu/testvm/serial.sock,server=on,wait=off' in _content"
+          - "'-serial chardev:ser0' in _content"
+          - "'-monitor unix:/var/lib/qemu/testvm/monitor.sock,server=on,wait=off' in _content"
+          - "'-qmp unix:/var/lib/qemu/testvm/qmp.sock,server=on,wait=off' in _content"
+          # The short form logs a deprecation on every VM start.
+          - "'server,nowait' not in _content"
           - "'-drive if=virtio,format=qcow2,file=/var/lib/qemu/images/testvm.qcow2' in _content"
           - "'-drive if=pflash,format=raw,readonly=on,file=' in _content"
           - "'testvm_VARS.fd' in _content"
@@ -557,6 +564,36 @@
       ansible.builtin.assert:
         that:
           - "'-cpu kvm64' in _content"
+
+    # ── VM config — testvm-console (every console key set by hand) ──
+    - name: Read testvm-console config
+      ansible.builtin.slurp:
+        src: /etc/qemu/vms/testvm-console.conf
+      register: testvm_console_conf
+
+    - name: Assert testvm-console binds VNC to loopback and uses its own sockets
+      vars:
+        _content: "{{ testvm_console_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-vnc 127.0.0.1:12' in _content"
+          - "'-chardev socket,id=ser0,path=/var/lib/qemu/testvm-console/console.sock,server=on,wait=off' in _content"
+          - "'-serial chardev:ser0' in _content"
+          - "'-qmp unix:/var/lib/qemu/testvm-console/control.sock,server=on,wait=off' in _content"
+          # The monitor socket keeps its fixed path.
+          - "'-monitor unix:/var/lib/qemu/testvm-console/monitor.sock,server=on,wait=off' in _content"
+
+    - name: Stat testvm-console runtime directory
+      ansible.builtin.stat:
+        path: /var/lib/qemu/testvm-console
+      register: console_runtime_dir
+
+    - name: Assert testvm-console runtime directory is present
+      ansible.builtin.assert:
+        that:
+          - console_runtime_dir.stat.exists
+          - console_runtime_dir.stat.isdir
+          - console_runtime_dir.stat.pw_name == 'qemu'
 
     # ── bridge.conf ──────────────────────────────────────────
     - name: Stat bridge.conf

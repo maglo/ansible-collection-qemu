@@ -131,6 +131,6 @@
 
     - name: Assert monitor socket in config
       ansible.builtin.assert:
-        that: "'-monitor unix:/var/lib/qemu/lifecycle-test-present/monitor.sock,server,nowait' in _config_content"
+        that: "'-monitor unix:/var/lib/qemu/lifecycle-test-present/monitor.sock,server=on,wait=off' in _config_content"
         fail_msg: "Monitor socket argument should be in VM config"
         success_msg: "Monitor socket correctly configured in VM config"

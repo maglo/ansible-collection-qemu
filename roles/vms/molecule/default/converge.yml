@@ -92,3 +92,13 @@
           cpu_model: kvm64
           vnc: 11
           state: present
+        # Every console key set by hand: a loopback VNC bind and both sockets
+        # somewhere other than the derived path.
+        - name: testvm-console
+          disk_size: 1G
+          uefi: false
+          vnc: 12
+          vnc_address: 127.0.0.1
+          serial_socket: /var/lib/qemu/testvm-console/console.sock
+          qmp_socket: /var/lib/qemu/testvm-console/control.sock
+          state: present
