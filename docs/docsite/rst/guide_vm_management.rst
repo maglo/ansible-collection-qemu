@@ -120,9 +120,9 @@ Check the result on the host:
 The role writes that ``.conf`` file from a template and overwrites it on the
 next run, so do not edit it by hand. The generated file holds every argument
 the VM needs: the pflash drives of the UEFI firmware (``vms_default_uefi`` is
-true), the ``-monitor`` socket that the shutdown path writes to, the serial
-console socket, the QMP socket, the VNC display and its bind address, the MAC
-address, and the disk, TPM, cloud-init, USB and SMBIOS arguments of that VM.
+true), the serial console socket, the QMP socket that the shutdown path sends
+over, the VNC display and its bind address, the MAC address, and the disk, TPM,
+cloud-init, USB and SMBIOS arguments of that VM.
 
 .. note::
 
@@ -130,9 +130,8 @@ address, and the disk, TPM, cloud-init, USB and SMBIOS arguments of that VM.
    ``EnvironmentFile`` with a ``QEMU_ARGS`` line into ``vms_vm_config_dir``
    and start ``qemu-vm@<name>``. Such a file gets none of the arguments above;
    you write each one yourself, including the pflash drives of a UEFI VM, the
-   ``-monitor`` socket that a graceful shutdown needs, and the serial and QMP
-   sockets. Give the file a
-   name that no entry in ``vms_list`` uses, or the next run of the role
+   serial socket, and the QMP socket that a graceful shutdown needs. Give the
+   file a name that no entry in ``vms_list`` uses, or the next run of the role
    overwrites it.
 
 Managing VMs
@@ -143,10 +142,10 @@ Change ``state`` in ``vms_list`` and run the play again:
 - ``state: stopped`` stops the unit and leaves it enabled. This is a plain
   ``systemctl stop``, so read the warning below: it does not ask the guest to
   power down.
-- ``state: restarted`` writes ``system_powerdown`` to the QEMU monitor socket
-  of the VM, waits up to ``shutdown_timeout`` seconds (default 120) for QEMU
-  to exit, stops the unit either way, cycles the swtpm and noVNC instances of
-  the VM, and starts the VM again.
+- ``state: restarted`` sends ``system_powerdown`` over the QMP socket of the
+  VM, waits up to ``shutdown_timeout`` seconds (default 120) for QEMU to exit,
+  stops the unit either way, cycles the swtpm and noVNC instances of the VM,
+  and starts the VM again.
 - ``state: absent`` shuts the guest down the same way and then removes every
   artifact of the VM: the configuration file, the disk image, the UEFI
   variable store, the TPM state, the cloud-init seed ISO and the systemd
@@ -174,7 +173,7 @@ Change ``state`` in ``vms_list`` and run the play again:
    ``ExecStop=/bin/kill -SIGTERM $MAINPID`` with ``TimeoutStopSec=120``, so
    systemd sends SIGTERM to QEMU. QEMU exits without telling the guest, which
    leaves the guest file systems dirty. Use ``state: restarted`` or
-   ``state: absent`` to power the guest down over the QEMU monitor first.
+   ``state: absent`` to power the guest down over QMP first.
 
 Applying a configuration change
 -------------------------------
@@ -204,7 +203,9 @@ one feature at a time:
   reads.
 - ``novnc_enabled`` and ``novnc_port`` — the noVNC web console.
 - ``vnc_address``, ``serial_socket`` and ``qmp_socket`` — where the consoles
-  and the control channel of the VM listen. ``vnc_address`` binds every
+  and the control channel of the VM listen. QMP is the whole control channel:
+  a VM has no ``-monitor`` socket, and ``human-monitor-command`` carries the
+  monitor vocabulary over QMP. ``vnc_address`` binds every
   interface today; the next release changes that default to ``127.0.0.1``.
 - ``cpu_model``, ``memory``, ``cpus``, ``vnc`` and ``mac_address`` — the
   emulated hardware.

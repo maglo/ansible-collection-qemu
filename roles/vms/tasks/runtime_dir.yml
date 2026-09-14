@@ -1,8 +1,8 @@
 ---
-# Each VM gets a runtime directory. QEMU opens its monitor socket, its QMP
-# socket and its serial console socket there, and the SMBIOS OEM string files
-# live in a subdirectory of it. The graceful shutdown path writes
-# `system_powerdown` to the monitor socket.
+# Each VM gets a runtime directory. QEMU opens its QMP socket and its serial
+# console socket there, and the SMBIOS OEM string files live in a subdirectory
+# of it. The graceful shutdown path sends `system_powerdown` over the QMP
+# socket.
 #
 # A VM that points `serial_socket` or `qmp_socket` somewhere else needs a
 # directory that the deployer creates.

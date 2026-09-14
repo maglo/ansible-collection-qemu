@@ -127,15 +127,22 @@ Networking
 Consoles
 --------
 
-Every VM gets three consoles: a serial console on a UNIX socket, a VNC console
-on a TCP port, and the human monitor on a UNIX socket.
+Every VM gets two consoles and one control channel: a serial console on a UNIX
+socket, a VNC console on a TCP port, and a QMP socket.
 
 The serial console is at ``/var/lib/qemu/<name>/serial.sock``, and
-``serial_socket`` moves it. Beside it sits a QMP socket at
+``serial_socket`` moves it. Beside it sits the QMP socket at
 ``/var/lib/qemu/<name>/qmp.sock``, which ``qmp_socket`` moves. QMP is the
 machine readable control channel: it carries typed commands such as
-``send-key`` and ``screendump``, with structured errors. The human monitor
-keeps its own socket at ``/var/lib/qemu/<name>/monitor.sock``.
+``send-key`` and ``screendump``, with structured errors, and the role sends
+``system_powerdown`` over it on a graceful shutdown.
+
+A VM has no ``-monitor`` socket. QMP carries every human monitor command, so
+nothing is lost:
+
+.. code-block:: json
+
+   {"execute": "human-monitor-command", "arguments": {"command-line": "info block"}}
 
 QEMU creates every socket at start and does not wait for a client, so a VM
 boots with nothing attached. Read the guest console with any socket client:
@@ -255,10 +262,11 @@ VM lifecycle
    * - ``absent``
      - Destroy the VM and every artifact of it. Needs ``force_destroy: true``.
 
-A graceful shutdown writes ``system_powerdown`` to the QEMU monitor socket,
-which the guest sees as an ACPI power button press, and waits up to
-``shutdown_timeout`` seconds (default 120). The role then stops the unit either
-way, because a guest may ignore the request.
+A graceful shutdown sends ``system_powerdown`` over the QMP socket, which the
+guest sees as an ACPI power button press, and waits up to ``shutdown_timeout``
+seconds (default 120). QMP answers each command, so the role waits only when
+QEMU accepted it. The role then stops the unit either way, because a guest may
+ignore the request.
 
 A configuration change is written to the ``.conf`` file but does not restart a
 running VM. Use ``state: restarted`` to apply it.

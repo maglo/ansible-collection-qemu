@@ -127,14 +127,16 @@ The role manages each VM as a `qemu-vm@<name>.service` systemd unit. The per-VM 
 - **`present`** (default) — the role writes the config file and leaves the `qemu-vm@` unit alone. Use it to prepare a VM without starting it, or on a host without KVM. The swtpm and noVNC instances of the VM are still started, so that the VM can be started by hand afterwards.
 - **`started`** — the role enables and starts the unit, then checks that it is active.
 - **`stopped`** — the role enables the unit but stops it.
-- **`restarted`** — the role shuts the guest down over the QEMU monitor and starts the VM again.
+- **`restarted`** — the role shuts the guest down over QMP and starts the VM again.
 - **`absent`** — **destructive**. The role shuts the guest down and removes every artifact of the VM. It needs `force_destroy: true`.
 
 A configuration change is written to the `.conf` file but does not restart a running VM. Use `state: restarted` to apply it.
 
 ### Graceful shutdown
 
-`state: restarted` and `state: absent` shut the guest down instead of killing QEMU. The role writes `system_powerdown` to the QEMU monitor socket of the VM, which the guest sees as an ACPI power button press, and waits up to `shutdown_timeout` seconds (default 120) for QEMU to exit. It then stops the unit either way, because a guest may ignore the request and because `Restart=on-failure` would otherwise bring a VM that exited non-zero straight back up.
+`state: restarted` and `state: absent` shut the guest down instead of killing QEMU. The role sends `system_powerdown` over the QMP socket of the VM, which the guest sees as an ACPI power button press, and waits up to `shutdown_timeout` seconds (default 120) for QEMU to exit. QMP answers every command, so the role waits only when QEMU accepted it, and a refusal no longer costs the full timeout. It then stops the unit either way, because a guest may ignore the request and because `Restart=on-failure` would otherwise bring a VM that exited non-zero straight back up.
+
+**Upgrading from a release before 0.6.0:** a VM that is already running was started from a command line with no QMP socket, because the role does not restart a running VM to apply a config change. Its first graceful shutdown finds no socket and falls through to the unit stop, which is SIGTERM. Restart each VM once after the upgrade to close the gap.
 
 `systemctl stop qemu-vm@<name>` is not the same thing: the unit sends SIGTERM to QEMU, which exits at once and leaves the guest file systems dirty.
 
@@ -161,7 +163,7 @@ The role removes these paths, whether or not the VM still carries the key that c
 | `/var/lib/qemu/images/{name}_VARS.fd` | UEFI variable store |
 | `/var/lib/qemu/images/{name}_VARS.fd.state` | UEFI variable store state file |
 | `/var/lib/qemu/images/{name}_VARS.fd.secboot` | Secure Boot marker of versions before 0.4.0 |
-| `/var/lib/qemu/{name}/` | Runtime directory: monitor socket, QMP socket, serial socket and SMBIOS files |
+| `/var/lib/qemu/{name}/` | Runtime directory: QMP socket, serial socket and SMBIOS files |
 | `/var/lib/swtpm/{name}/` | swtpm state directory |
 | `/var/lib/swtpm/{name}.state` | swtpm state file |
 | `/etc/systemd/system/qemu-vm@{name}.service.d/` | systemd drop-in directory |
@@ -287,14 +289,22 @@ Two names can give the same address. The role checks for that and fails with bot
 
 ## Serial console and QMP
 
-Each VM opens two UNIX sockets in its runtime directory, beside the monitor
-socket. QEMU creates both when it starts and does not wait for a client.
+Each VM opens two UNIX sockets in its runtime directory. QEMU creates both
+when it starts and does not wait for a client.
 
 | Socket | Default path | What it carries |
 |---|---|---|
 | Serial console | `/var/lib/qemu/<name>/serial.sock` | The guest serial console: the boot messages, the login prompt and the keystrokes a client sends |
-| QMP | `/var/lib/qemu/<name>/qmp.sock` | The machine readable control channel, with typed commands such as `send-key` and `screendump` |
-| Monitor | `/var/lib/qemu/<name>/monitor.sock` | The human monitor. The role writes `system_powerdown` here on a graceful shutdown |
+| QMP | `/var/lib/qemu/<name>/qmp.sock` | The control channel, with typed commands such as `send-key` and `screendump`. The role sends `system_powerdown` here on a graceful shutdown |
+
+**A VM has no `-monitor` socket.** QMP is the whole control channel. It is
+machine readable, its errors are structured, and it carries every human
+monitor command, so the monitor vocabulary is still reachable:
+
+```bash
+echo '{"execute": "human-monitor-command", "arguments": {"command-line": "info block"}}' \
+  | socat - UNIX-CONNECT:/var/lib/qemu/testvm/qmp.sock
+```
 
 Set `serial_socket` or `qmp_socket` per VM to move a socket. The role creates
 `/var/lib/qemu/<name>/` only. A path anywhere else needs a directory that the
@@ -312,10 +322,14 @@ the start and stop lines of systemd. Read the guest console at the socket:
 socat - UNIX-CONNECT:/var/lib/qemu/testvm/serial.sock
 ```
 
-Drive the VM over QMP with any QMP client:
+Drive the VM over QMP with any QMP client. QMP needs the capabilities
+handshake before it accepts a command:
 
 ```bash
-socat - UNIX-CONNECT:/var/lib/qemu/testvm/qmp.sock
+printf '%s\n%s\n' \
+  '{"execute": "qmp_capabilities"}' \
+  '{"execute": "query-status"}' \
+  | socat -t 2 - UNIX-CONNECT:/var/lib/qemu/testvm/qmp.sock
 ```
 
 ## VNC Console Access
@@ -708,7 +722,7 @@ Manage VM lifecycle states with the `state` parameter:
             force_destroy: true  # Required safety flag
 ```
 
-`restarted` shuts the guest down over the QEMU monitor, waits up to `shutdown_timeout` seconds, stops the unit, and starts the VM again. `absent` does the same and then removes every artifact of the VM; it needs `force_destroy: true`. See [Graceful shutdown](#graceful-shutdown) and [Destroying VMs](#destroying-vms).
+`restarted` shuts the guest down over QMP, waits up to `shutdown_timeout` seconds, stops the unit, and starts the VM again. `absent` does the same and then removes every artifact of the VM; it needs `force_destroy: true`. See [Graceful shutdown](#graceful-shutdown) and [Destroying VMs](#destroying-vms).
 
 ## License
 

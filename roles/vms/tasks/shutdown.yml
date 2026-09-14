@@ -3,10 +3,16 @@
 # (restart.yml or destroy.yml).
 #
 # QEMU exits on SIGTERM without telling the guest, which leaves the guest file
-# systems dirty. So ask the guest first, over the QEMU monitor socket, and give
-# it `shutdown_timeout` seconds. Then stop the unit either way: the guest may
+# systems dirty. So ask the guest first, over QMP, and give it
+# `shutdown_timeout` seconds. Then stop the unit either way: the guest may
 # ignore the request, and `Restart=on-failure` would otherwise bring a VM that
 # exited non-zero straight back up.
+#
+# A VM that still runs from a command line written before 0.6.0 has no QMP
+# socket, because the role does not restart a running VM to apply a config
+# change. The send below then fails, this file falls through to the unit stop,
+# and that VM gets one ungraceful shutdown. Restarting each VM once after the
+# upgrade closes the gap.
 
 - name: Check VM service status for {{ item.name }}
   ansible.builtin.systemd_service:
@@ -15,11 +21,22 @@
   register: _vms_shutdown_status
   changed_when: false
 
+# QMP needs the capabilities handshake before it accepts a command, so both
+# lines go in one stream. QEMU answers each with `{"return": {}}` or with an
+# `{"error": ...}` object, and the next task reads that answer.
+#
+# `-t 2` is how long socat waits for those answers once it has sent both lines.
+# QEMU keeps the connection open while the guest powers down, so socat always
+# spends this whole time; two seconds is generous for a local socket and small
+# beside `shutdown_timeout`.
 - name: Send ACPI shutdown to {{ item.name }}
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      echo "system_powerdown" | socat - UNIX-CONNECT:/var/lib/qemu/{{ item.name }}/monitor.sock
+      printf '%s\n%s\n' \
+        '{"execute": "qmp_capabilities"}' \
+        '{"execute": "system_powerdown"}' \
+        | socat -t 2 - UNIX-CONNECT:{{ item.qmp_socket }}
     executable: /bin/bash
   become: true
   when:
@@ -29,15 +46,22 @@
   changed_when: true
   register: _vms_shutdown_acpi
 
-# QEMU removes the monitor socket when it exits. Waiting for the socket to
+# QEMU removes the QMP socket when it exits. Waiting for the socket to
 # disappear therefore waits for the guest to finish powering down. A timeout
 # is not an error here: the next task stops the unit regardless.
+#
+# The wait runs only when QEMU acknowledged the command. A non-zero socat exit
+# means the socket was not there, and an `error` in the answer means QEMU
+# refused; in both cases nothing is powering down and waiting would burn
+# `shutdown_timeout` seconds for nothing.
 - name: Wait for graceful shutdown of {{ item.name }}
   ansible.builtin.wait_for:
-    path: /var/lib/qemu/{{ item.name }}/monitor.sock
+    path: "{{ item.qmp_socket }}"
     state: absent
     timeout: "{{ item.shutdown_timeout }}"
-  when: (_vms_shutdown_acpi.rc | default(1)) == 0
+  when:
+    - (_vms_shutdown_acpi.rc | default(1)) == 0
+    - '"error" not in (_vms_shutdown_acpi.stdout | default(""))'
   failed_when: false
 
 - name: Stop the VM service of {{ item.name }}

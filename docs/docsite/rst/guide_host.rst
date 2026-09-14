@@ -81,7 +81,7 @@ add a package, and keep the default entries in the list:
      true, so every VM needs it unless you set ``uefi: false``.
    - ``swtpm`` and ``swtpm-tools`` run the emulated TPM of a VM with
      ``tpm: true``.
-   - ``socat`` writes ``system_powerdown`` to the QEMU monitor socket. Without
+   - ``socat`` sends ``system_powerdown`` over the QMP socket of a VM. Without
      it, ``state: restarted`` and ``state: absent`` cannot shut the guest down
      cleanly.
    - ``genisoimage`` builds the cloud-init seed ISO of a VM that sets a
