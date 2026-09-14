@@ -82,6 +82,29 @@
         fail_msg: "lifecycle-test-tpm swtpm state should have been removed"
         success_msg: "lifecycle-test-tpm swtpm state was removed as expected"
 
+    # Verify lifecycle-test-solo was destroyed by the destroy-only run in
+    # side_effect.yml. That run holds no VM the role keeps, so `_vms_active_vms`
+    # is empty throughout it — the shape that used to abort the play before
+    # destroy.yml ran (#169).
+    - name: Stat the artifacts of lifecycle-test-solo
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: _solo_paths
+      loop:
+        - /var/lib/qemu/images/lifecycle-test-solo.qcow2
+        - /etc/qemu/vms/lifecycle-test-solo.conf
+        - /var/lib/qemu/lifecycle-test-solo
+        - /var/lib/qemu/lifecycle-test-solo/smbios
+
+    - name: Assert the artifacts of lifecycle-test-solo were removed
+      ansible.builtin.assert:
+        that: not _solo_paths.results | map(attribute='stat.exists') | select | list
+        fail_msg: >-
+          A destroy-only run left these behind:
+          {{ _solo_paths.results | selectattr('stat.exists')
+             | map(attribute='item') | list | join(', ') }}
+        success_msg: "The destroy-only run removed every lifecycle-test-solo artifact"
+
     # Verify monitor socket directory created for existing VM
     - name: Check monitor runtime dir exists for lifecycle-test-present
       ansible.builtin.stat:

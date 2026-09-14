@@ -1,0 +1,24 @@
+---
+# The destroy-only run: one `vms_list`, and every entry in it is `absent`.
+#
+# This is a side effect rather than one more play in converge.yml because
+# `set_fact` outlives the play that ran it. converge.yml creates VMs first, so
+# a destroy-only play appended there would find `_vms_smbios_managed` already
+# defined by that earlier run and would never exercise the path. Molecule runs
+# side_effect.yml as its own ansible-playbook, with no facts carried over,
+# which is what a consumer's teardown run actually looks like.
+#
+# Regression test for #169: the role used to fail this run with
+# `'_vms_smbios_managed' is undefined`, and died before destroy.yml had shut
+# anything down or removed anything.
+- name: Side effect - destroy every VM in the list
+  hosts: all
+  tasks:
+    - name: Run the role with nothing but absent VMs
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - name: lifecycle-test-solo
+            state: absent
+            force_destroy: true

@@ -7,6 +7,17 @@
 #
 # Each import is gated on the selection it works on, so a play that manages
 # plain VMs never evaluates the firmware, TPM or noVNC tasks.
+#
+# The three files that work on the whole of `_vms_active_vms` — disk.yml,
+# monitor.yml and smbios.yml — carry no such gate, on purpose. `import_tasks`
+# is static, so a `when` on the import is copied onto every task of the file
+# rather than skipping the file, and Ansible builds a task's loop before it
+# evaluates that task's `when`. A loop that reads a variable the same file
+# defines is therefore still templated on a run the gate meant to skip, and
+# raises on it: a destroy-only run, where `_vms_active_vms` is empty, died on
+# the undefined `_vms_smbios_managed` (#169). Every task in those three files
+# loops over a selection that is empty on such a run, so each one no-ops by
+# itself and needs no condition.
 
 # ── Facts ──────────────────────────────────────────────────
 # deprecations.yml needs ansible_distribution_major_version to recognise an
@@ -44,7 +55,6 @@
 
 - name: Create VM disk images
   ansible.builtin.import_tasks: disk.yml
-  when: _vms_active_vms | length > 0
 
 - name: Configure per-VM TPM emulation
   ansible.builtin.import_tasks: tpm.yml
@@ -60,11 +70,9 @@
 
 - name: Setup QEMU monitor sockets
   ansible.builtin.import_tasks: monitor.yml
-  when: _vms_active_vms | length > 0
 
 - name: Write per-VM SMBIOS OEM strings
   ansible.builtin.import_tasks: smbios.yml
-  when: _vms_active_vms | length > 0
 
 - name: Validate USB disk image attachments
   ansible.builtin.import_tasks: usb_disk.yml

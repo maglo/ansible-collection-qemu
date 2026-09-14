@@ -30,9 +30,11 @@ verifier:
 # the behaviour under test, not a defect: `state: absent` is meant to change
 # the host.
 #
-# Nothing else is dropped. `verify` still runs and asserts that the destroyed
-# VM is gone and that the VM whose destroy was refused survived. The scenarios
-# that converge to a steady state — default, secureboot, novnc, and both host
+# Nothing else is dropped. `side_effect` runs the destroy-only teardown of
+# `lifecycle-test-solo`, in its own ansible-playbook so that no fact of the
+# converge carries into it, and `verify` asserts that both destroyed VMs are
+# gone and that the VM whose destroy was refused survived. The scenarios that
+# converge to a steady state — default, secureboot, novnc, and both host
 # scenarios — keep the idempotence check.
 scenario:
   test_sequence:
