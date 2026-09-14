@@ -155,15 +155,12 @@ Supported platforms
    * - Enterprise Linux (RHEL, Rocky, Alma, CentOS)
      - 10
      - Supported
-   * - Enterprise Linux (RHEL, Rocky, Alma, CentOS)
-     - 9
-     - Deprecated — see :ref:`ansible_collections.maglo.qemu.docsite.guide_installation`
 
 **ansible-core:** 2.15 or newer. CI runs the sanity tests against
 ``stable-2.16`` and ``stable-2.17``.
 
-The deprecation covers the *host* only. A VM may keep running an EL9 guest
-image for as long as you like — the guest OS is not the collection's concern.
+This covers the *host* only. A VM may run any guest image, including an EL9
+one — the guest OS is not the collection's concern.
 
 .. toctree::
    :caption: Guides

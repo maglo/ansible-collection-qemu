@@ -1,0 +1,11 @@
+---
+removed_features:
+  - "host role - support for Enterprise Linux 9 is removed. The deprecation was announced in 0.5.0. EL10 is now the only supported host platform: EL9 is gone from the CI matrix and from the ``platforms`` list of the role, and the ``host_el9_deprecation_warning`` variable is removed along with the notice it controlled (https://github.com/maglo/ansible-collection-qemu/issues/168)."
+  - "vms role - support for Enterprise Linux 9 is removed. The deprecation was announced in 0.5.0. This covers the EL9 *host* only; a VM may keep running an EL9 guest image. The ``vms_el9_deprecation_warning`` variable is removed along with the notice it controlled (https://github.com/maglo/ansible-collection-qemu/issues/168)."
+breaking_changes:
+  - "Both roles now support Enterprise Linux 10 only. A play that targets an EL9 host is no longer tested and no longer supported. Upgrade the host to Enterprise Linux 10, or pin the collection to 0.5.x (https://github.com/maglo/ansible-collection-qemu/issues/168)."
+  - "host role - the ``host_el9_deprecation_warning`` variable is removed. A playbook that passes it as a role parameter now fails argument validation with ``Supported parameters include: ...``; one that sets it as a play or inventory variable is unaffected, because the variable is simply no longer read. Delete the line either way (https://github.com/maglo/ansible-collection-qemu/issues/168)."
+  - "vms role - the ``vms_el9_deprecation_warning`` variable is removed. A playbook that passes it as a role parameter now fails argument validation with ``Supported parameters include: ...``; one that sets it as a play or inventory variable is unaffected, because the variable is simply no longer read. Delete the line either way (https://github.com/maglo/ansible-collection-qemu/issues/168)."
+minor_changes:
+  - "vms role - the role no longer gathers facts. ``ansible_distribution_major_version`` was read only by the EL9 deprecation notice, so the ``setup`` task at the top of the role goes with it (https://github.com/maglo/ansible-collection-qemu/issues/168)."
+  - "Molecule - the scenarios default to a Rocky Linux 10 container. ``EL_VERSION`` still overrides the major version, but an unset ``EL_VERSION`` no longer tests a platform the collection does not support (https://github.com/maglo/ansible-collection-qemu/issues/168)."

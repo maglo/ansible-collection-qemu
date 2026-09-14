@@ -19,8 +19,7 @@ Requirements
      - ``ansible-core`` 2.15 or newer. CI runs the sanity tests against
        ``stable-2.16`` and ``stable-2.17``.
    * - Target host
-     - Enterprise Linux 10 (RHEL, Rocky, Alma, CentOS). EL9 still works, but
-       its support is deprecated — see `Enterprise Linux 9 is deprecated`_.
+     - Enterprise Linux 10 (RHEL, Rocky, Alma, CentOS).
    * - CPU
      - Hardware virtualization (Intel VT-x or AMD-V) enabled in the
        BIOS/UEFI — see `Verify hardware virtualization`_.
@@ -76,8 +75,8 @@ Package repositories
 --------------------
 
 The ``maglo.qemu.host`` role installs ``swtpm``, ``swtpm-tools``, ``socat``,
-``genisoimage`` and, optionally, ``novnc``. On EL9 and EL10 these come from
-**EPEL** (Extra Packages for Enterprise Linux). Enable it before the first run:
+``genisoimage`` and, optionally, ``novnc``. These come from **EPEL** (Extra
+Packages for Enterprise Linux). Enable it before the first run:
 
 .. code-block:: bash
 
@@ -89,28 +88,6 @@ The ``maglo.qemu.host`` role installs ``swtpm``, ``swtpm-tools``, ``socat``,
    repository automatically is the wrong default for an airgapped or otherwise
    restricted host. Enable EPEL yourself, or point the host at a mirror that
    carries these packages.
-
-Enterprise Linux 9 is deprecated
---------------------------------
-
-Support for **EL9 hosts** is deprecated and will be removed in a release after
-the next one. Until then EL9 remains fully supported and stays in the CI
-matrix, so nothing breaks today. Plan an upgrade of your QEMU hosts to
-Enterprise Linux 10.
-
-Both roles print a warning when they run on an EL9 host. Once you have
-acknowledged the deprecation you can silence it:
-
-.. code-block:: yaml
-
-   host_el9_deprecation_warning: false
-   vms_el9_deprecation_warning: false
-
-This deprecation covers the **host** only. A VM may keep running an EL9 guest
-image for as long as you like — the guest OS is not the collection's concern.
-
-Progress is tracked in `issue #149
-<https://github.com/maglo/ansible-collection-qemu/issues/149>`_.
 
 Next steps
 ----------
