@@ -49,7 +49,8 @@ The role checks the whole list before it changes anything on the host. It
 rejects a duplicate VM name, a name that systemd cannot use as an instance
 name, ``secure_boot`` without ``uefi``, a ``disk_image_url`` with a disk
 format other than qcow2, two VMs that would share a VNC display, a MAC
-address or a noVNC port, and ``state: absent`` without ``force_destroy``. A
+address, a noVNC port, a serial socket or a QMP socket, and
+``state: absent`` without ``force_destroy``. A
 run that cannot finish therefore fails before it writes the first file.
 
 TPM 2.0 emulation
@@ -119,17 +120,18 @@ Check the result on the host:
 The role writes that ``.conf`` file from a template and overwrites it on the
 next run, so do not edit it by hand. The generated file holds every argument
 the VM needs: the pflash drives of the UEFI firmware (``vms_default_uefi`` is
-true), the ``-monitor`` socket that the shutdown path writes to, the VNC
-display, the MAC address, and the disk, TPM, cloud-init, USB and SMBIOS
-arguments of that VM.
+true), the ``-monitor`` socket that the shutdown path writes to, the serial
+console socket, the QMP socket, the VNC display and its bind address, the MAC
+address, and the disk, TPM, cloud-init, USB and SMBIOS arguments of that VM.
 
 .. note::
 
    A VM that the role does not manage can still use the unit. Write your own
    ``EnvironmentFile`` with a ``QEMU_ARGS`` line into ``vms_vm_config_dir``
    and start ``qemu-vm@<name>``. Such a file gets none of the arguments above;
-   you write each one yourself, including the pflash drives of a UEFI VM and
-   the ``-monitor`` socket that a graceful shutdown needs. Give the file a
+   you write each one yourself, including the pflash drives of a UEFI VM, the
+   ``-monitor`` socket that a graceful shutdown needs, and the serial and QMP
+   sockets. Give the file a
    name that no entry in ``vms_list`` uses, or the next run of the role
    overwrites it.
 
@@ -157,8 +159,11 @@ Change ``state`` in ``vms_list`` and run the play again:
    # Check status
    systemctl status qemu-vm@web01
 
-   # Read the console output
+   # Read the messages of QEMU itself, and the start and stop lines
    journalctl -u qemu-vm@web01
+
+   # Read the guest serial console
+   socat - UNIX-CONNECT:/var/lib/qemu/web01/serial.sock
 
    # Disable auto-start
    systemctl disable qemu-vm@web01
@@ -198,6 +203,9 @@ one feature at a time:
 - ``smbios_oem_strings`` — SMBIOS type 11 OEM strings, which ``systemd-stub``
   reads.
 - ``novnc_enabled`` and ``novnc_port`` — the noVNC web console.
+- ``vnc_address``, ``serial_socket`` and ``qmp_socket`` — where the consoles
+  and the control channel of the VM listen. ``vnc_address`` binds every
+  interface today; the next release changes that default to ``127.0.0.1``.
 - ``cpu_model``, ``memory``, ``cpus``, ``vnc`` and ``mac_address`` — the
   emulated hardware.
 - ``state`` and ``force_destroy`` — the VM lifecycle.

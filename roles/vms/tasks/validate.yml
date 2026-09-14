@@ -5,6 +5,12 @@
 #
 # Each check is a single task over the whole list, not a loop over the VMs,
 # so the message names every VM at fault at once.
+#
+# A duplicate check groups the list by the key and keeps the groups that hold
+# more than one VM. `selectattr('1.1', 'defined')` is that test: element 1 of
+# a group is its list of VMs, and element 1 of that list exists only when the
+# group holds two or more. `L | difference(L | unique)` does not work here,
+# because `difference` is a set operation and always returns an empty list.
 
 - name: Validate that the VM names are usable
   ansible.builtin.assert:
@@ -30,7 +36,9 @@
       Two VMs with one name share a disk image and a systemd instance.
   vars:
     _vms_names: "{{ vms_list | map(attribute='name') | list }}"
-    _vms_dupe_names: "{{ _vms_names | difference(_vms_names | unique) | unique | list }}"
+    _vms_dupe_names: >-
+      {{ vms_list | groupby('name') | selectattr('1.1', 'defined')
+                  | map(attribute='0') | list }}
 
 - name: Validate that Secure Boot has UEFI
   ansible.builtin.assert:
@@ -71,7 +79,9 @@
       the same number. Set the `vnc` key of one of the VMs.
   vars:
     _vms_displays: "{{ _vms_active_vms | map(attribute='vnc') | list }}"
-    _vms_dupe_displays: "{{ _vms_displays | difference(_vms_displays | unique) | unique | list }}"
+    _vms_dupe_displays: >-
+      {{ _vms_active_vms | groupby('vnc') | selectattr('1.1', 'defined')
+                         | map(attribute='0') | list }}
 
 - name: Validate that no two VMs share a MAC address
   ansible.builtin.assert:
@@ -83,7 +93,42 @@
       key of one of the VMs.
   vars:
     _vms_macs: "{{ _vms_active_vms | map(attribute='mac_address') | list }}"
-    _vms_dupe_macs: "{{ _vms_macs | difference(_vms_macs | unique) | unique | list }}"
+    _vms_dupe_macs: >-
+      {{ _vms_active_vms | groupby('mac_address') | selectattr('1.1', 'defined')
+                         | map(attribute='0') | list }}
+
+# The socket paths derive from the VM name too, and vms_default_serial_socket
+# and vms_default_qmp_socket can pin every VM to one path. Two VMs on one
+# socket means the second QEMU fails to bind, and a console client reaches the
+# wrong guest.
+- name: Validate that no two VMs share a serial socket
+  ansible.builtin.assert:
+    that:
+      - _vms_serials | length == _vms_serials | unique | length
+    fail_msg: >-
+      Two VMs would open serial socket {{ _vms_dupe_serials | join(', ') }}.
+      Set the `serial_socket` key of one of them, or leave
+      vms_default_serial_socket unset so that each VM gets
+      /var/lib/qemu/<name>/serial.sock.
+  vars:
+    _vms_serials: "{{ _vms_active_vms | map(attribute='serial_socket') | list }}"
+    _vms_dupe_serials: >-
+      {{ _vms_active_vms | groupby('serial_socket') | selectattr('1.1', 'defined')
+                         | map(attribute='0') | list }}
+
+- name: Validate that no two VMs share a QMP socket
+  ansible.builtin.assert:
+    that:
+      - _vms_qmps | length == _vms_qmps | unique | length
+    fail_msg: >-
+      Two VMs would open QMP socket {{ _vms_dupe_qmps | join(', ') }}.
+      Set the `qmp_socket` key of one of them, or leave vms_default_qmp_socket
+      unset so that each VM gets /var/lib/qemu/<name>/qmp.sock.
+  vars:
+    _vms_qmps: "{{ _vms_active_vms | map(attribute='qmp_socket') | list }}"
+    _vms_dupe_qmps: >-
+      {{ _vms_active_vms | groupby('qmp_socket') | selectattr('1.1', 'defined')
+                         | map(attribute='0') | list }}
 
 - name: Validate that no two VMs share a noVNC port
   ansible.builtin.assert:
@@ -95,7 +140,9 @@
       unset so that each VM gets 6080 plus its own VNC display.
   vars:
     _vms_ports: "{{ _vms_novnc_vms | map(attribute='novnc_port') | list }}"
-    _vms_dupe_ports: "{{ _vms_ports | difference(_vms_ports | unique) | unique | list }}"
+    _vms_dupe_ports: >-
+      {{ _vms_novnc_vms | groupby('novnc_port') | selectattr('1.1', 'defined')
+                        | map(attribute='0') | list }}
 
 # Destroying a VM removes its disk image, so the operator has to ask for it
 # twice. The check runs here, before the creation phase, so that a run that

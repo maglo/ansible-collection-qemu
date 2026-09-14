@@ -19,14 +19,21 @@
 {% set _ = _args.append('-m ' ~ item.memory) %}
 {% set _ = _args.append('-smp ' ~ item.cpus) %}
 {% set _ = _args.append('-cpu ' ~ item.cpu_model) %}
-{#
-  -nographic keeps the serial console on stdout, where systemd captures it into
-  the journal. -vnc comes after it and gives the graphical console its own
-  display, so both consoles work.
+{# ── Consoles and control sockets ─────────────────────────
+  -display none makes the arguments below the only source of truth for a
+  console. -nographic also muxes the monitor onto stdio when no -monitor is
+  given, which hides where a console goes.
+
+  server=on,wait=off lets QEMU create each socket and carry on. With wait=on
+  the process stops before it opens its QMP socket, and it never starts.
 #}
-{% set _ = _args.append('-nographic') %}
-{% set _ = _args.append('-vnc :' ~ item.vnc) %}
-{% set _ = _args.append('-monitor unix:/var/lib/qemu/' ~ item.name ~ '/monitor.sock,server,nowait') %}
+{% set _ = _args.append('-display none') %}
+{% set _ = _args.append('-chardev socket,id=ser0,path=' ~ item.serial_socket ~ ',server=on,wait=off') %}
+{% set _ = _args.append('-serial chardev:ser0') %}
+{#- An empty vnc_address binds every interface, which is what -vnc :N does. -#}
+{% set _ = _args.append('-vnc ' ~ (item.vnc_address or '') ~ ':' ~ item.vnc) %}
+{% set _ = _args.append('-monitor unix:/var/lib/qemu/' ~ item.name ~ '/monitor.sock,server=on,wait=off') %}
+{% set _ = _args.append('-qmp unix:' ~ item.qmp_socket ~ ',server=on,wait=off') %}
 {# ── System disk ─────────────────────────────────────────── #}
 {% set _disk_file = vms_image_dir ~ '/' ~ item.name ~ '.' ~ item.disk_format %}
 {% if item.disk_bus == 'virtio-scsi' %}

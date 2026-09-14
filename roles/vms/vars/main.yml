@@ -38,13 +38,15 @@ _vms_key_defaults:
   cpu_model: "{{ vms_default_cpu }}"
   novnc_enabled: "{{ vms_default_novnc_enabled }}"
   shutdown_timeout: "{{ vms_default_shutdown_timeout }}"
+  vnc_address: "{{ vms_default_vnc_address }}"
   smbios_oem_strings: []
   usb_boot_priority: true
   force_destroy: false
 
-# Defaults that depend on the VM itself. The VNC display and the MAC address
-# come from the VM name, so that a VM keeps the same console port and the same
-# link-layer address across a rebuild.
+# Defaults that depend on the VM itself. The VNC display, the MAC address and
+# the two socket paths come from the VM name, so that a VM keeps the same
+# console port, the same link-layer address and the same sockets across a
+# rebuild.
 #
 # The merge order is: shared defaults, then name-derived defaults, then the
 # keys the operator set. The last dictionary wins in `combine`.
@@ -61,6 +63,10 @@ _vms_resolved_json: >-
           'vnc': _vnc,
           'novnc_port': vms_default_novnc_port | default(6080 + _vnc, true) | int,
           'mac_address': '52:54:00:' ~ _md5[0:2] ~ ':' ~ _md5[2:4] ~ ':' ~ _md5[4:6],
+          'serial_socket': vms_default_serial_socket
+            | default('/var/lib/qemu/' ~ _vm.name ~ '/serial.sock', true),
+          'qmp_socket': vms_default_qmp_socket
+            | default('/var/lib/qemu/' ~ _vm.name ~ '/qmp.sock', true),
         } -%}
   {%-   set _ = _out.append(_vms_key_defaults | combine(_derived, _vm)) -%}
   {%- endfor -%}
@@ -78,6 +84,11 @@ _vms_uefi_vms: "{{ _vms_active_vms | selectattr('uefi') | list }}"
 _vms_secure_boot_vms: "{{ _vms_uefi_vms | selectattr('secure_boot') | list }}"
 _vms_tpm_vms: "{{ _vms_active_vms | selectattr('tpm') | list }}"
 _vms_novnc_vms: "{{ _vms_active_vms | selectattr('novnc_enabled') | list }}"
+# The names of the active VMs that leave `vnc_address` unset. The resolved
+# list always carries the key, so this reads `vms_list` instead.
+_vms_inherited_vnc_address: >-
+  {{ vms_list | rejectattr('vnc_address', 'defined') | map(attribute='name') | list
+     | intersect(_vms_active_vms | map(attribute='name') | list) }}
 _vms_bridge_vms: "{{ _vms_active_vms | selectattr('net_mode', 'equalto', 'bridge') | list }}"
 _vms_image_vms: "{{ _vms_active_vms | selectattr('disk_image_url', 'defined') | list }}"
 _vms_usb_vms: "{{ _vms_active_vms | selectattr('usb_disk_image', 'defined') | list }}"

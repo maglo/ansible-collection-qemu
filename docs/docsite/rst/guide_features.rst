@@ -127,9 +127,53 @@ Networking
 Consoles
 --------
 
+Every VM gets three consoles: a serial console on a UNIX socket, a VNC console
+on a TCP port, and the human monitor on a UNIX socket.
+
+The serial console is at ``/var/lib/qemu/<name>/serial.sock``, and
+``serial_socket`` moves it. Beside it sits a QMP socket at
+``/var/lib/qemu/<name>/qmp.sock``, which ``qmp_socket`` moves. QMP is the
+machine readable control channel: it carries typed commands such as
+``send-key`` and ``screendump``, with structured errors. The human monitor
+keeps its own socket at ``/var/lib/qemu/<name>/monitor.sock``.
+
+QEMU creates every socket at start and does not wait for a client, so a VM
+boots with nothing attached. Read the guest console with any socket client:
+
+.. code-block:: console
+
+   $ socat - UNIX-CONNECT:/var/lib/qemu/web01/serial.sock
+
+The role creates ``/var/lib/qemu/<name>/`` only. A socket path anywhere else
+needs a directory that you create. No path may hold a space, because systemd
+splits ``$QEMU_ARGS`` at each space. The role fails the run when two VMs would
+open one socket.
+
+.. note::
+
+   The guest serial console is no longer in the journal. A VM starts with
+   ``-display none`` and an explicit ``-serial``, so the console goes to its
+   socket instead of stdout. The unit journal of a VM now holds the stderr of
+   QEMU and the start and stop lines of systemd.
+
 Every VM gets a VNC console. The display number is the MD5 hash of the VM name
 modulo 100, which keeps it stable across a rebuild; ``vnc: N`` overrides it and
 the port is ``5900 + N``. The role fails the run when two names collide.
+
+``vnc_address`` sets the address that the console binds. An empty value binds
+every interface, on both ``0.0.0.0`` and ``::``. ``127.0.0.1`` reaches the
+console through the host only, and noVNC keeps working because it connects to
+``localhost``. Wrap an IPv6 address in brackets, for example ``[::1]``.
+
+.. warning::
+
+   The default of ``vms_default_vnc_address`` is deprecated. It is empty, so
+   the VNC console of every VM binds every interface, and the raw RFB port is
+   reachable from anywhere that can route to the host. The next release
+   changes the default to ``127.0.0.1``. The role warns about each VM that
+   leaves ``vnc_address`` unset. Set the key, or set
+   ``vms_default_vnc_address``, to choose the address yourself. Set
+   ``vms_vnc_address_deprecation_warning: false`` to silence the notice.
 
 For a browser console, ``novnc_enabled: true`` starts a
 ``novnc@<name>.service`` per VM on port ``6080 + <vnc display>`` — or
@@ -235,8 +279,8 @@ The ``vms`` role checks the whole list before it writes anything to the host,
 so a run that cannot finish leaves the host as it was. It fails on a duplicate
 VM name, a name that cannot be a systemd instance name, ``secure_boot``
 without ``uefi``, a ``disk_image_url`` with a non-qcow2 ``disk_format``, two
-VMs that would share a VNC display, a MAC address or a noVNC port, and
-``state: absent`` without ``force_destroy``.
+VMs that would share a VNC display, a MAC address, a noVNC port, a serial
+socket or a QMP socket, and ``state: absent`` without ``force_destroy``.
 
 See also
 --------

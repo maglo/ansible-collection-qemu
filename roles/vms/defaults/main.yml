@@ -111,3 +111,26 @@ vms_default_novnc_port: null
 
 # Default shutdown timeout for graceful ACPI powerdown (seconds)
 vms_default_shutdown_timeout: 120
+
+# Default path of the serial console socket (per-VM override with
+# `serial_socket`). When null, each VM gets
+# /var/lib/qemu/<name>/serial.sock. A console client attaches there to read
+# and to drive the guest serial console.
+vms_default_serial_socket: null
+
+# Default path of the QMP socket (per-VM override with `qmp_socket`).
+# When null, each VM gets /var/lib/qemu/<name>/qmp.sock. QMP is the machine
+# readable control channel; the human monitor stays on monitor.sock.
+vms_default_qmp_socket: null
+
+# Default address that the VNC console binds (per-VM override with
+# `vnc_address`). An empty string binds every interface. Set 127.0.0.1 to
+# reach the console through the host only.
+# DEPRECATED DEFAULT: the next release changes this default to 127.0.0.1.
+# Wrap an IPv6 address in brackets, for example [::1].
+vms_default_vnc_address: ""
+
+# Whether to warn when a VM leaves `vnc_address` unset and therefore relies on
+# the default that the next release changes.
+# Set to false to silence the notice.
+vms_vnc_address_deprecation_warning: true

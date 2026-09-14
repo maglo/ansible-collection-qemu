@@ -854,6 +854,18 @@ below must fail, and it must fail before any file is written.
        disk_size: 5G
        vnc: 5
 
+**Two VMs on one serial socket:**
+
+.. code-block:: yaml
+
+   vms_list:
+     - name: sock-a
+       disk_size: 5G
+       serial_socket: /var/lib/qemu/shared/serial.sock
+     - name: sock-b
+       disk_size: 5G
+       serial_socket: /var/lib/qemu/shared/serial.sock
+
 **Secure Boot without UEFI:**
 
 .. code-block:: yaml
@@ -878,6 +890,67 @@ below must fail, and it must fail before any file is written.
 Two more cases behave the same way: a name that systemd cannot use as an
 instance name (for example ``web/01``), and ``state: absent`` without
 ``force_destroy`` (see Test 11).
+
+Test 21: Consoles and control sockets
+--------------------------------------
+
+Verify the serial socket, the QMP socket and the VNC bind address on a running
+guest. This test needs a real KVM host: Molecule cannot boot a guest, so it
+asserts the rendered arguments only.
+
+**Playbook** (``test_consoles.yml``):
+
+.. code-block:: yaml
+
+   - hosts: all
+     become: true
+     roles:
+       - maglo.qemu.host
+       - role: maglo.qemu.vms
+         vars:
+           vms_list:
+             - name: console-vm
+               disk_size: 5G
+               disk_image_url: <a bootable cloud image>
+               vnc_address: 127.0.0.1
+               state: started
+             - name: console-open-vm
+               disk_size: 5G
+               state: started
+
+**Verify:**
+
+.. code-block:: bash
+
+   # Both sockets exist and QEMU did not block waiting for a client
+   ls -l /var/lib/qemu/console-vm/serial.sock /var/lib/qemu/console-vm/qmp.sock
+   systemctl is-active qemu-vm@console-vm
+
+   # The serial socket reaches the guest console
+   socat - UNIX-CONNECT:/var/lib/qemu/console-vm/serial.sock
+   # Press Enter. The guest login prompt appears.
+
+   # QMP answers, and screendump writes a file
+   socat - UNIX-CONNECT:/var/lib/qemu/console-vm/qmp.sock
+   {"execute": "qmp_capabilities"}
+   {"execute": "query-status"}
+   {"execute": "screendump", "arguments": {"filename": "/tmp/console-vm.ppm"}}
+
+   # The VNC console binds loopback only
+   ss -ltnp | grep 5900
+
+   # `-nographic` is gone, and the short-form booleans are gone
+   grep -- "-display none" /etc/qemu/vms/console-vm.conf
+   ! grep -- "server,nowait" /etc/qemu/vms/console-vm.conf
+
+**Expected result:**
+
+- ``console-vm`` binds its VNC port on ``127.0.0.1`` only. ``console-open-vm``
+  leaves ``vnc_address`` unset, so it binds ``0.0.0.0`` and ``::``.
+- The run prints the deprecation notice for ``console-open-vm``, and
+  ``vms_vnc_address_deprecation_warning: false`` silences it.
+- ``journalctl -u qemu-vm@console-vm`` holds the messages of QEMU and the
+  start line of systemd, and no guest console output.
 
 Known RC limitations
 ---------------------

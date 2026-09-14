@@ -59,6 +59,10 @@ A configuration change is written to the `.conf` file, but it does not restart a
 | `vms_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
 | `vms_default_novnc_port` | `null` | Default noVNC port. When null, each VM gets 6080 plus its own VNC display number |
 | `vms_default_shutdown_timeout` | `120` | Default timeout in seconds for graceful ACPI shutdown |
+| `vms_default_vnc_address` | `""` | Default address that the VNC console binds. Empty binds every interface. **Deprecated default**: the next release changes it to `127.0.0.1` |
+| `vms_vnc_address_deprecation_warning` | `true` | Whether to warn about VMs that leave `vnc_address` unset. Set it to `false` to silence the notice |
+| `vms_default_serial_socket` | `null` | Default path of the serial console socket. When null, each VM gets `/var/lib/qemu/<name>/serial.sock` |
+| `vms_default_qmp_socket` | `null` | Default path of the QMP socket. When null, each VM gets `/var/lib/qemu/<name>/qmp.sock` |
 
 The four firmware paths above are the layout that `edk2-ovmf` uses on EL10. Set them when your firmware is somewhere else.
 
@@ -88,6 +92,9 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `cpus` | no | `vms_default_cpus` | Number of virtual CPUs |
 | `cpu_model` | no | `vms_default_cpu` | CPU model for the QEMU `-cpu` flag (for example `host`, `kvm64`) |
 | `vnc` | no | derived from the name | VNC display number (port = 5900+N). Set it when two VM names give the same derived display |
+| `vnc_address` | no | `vms_default_vnc_address` | Address that the VNC console binds. Empty binds every interface. Use `127.0.0.1` to reach the console through the host only. Wrap an IPv6 address in brackets |
+| `serial_socket` | no | `/var/lib/qemu/<name>/serial.sock` | Path of the serial console socket |
+| `qmp_socket` | no | `/var/lib/qemu/<name>/qmp.sock` | Path of the QMP control socket |
 | `smbios_oem_strings` | no | — | List of SMBIOS type 11 OEM strings (read by `systemd-stub`). Stored in `0600` files; a change needs a restart of the VM |
 | `usb_disk_image` | no | — | Path to USB disk image to attach (`.iso`, `.raw`, `.img`, `.qcow2`) |
 | `usb_boot_priority` | no | `true` when `usb_disk_image` is set | Boot from USB first |
@@ -108,6 +115,7 @@ Every check that can be answered from `vms_list` alone runs before the role writ
 - a VM has `secure_boot: true` and `uefi: false`;
 - a VM has `disk_image_url` and a `disk_format` other than `qcow2`, because only qcow2 can hold a backing file;
 - two VMs would use the same VNC display, the same MAC address or the same noVNC port;
+- two VMs would open the same serial socket or the same QMP socket;
 - a VM has `state: absent` without `force_destroy: true`.
 
 The role derives the VNC display and the MAC address from the VM name, so two names can give the same value. The message names the VMs; set `vnc` or `mac_address` on one of them.
@@ -153,7 +161,7 @@ The role removes these paths, whether or not the VM still carries the key that c
 | `/var/lib/qemu/images/{name}_VARS.fd` | UEFI variable store |
 | `/var/lib/qemu/images/{name}_VARS.fd.state` | UEFI variable store state file |
 | `/var/lib/qemu/images/{name}_VARS.fd.secboot` | Secure Boot marker of versions before 0.4.0 |
-| `/var/lib/qemu/{name}/` | Runtime directory: monitor socket and SMBIOS files |
+| `/var/lib/qemu/{name}/` | Runtime directory: monitor socket, QMP socket, serial socket and SMBIOS files |
 | `/var/lib/swtpm/{name}/` | swtpm state directory |
 | `/var/lib/swtpm/{name}.state` | swtpm state file |
 | `/etc/systemd/system/qemu-vm@{name}.service.d/` | systemd drop-in directory |
@@ -277,6 +285,39 @@ Each VM gets a MAC address derived from its name: the QEMU OUI prefix `52:54:00`
 
 Two names can give the same address. The role checks for that and fails with both names; set `mac_address` on one of them.
 
+## Serial console and QMP
+
+Each VM opens two UNIX sockets in its runtime directory, beside the monitor
+socket. QEMU creates both when it starts and does not wait for a client.
+
+| Socket | Default path | What it carries |
+|---|---|---|
+| Serial console | `/var/lib/qemu/<name>/serial.sock` | The guest serial console: the boot messages, the login prompt and the keystrokes a client sends |
+| QMP | `/var/lib/qemu/<name>/qmp.sock` | The machine readable control channel, with typed commands such as `send-key` and `screendump` |
+| Monitor | `/var/lib/qemu/<name>/monitor.sock` | The human monitor. The role writes `system_powerdown` here on a graceful shutdown |
+
+Set `serial_socket` or `qmp_socket` per VM to move a socket. The role creates
+`/var/lib/qemu/<name>/` only. A path anywhere else needs a directory that the
+deployer creates and that the QEMU user can write. No path may hold a space,
+because systemd splits `$QEMU_ARGS` at each space.
+
+The role fails the run when two VMs would open one socket.
+
+**The guest serial console is no longer in the journal.** The VM starts with
+`-display none` and an explicit `-serial`, so the console goes to the socket
+instead of stdout. The unit journal of a VM now holds the stderr of QEMU and
+the start and stop lines of systemd. Read the guest console at the socket:
+
+```bash
+socat - UNIX-CONNECT:/var/lib/qemu/testvm/serial.sock
+```
+
+Drive the VM over QMP with any QMP client:
+
+```bash
+socat - UNIX-CONNECT:/var/lib/qemu/testvm/qmp.sock
+```
+
 ## VNC Console Access
 
 Each VM is configured with a VNC console for remote graphical access. VNC display numbers are assigned as follows:
@@ -297,7 +338,31 @@ Two names can hash to the same display, which would leave the second QEMU unable
 vncviewer <host>:<5900+display>
 ```
 
-**Security note:** VNC is unauthenticated by default. Consider firewall rules or VNC password authentication for production use.
+### Bind address
+
+`vnc_address` sets the address that the console binds:
+
+```yaml
+vms_list:
+  - name: testvm
+    vnc_address: 127.0.0.1
+```
+
+An empty value binds every interface, on both `0.0.0.0` and `::`. Wrap an IPv6
+address in brackets, for example `[::1]`.
+
+`127.0.0.1` reaches the console through the host only. noVNC keeps working,
+because the noVNC instance of a VM connects to `localhost`.
+
+**The default of `vms_default_vnc_address` is deprecated.** It is empty today,
+so the console of every VM is reachable from anywhere that can route to the
+host. The next release changes the default to `127.0.0.1`. The role warns
+about each VM that leaves `vnc_address` unset. Set the key, or set
+`vms_default_vnc_address`, to choose the address yourself. Set
+`vms_vnc_address_deprecation_warning: false` to silence the notice.
+
+**Security note:** VNC is unauthenticated by default. Bind it to `127.0.0.1`,
+or use firewall rules or VNC password authentication, for production use.
 
 ## USB Disk Image Attachment
 
