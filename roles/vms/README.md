@@ -15,10 +15,10 @@ A configuration change is written to the `.conf` file, but it does not restart a
 ## Requirements
 
 - Ansible >= 2.15
-- Target hosts running Enterprise Linux 10 (Enterprise Linux 9 still works but is [deprecated](https://github.com/maglo/ansible-collection-qemu/issues/149))
+- Target hosts running Enterprise Linux 10
 
   This covers the **host**. A VM may run any guest image, including an EL9 one.
-- Optional: `virt-fw-vars`, from the package `python3-virt-firmware`, when `vms_nvram_verify` is on. The package is in EPEL on EL9. The role reports a skip when the command is absent.
+- Optional: `virt-fw-vars`, from the package `python3-virt-firmware`, when `vms_nvram_verify` is on. The role reports a skip when the command is absent.
 
 ## Dependencies
 
@@ -59,9 +59,8 @@ A configuration change is written to the `.conf` file, but it does not restart a
 | `vms_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
 | `vms_default_novnc_port` | `null` | Default noVNC port. When null, each VM gets 6080 plus its own VNC display number |
 | `vms_default_shutdown_timeout` | `120` | Default timeout in seconds for graceful ACPI shutdown |
-| `vms_el9_deprecation_warning` | `true` | Warn when the role runs on a deprecated Enterprise Linux 9 host. Set to `false` to silence the notice |
 
-The four firmware paths above are the layout that `edk2-ovmf` uses on EL9 and EL10. Set them when your firmware is somewhere else.
+The four firmware paths above are the layout that `edk2-ovmf` uses on EL10. Set them when your firmware is somewhere else.
 
 ### VM definition
 
@@ -222,7 +221,7 @@ A store that is still in Setup Mode, or that lost its db entry, gives a VM that 
 
 `SecureBoot` and `SetupMode` are volatile variables that the firmware creates at boot, so an offline check cannot read them. An enrolled PK is the offline equivalent of `SetupMode=0`.
 
-The check needs `virt-fw-vars` from the package `python3-virt-firmware`, which is in EPEL on EL9. The role reports a skip when the command is absent.
+The check needs `virt-fw-vars` from the package `python3-virt-firmware`. The role reports a skip when the command is absent.
 
 ### Upgrading from a version before 0.4.0
 
@@ -384,7 +383,7 @@ The role can configure per-VM noVNC instances for browser-based console access. 
 ### Prerequisites
 
 1. Install the `novnc` package on the host (handled by `maglo.qemu.host` role with `host_novnc_enabled: true`)
-2. Ensure the EPEL repository is enabled (EPEL 9 provides novnc 1.4.0, EPEL 10 provides 1.5.0)
+2. Ensure the EPEL repository is enabled (EPEL 10 provides novnc 1.5.0)
 
 ### Configuration
 

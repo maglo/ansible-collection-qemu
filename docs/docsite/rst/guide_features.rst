@@ -53,8 +53,8 @@ VM gets its own writable NVRAM copy of ``OVMF_VARS.fd``.
 - **Verification** — ``vms_nvram_verify: true`` asserts that the store of each
   Secure Boot VM holds a PK, a KEK and a db, and that Secure Boot is enabled.
   Add ``nvram_expected_db_cn`` to a VM to also assert a certificate in the db.
-  The check needs ``virt-fw-vars`` from ``python3-virt-firmware`` (EPEL on
-  EL9); the role reports a skip when the command is absent.
+  The check needs ``virt-fw-vars`` from ``python3-virt-firmware``; the role
+  reports a skip when the command is absent.
 
 .. note::
 
@@ -222,7 +222,7 @@ running VM. Use ``state: restarted`` to apply it.
 SELinux
 -------
 
-On EL9 and EL10 the VM unit runs as ``init_t``, which may not execute
+The VM unit runs as ``init_t``, which may not execute
 ``/usr/libexec/qemu-kvm`` or ``/usr/bin/swtpm``. When ``getenforce`` reports
 ``Enforcing``, the ``host`` role compiles and loads a small policy module that
 allows exactly that. The step is skipped when SELinux is permissive or

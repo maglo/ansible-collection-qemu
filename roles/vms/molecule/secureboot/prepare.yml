@@ -17,9 +17,8 @@
         mode: "0644"
 
     # The verification needs virt-fw-vars. On a real host the package is
-    # python3-virt-firmware, which is in EPEL on EL9. The scenario installs it
-    # with pip instead, so that it does not add an EPEL repository to CI and
-    # works the same way on EL9 and EL10.
+    # python3-virt-firmware, which is in EPEL. The scenario installs it with
+    # pip instead, so that it does not add an EPEL repository to CI.
     - name: Install openssl and pip
       ansible.builtin.dnf:
         name:
