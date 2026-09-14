@@ -7,7 +7,12 @@
       ansible.builtin.include_role:
         name: host
 
-    # Phase 1: Create VMs in various states
+    # Phase 1: Create VMs in various states.
+    #
+    # `lifecycle-test-solo` is the one that side_effect.yml destroys on its
+    # own, in a run that holds nothing else. It carries SMBIOS OEM strings so
+    # that the destroy has the per-VM SMBIOS directory to remove, which is the
+    # shape the destroy-only regression of #169 was reported against.
     - name: Create test VMs
       ansible.builtin.include_role:
         name: vms
@@ -20,6 +25,11 @@
             disk_size: 1G
             tpm: true
             state: present
+          - name: lifecycle-test-solo
+            disk_size: 1G
+            state: present
+            smbios_oem_strings:
+              - "io.systemd.credential:lifecycle=solo"
 
     # Phase 2: the destroy safety check must refuse a VM without force_destroy.
     #
@@ -52,8 +62,10 @@
         fail_msg: "Destroy without force_destroy should have failed but didn't"
         success_msg: "Destroy safety check working correctly"
 
-    # Phase 3: Destroy VM with force_destroy
-    - name: Destroy lifecycle-test-tpm
+    # Phase 3: one list that mixes `absent` with a VM that stays. The role has
+    # to destroy `lifecycle-test-tpm` and leave `lifecycle-test-present`
+    # alone, which verify.yml asserts.
+    - name: Destroy lifecycle-test-tpm alongside a VM that stays
       ansible.builtin.include_role:
         name: vms
       vars:
@@ -61,3 +73,6 @@
           - name: lifecycle-test-tpm
             state: absent
             force_destroy: true
+          - name: lifecycle-test-present
+            disk_size: 1G
+            state: present

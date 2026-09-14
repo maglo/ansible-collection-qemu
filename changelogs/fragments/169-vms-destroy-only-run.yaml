@@ -1,0 +1,15 @@
+---
+bugfixes:
+  - "vms role - complete a run in which every VM carries ``state: absent``
+    (https://github.com/maglo/ansible-collection-qemu/issues/169). ``main.yml``
+    imported ``smbios.yml`` under ``when: _vms_active_vms | length > 0``, but
+    ``import_tasks`` is static: the condition is copied onto each imported task
+    rather than skipping the file, and Ansible builds a task's loop before it
+    evaluates that task's ``when``. On a teardown run the selection is empty,
+    so the ``set_fact`` that defines ``_vms_smbios_managed`` was skipped while
+    the loop that reads it was still templated, and the play died with
+    ``'_vms_smbios_managed' is undefined`` before ``destroy.yml`` had shut down
+    or removed anything. The condition is gone from that import and from the
+    two others that gate on ``_vms_active_vms``; every task in those files
+    loops over a selection that is empty on a teardown run, so each no-ops by
+    itself."
