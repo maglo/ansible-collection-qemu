@@ -207,6 +207,64 @@ host role must have installed the package first:
    port on a management network, or put a reverse proxy with TLS and
    authentication in front of it.
 
+Console service inventory
+-------------------------
+
+A console service such as `labview <https://github.com/maglo/qemu-lab-manager>`_
+reads a directory of per-machine YAML files and serves every machine's
+framebuffer, serial line and details behind one port. The ``vms`` role is the
+only thing that knows a VM's VNC display, its socket paths and its unit name,
+so it writes those files itself rather than leaving a consumer to derive the
+same facts a second time and drift from them.
+
+``vms_labview_inventory_dir`` turns it on:
+
+.. code-block:: yaml
+
+   - role: maglo.qemu.vms
+     vars:
+       vms_labview_inventory_dir: /etc/labview/inventory.d
+       vms_list:
+         - name: web01
+           disk_size: 40G
+           vnc_address: 127.0.0.1
+           state: started
+
+The role creates the directory and writes one file per VM, named after the VM:
+
+.. code-block:: yaml
+
+   # /etc/labview/inventory.d/web01.yml
+   name: "web01"
+   host: "hypervisor01"
+   vnc: "127.0.0.1:5986"
+   serial: "/var/lib/qemu/web01/serial.sock"
+   control: "/var/lib/qemu/web01/qmp.sock"
+   unit: "qemu-vm@web01.service"
+
+The console service takes the machine id from the file name, so ``name`` is the
+display name only. ``host`` is ``inventory_hostname``, the name the playbook
+knows the hypervisor by. ``vnc`` is the bind address with port
+``5900 + <display>``, and it names ``127.0.0.1`` when ``vnc_address`` is empty:
+an empty address binds every interface, and the console service sits on the
+hypervisor beside QEMU. ``control`` is the QMP socket — a VM has no
+``-monitor`` socket, so no monitor path belongs in the file. ``unit`` is what
+lets the service power the machine through systemd. Every value is quoted, so
+that a bracketed IPv6 address such as ``vnc: "[::1]:5907"`` stays a string
+instead of opening a YAML flow sequence.
+
+One VM is one file, so there is no shared file for two runs to serialise on,
+and ``state: absent`` removes an entry along with the rest of the VM.
+
+.. note::
+
+   A teardown run has to set ``vms_labview_inventory_dir`` too. The removal
+   cannot know the directory otherwise, so a ``state: absent`` run that leaves
+   the variable unset destroys the VM and leaves its inventory file behind.
+
+With the variable unset the role writes nothing at all, which is how it behaved
+before the feature existed.
+
 USB disks and ISOs
 ------------------
 

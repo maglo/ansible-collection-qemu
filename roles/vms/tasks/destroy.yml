@@ -63,6 +63,18 @@
     loop_var: _vms_destroy_path
     label: "{{ _vms_destroy_path }}"
 
+# The one removal that carries a condition, because the path is not known
+# without it: `vms_labview_inventory_dir` defaults to null, and joining a name
+# onto that would ask for `/<name>.yml` to be removed from the root directory.
+# A teardown run therefore has to set the same directory the creating run set,
+# or the entry is left behind.
+- name: Remove the console service inventory entry of {{ item.name }}
+  ansible.builtin.file:
+    path: "{{ vms_labview_inventory_dir }}/{{ item.name }}.yml"
+    state: absent
+  become: true
+  when: vms_labview_inventory_dir | default('', true) | length > 0
+
 - name: Reload systemd daemon after destroying {{ item.name }}
   ansible.builtin.systemd_service:
     daemon_reload: true

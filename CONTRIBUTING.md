@@ -173,6 +173,7 @@ The scenarios are:
 | `host` | `novnc`      | yes         | `host_novnc_enabled` — the `novnc` package and `novnc@.service` |
 | `vms`  | `default`    | yes         | Disk images, config files, UEFI NVRAM, TPM, networking |
 | `vms`  | `disk_image` | **no**      | `disk_image_url` provisioning — it downloads a multi-gigabyte cloud image, so CI does not run it. Run it by hand before a release |
+| `vms`  | `labview`    | yes         | `vms_labview_inventory_dir` — the per-machine console service inventory file, and its removal by `state: absent` |
 | `vms`  | `lifecycle`  | yes         | `state: absent` with and without `force_destroy`. It creates a VM and then destroys it, so it cannot be idempotent; its `test_sequence` leaves out `idempotence` |
 | `vms`  | `novnc`      | yes         | Per-VM `novnc_enabled`, drop-ins and the noVNC environment file |
 | `vms`  | `secureboot` | yes         | Secure Boot variable stores, `nvram_template`, `nvram_generation`, the NVRAM verification and the pre-0.4.0 upgrade path |

@@ -527,3 +527,26 @@ argument_specs:
             When it is null, each VM gets C(/var/lib/qemu/<name>/qmp.sock).
             The role fails the run when two VMs would share a socket.
         type: str
+      vms_labview_inventory_dir:
+        description:
+          - >-
+            Directory that holds the per-machine inventory files of a console
+            service such as
+            C(labview) (U(https://github.com/maglo/qemu-lab-manager)), for
+            example C(/etc/labview/inventory.d).
+          - >-
+            When it is null the role writes no inventory file and behaves as
+            every earlier release did. When it is set, the role creates the
+            directory and writes C(<dir>/<name>.yml) for each VM that is not
+            C(absent), holding the C(name), C(host), C(vnc), C(serial),
+            C(control) and C(unit) of the VM. C(state: absent) removes that
+            file again.
+          - >-
+            The console service takes the machine id from the file name, so
+            one VM is one file and there is no shared file to serialise.
+          - >-
+            A teardown run has to set this variable too. The removal in
+            C(destroy.yml) cannot know the directory otherwise, so a
+            C(state: absent) run that leaves it unset destroys the VM and
+            leaves its inventory file behind.
+        type: path
