@@ -119,8 +119,9 @@ vms_default_shutdown_timeout: 120
 vms_default_serial_socket: null
 
 # Default path of the QMP socket (per-VM override with `qmp_socket`).
-# When null, each VM gets /var/lib/qemu/<name>/qmp.sock. QMP is the machine
-# readable control channel; the human monitor stays on monitor.sock.
+# When null, each VM gets /var/lib/qemu/<name>/qmp.sock. QMP is the whole
+# control channel: a VM has no -monitor socket, and human-monitor-command
+# carries the monitor vocabulary over QMP.
 vms_default_qmp_socket: null
 
 # Default address that the VNC console binds (per-VM override with
@@ -134,3 +135,11 @@ vms_default_vnc_address: ""
 # the default that the next release changes.
 # Set to false to silence the notice.
 vms_vnc_address_deprecation_warning: true
+
+# Directory that holds the per-machine inventory files of a console service
+# such as labview (https://github.com/maglo/qemu-lab-manager), for example
+# /etc/labview/inventory.d. When it is null the role writes nothing, which is
+# the behaviour of every release before this one. When it is set, each VM gets
+# <dir>/<name>.yml holding its name, host, VNC address, serial socket, QMP
+# socket and unit name, and `state: absent` removes that file again.
+vms_labview_inventory_dir: null
