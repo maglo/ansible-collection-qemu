@@ -1,0 +1,27 @@
+{{ ansible_managed | comment }}
+{#
+  One machine of a console service inventory. The service reads a directory
+  of these files and serves every machine's framebuffer, serial line and
+  details behind one port.
+
+  The id of a machine is the file name, and a file that sets `id` is refused,
+  so `name` below is the display name only.
+
+  `vnc` has to be host:port. An empty `vnc_address` binds every interface,
+  which includes the loopback address; the console service runs on the
+  hypervisor beside QEMU, so that is the address it dials either way.
+
+  `control` is the QMP socket. A VM has no `-monitor` socket, so no monitor
+  path belongs here.
+
+  Every value goes through `to_json`, which is a double quoted YAML scalar
+  with the escaping already done. A bracketed IPv6 address is the reason:
+  `vnc: [::1]:5907` unquoted opens a flow sequence and the file stops
+  parsing. Quoting each value means no value has to be reasoned about.
+#}
+name: {{ item.name | to_json }}
+host: {{ inventory_hostname | to_json }}
+vnc: {{ ((item.vnc_address or '127.0.0.1') ~ ':' ~ (5900 + item.vnc | int)) | to_json }}
+serial: {{ item.serial_socket | to_json }}
+control: {{ item.qmp_socket | to_json }}
+unit: {{ ('qemu-vm@' ~ item.name ~ '.service') | to_json }}

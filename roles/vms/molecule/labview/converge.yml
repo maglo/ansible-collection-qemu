@@ -1,0 +1,43 @@
+---
+# The converge leaves every VM `present`, so the default test sequence keeps
+# its idempotence check: writing the inventory a second time must change
+# nothing. side_effect.yml is what destroys a VM afterwards.
+- name: Converge - console service inventory
+  hosts: all
+  tasks:
+    - name: Include host role
+      ansible.builtin.include_role:
+        name: host
+
+    # web01 pins both console keys, so verify.yml can assert the exact
+    # address. db01 leaves `vnc_address` unset, which is the case that has to
+    # fall back to loopback rather than write an empty host.
+    - name: Create VMs with a console service inventory
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_labview_inventory_dir: /etc/labview/inventory.d
+        vms_list:
+          - name: web01
+            disk_size: 1G
+            vnc: 1
+            vnc_address: 127.0.0.1
+            state: present
+          - name: db01
+            disk_size: 1G
+            vnc: 2
+            serial_socket: /var/lib/qemu/db01/console.sock
+            qmp_socket: /var/lib/qemu/db01/control.sock
+            state: present
+
+    # A second run with the directory unset. It has to write nothing, which is
+    # how every playbook that has not adopted a console service behaves.
+    - name: Create a VM without a console service inventory
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - name: app01
+            disk_size: 1G
+            vnc: 3
+            state: present

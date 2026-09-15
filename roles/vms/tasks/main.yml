@@ -76,3 +76,17 @@
 # ── Service phase, then the `restarted` and `absent` states ──
 - name: Generate VM config and manage service
   ansible.builtin.import_tasks: service.yml
+
+# ── Console service inventory ──────────────────────────────
+# After service.yml, because that is where destroy.yml runs: a VM that this
+# same run destroys has its entry removed there, and the loop below covers the
+# active VMs only, so nothing writes it back.
+#
+# The default of the variable is null, so the gate reads it through
+# `default('', true)`: that turns null into the empty string, and `length`
+# then answers for both. A bare `when: vms_labview_inventory_dir` would not
+# do — ansible-core 2.19 rejects a conditional whose result is a string
+# rather than a boolean.
+- name: Write the console service inventory
+  ansible.builtin.import_tasks: labview_inventory.yml
+  when: vms_labview_inventory_dir | default('', true) | length > 0

@@ -63,6 +63,7 @@ A configuration change is written to the `.conf` file, but it does not restart a
 | `vms_vnc_address_deprecation_warning` | `true` | Whether to warn about VMs that leave `vnc_address` unset. Set it to `false` to silence the notice |
 | `vms_default_serial_socket` | `null` | Default path of the serial console socket. When null, each VM gets `/var/lib/qemu/<name>/serial.sock` |
 | `vms_default_qmp_socket` | `null` | Default path of the QMP socket. When null, each VM gets `/var/lib/qemu/<name>/qmp.sock` |
+| `vms_labview_inventory_dir` | `null` | Directory that holds the per-machine inventory files of a console service. When null, the role writes none |
 
 The four firmware paths above are the layout that `edk2-ovmf` uses on EL10. Set them when your firmware is somewhere else.
 
@@ -331,6 +332,63 @@ printf '%s\n%s\n' \
   '{"execute": "query-status"}' \
   | socat -t 2 - UNIX-CONNECT:/var/lib/qemu/testvm/qmp.sock
 ```
+
+## Console service inventory
+
+A console service such as
+[labview](https://github.com/maglo/qemu-lab-manager) reads a directory of
+per-machine YAML files and serves every machine's framebuffer, serial line and
+details behind one port. This role is the only thing that knows a VM's VNC
+display, its socket paths and its unit name, so it writes those files itself
+rather than leaving a consumer to derive the same facts a second time.
+
+Set `vms_labview_inventory_dir` to turn it on:
+
+```yaml
+- role: maglo.qemu.vms
+  vars:
+    vms_labview_inventory_dir: /etc/labview/inventory.d
+    vms_list:
+      - name: web01
+        disk_size: 40G
+        vnc_address: 127.0.0.1
+        state: started
+```
+
+The role creates the directory and writes one file per VM, named after the VM:
+
+```yaml
+# /etc/labview/inventory.d/web01.yml
+name: "web01"
+host: "hypervisor01"
+vnc: "127.0.0.1:5986"
+serial: "/var/lib/qemu/web01/serial.sock"
+control: "/var/lib/qemu/web01/qmp.sock"
+unit: "qemu-vm@web01.service"
+```
+
+Every value is quoted, so that a bracketed IPv6 address such as
+`vnc: "[::1]:5907"` stays a string instead of opening a YAML flow sequence.
+
+| Key | Value |
+|---|---|
+| `name` | The name of the VM. The console service takes the machine id from the file name, so this is the display name only |
+| `host` | `inventory_hostname` — the name the playbook knows the hypervisor by |
+| `vnc` | The VNC console as `<address>:<port>`, where the port is `5900` plus the display. An empty `vnc_address` binds every interface, so the entry names `127.0.0.1`: the console service runs on the hypervisor and dials it there |
+| `serial` | The serial console socket, so the service can attach to the guest console |
+| `control` | The QMP socket. A VM has no `-monitor` socket, so no monitor path belongs here |
+| `unit` | `qemu-vm@<name>.service`. The service powers a machine through systemd, and the unit in the file is what allows it to |
+
+One VM is one file, so there is no shared file for two runs to serialise on.
+`state: absent` removes the file along with the other artifacts of the VM, and
+a teardown therefore leaves no stale machine behind.
+
+**A teardown run has to set `vms_labview_inventory_dir` too.** The removal
+cannot know the directory otherwise, so a `state: absent` run that leaves the
+variable unset destroys the VM and leaves its inventory file behind.
+
+With the variable unset the role writes nothing at all, which is how it
+behaved before the feature existed.
 
 ## VNC Console Access
 

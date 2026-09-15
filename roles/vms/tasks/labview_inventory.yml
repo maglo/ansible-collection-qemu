@@ -1,0 +1,34 @@
+---
+# Write the per-machine inventory file that a console service reads.
+#
+# `roles/vms` is the only thing that knows a VM's VNC display, its socket
+# paths and its unit name, so it writes the file rather than leaving a
+# consumer to derive the same facts a second time and drift from them.
+#
+# One file per VM, named after the VM. There is therefore no read-modify-write
+# and no shared file to serialise between two runs, and a VM that goes away
+# takes its own file with it — destroy.yml removes it.
+#
+# Every task here is gated on `vms_labview_inventory_dir` by the import in
+# main.yml, so a play that sets no directory writes nothing at all.
+
+- name: Ensure the console service inventory directory exists
+  ansible.builtin.file:
+    path: "{{ vms_labview_inventory_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Write the console service inventory entry for {{ item.name }}
+  ansible.builtin.template:
+    src: labview-inventory.yml.j2
+    dest: "{{ vms_labview_inventory_dir }}/{{ item.name }}.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"

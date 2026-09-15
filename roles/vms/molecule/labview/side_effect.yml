@@ -1,0 +1,19 @@
+---
+# Destroying a VM has to take its inventory entry with it, so that a teardown
+# leaves the console service no stale machine to dial.
+#
+# This is a side effect rather than one more play in converge.yml because
+# converge.yml has to stay idempotent: a destroy changes the host on every
+# run, by design.
+- name: Side effect - destroy one of the VMs
+  hosts: all
+  tasks:
+    - name: Destroy web01
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_labview_inventory_dir: /etc/labview/inventory.d
+        vms_list:
+          - name: web01
+            state: absent
+            force_destroy: true

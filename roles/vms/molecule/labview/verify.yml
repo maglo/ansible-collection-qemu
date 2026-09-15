@@ -1,0 +1,104 @@
+---
+- name: Verify the console service inventory
+  hosts: all
+  gather_facts: false
+  tasks:
+    # ── The inventory directory ──────────────────────────────
+    - name: Stat the inventory directory
+      ansible.builtin.stat:
+        path: /etc/labview/inventory.d
+      register: _inventory_dir
+
+    - name: Assert the role created the inventory directory
+      ansible.builtin.assert:
+        that:
+          - _inventory_dir.stat.exists
+          - _inventory_dir.stat.isdir
+          - _inventory_dir.stat.pw_name == 'root'
+          - _inventory_dir.stat.gr_name == 'root'
+          - _inventory_dir.stat.mode == '0755'
+        fail_msg: "The role should have created /etc/labview/inventory.d"
+
+    # ── The entry of a VM that stayed ────────────────────────
+    - name: Stat the db01 inventory entry
+      ansible.builtin.stat:
+        path: /etc/labview/inventory.d/db01.yml
+      register: _db01_entry
+
+    - name: Assert the db01 inventory entry exists
+      ansible.builtin.assert:
+        that:
+          - _db01_entry.stat.exists
+          - _db01_entry.stat.pw_name == 'root'
+          - _db01_entry.stat.gr_name == 'root'
+          - _db01_entry.stat.mode == '0644'
+        fail_msg: "db01 should have an inventory entry"
+
+    - name: Read the db01 inventory entry
+      ansible.builtin.slurp:
+        src: /etc/labview/inventory.d/db01.yml
+      register: _db01_content
+
+    # The whole mapping at once, so an extra key fails the test too. db01
+    # leaves `vnc_address` unset, so its address falls back to loopback, and
+    # it moves both sockets, so the paths come from the keys and not from the
+    # VM name.
+    - name: Assert the db01 inventory entry describes the VM
+      vars:
+        _entry: "{{ _db01_content.content | b64decode | from_yaml }}"
+        _expected:
+          name: db01
+          host: "{{ inventory_hostname }}"
+          vnc: "127.0.0.1:5902"
+          serial: /var/lib/qemu/db01/console.sock
+          control: /var/lib/qemu/db01/control.sock
+          unit: qemu-vm@db01.service
+      ansible.builtin.assert:
+        that:
+          - _entry == _expected
+        fail_msg: "db01 entry is {{ _entry }}, expected {{ _expected }}"
+        success_msg: "db01 entry holds name, host, vnc, serial, control and unit"
+
+    - name: Assert the db01 inventory entry carries no monitor path
+      vars:
+        content: "{{ _db01_content.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'monitor' not in content"
+        fail_msg: "A VM has no -monitor socket, so no monitor path belongs in the entry"
+
+    # ── The entry of the destroyed VM ────────────────────────
+    - name: Stat the web01 inventory entry
+      ansible.builtin.stat:
+        path: /etc/labview/inventory.d/web01.yml
+      register: _web01_entry
+
+    - name: Assert the destroy removed the web01 inventory entry
+      ansible.builtin.assert:
+        that:
+          - not _web01_entry.stat.exists
+        fail_msg: "Destroying web01 should have removed its inventory entry"
+        success_msg: "web01 left no stale inventory entry"
+
+    # ── A run that set no directory ──────────────────────────
+    - name: Stat the app01 inventory entry
+      ansible.builtin.stat:
+        path: /etc/labview/inventory.d/app01.yml
+      register: _app01_entry
+
+    - name: Assert the run without an inventory directory wrote nothing
+      ansible.builtin.assert:
+        that:
+          - not _app01_entry.stat.exists
+        fail_msg: "app01 was created with vms_labview_inventory_dir unset"
+
+    - name: Stat the app01 QEMU config
+      ansible.builtin.stat:
+        path: /etc/qemu/vms/app01.conf
+      register: _app01_conf
+
+    - name: Assert app01 was created all the same
+      ansible.builtin.assert:
+        that:
+          - _app01_conf.stat.exists
+        fail_msg: "app01 should exist; only its inventory entry is left out"
