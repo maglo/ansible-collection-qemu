@@ -31,6 +31,7 @@ It sets up the host only. The per-VM instances of all three template units are m
 | `host_vm_image_dir` | `/var/lib/qemu/images` | Directory containing VM disk images (must match `vms_image_dir`) |
 | `host_service_user` | `qemu` | User for the QEMU systemd service |
 | `host_service_group` | `qemu` | Group for the QEMU systemd service |
+| `host_vm_umask` | `0007` | Umask of the `qemu-vm@.service` units, and so the mode of every socket QEMU creates: `0770` rather than systemd's `0755` |
 | `host_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state, read by the `swtpm@.service` template (must match `vms_swtpm_state_dir`) |
 | `host_novnc_enabled` | `false` | Install the noVNC package from EPEL and deploy the `novnc@.service` systemd template (per-VM service instances managed by `maglo.qemu.vms` role) |
 
@@ -47,6 +48,33 @@ The three "must match" variables above have a counterpart in the `vms` role. The
 | `swtpm`, `swtpm-tools` | `tpm: true` |
 | `genisoimage` | The cloud-init seed ISO |
 | `socat` | The graceful guest shutdown used by `state: restarted` and `state: absent` |
+
+## Socket permissions
+
+QEMU creates the serial and QMP sockets of a VM itself, at start, and never chmods them. Their mode is therefore `0777` minus the umask of the unit, and systemd's default umask of `0022` leaves each socket at `0755`.
+
+That is not usable by anything but the `qemu` user. Connecting to a UNIX socket needs the **write** bit, so `0755` refuses even a member of `host_service_group`:
+
+```console
+$ sudo -u labview socat - UNIX-CONNECT:/var/lib/qemu/web01/serial.sock
+socat: E connect(...): Permission denied
+```
+
+`host_vm_umask` is `0007`, which leaves the sockets at `0770`. A console service that runs under its own account in the `qemu` group can then attach to the serial line and the QMP socket, and nothing outside the group can — which is narrower than the `0755` of earlier releases, not wider.
+
+The mode is fixed when QEMU creates the socket, so a VM that is already running keeps the socket it started with. Restart the VMs to pick the new mode up:
+
+```yaml
+- hosts: hypervisors
+  roles:
+    - role: maglo.qemu.vms
+      vars:
+        vms_list:
+          - name: web01
+            state: restarted
+```
+
+Set `host_vm_umask: "0022"` to keep the previous behaviour. Quote the value: an unquoted `0022` is an integer in YAML, and the unit needs the literal digits.
 
 ## SELinux
 

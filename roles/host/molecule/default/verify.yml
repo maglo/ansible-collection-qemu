@@ -90,6 +90,8 @@
           - "'Ansible managed' in content"
           - "'User=qemu' in content"
           - "'Group=qemu' in content"
+          # 0770 sockets, so a console service in the qemu group can attach.
+          - "'UMask=0007' in content"
           - "'EnvironmentFile=/etc/qemu/vms/%i.conf' in content"
           - "'ExecStart=/usr/libexec/qemu-kvm $QEMU_ARGS' in content"
 

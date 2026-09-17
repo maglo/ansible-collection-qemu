@@ -151,6 +151,11 @@ boots with nothing attached. Read the guest console with any socket client:
 
    $ socat - UNIX-CONNECT:/var/lib/qemu/web01/serial.sock
 
+Both sockets belong to the QEMU service user and group, at mode ``0770``:
+``host_vm_umask`` in the ``host`` role sets it, so a console service running
+under its own account in that group can attach, and nothing else can. See
+:ref:`ansible_collections.maglo.qemu.docsite.guide_host`.
+
 The role creates ``/var/lib/qemu/<name>/`` only. A socket path anywhere else
 needs a directory that you create. No path may hold a space, because systemd
 splits ``$QEMU_ARGS`` at each space. The role fails the run when two VMs would
