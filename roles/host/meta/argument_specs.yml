@@ -43,6 +43,17 @@ argument_specs:
         description: Group for the QEMU systemd service.
         type: str
         default: qemu
+      host_vm_umask:
+        description: >-
+          Umask of the C(qemu-vm@.service) units. QEMU creates the serial and
+          QMP sockets of a VM itself and never chmods them, so their mode is
+          0777 minus this value. The default C(0007) leaves them at 0770,
+          which a console service running in C(host_service_group) can
+          connect to; systemd's own default of 0022 leaves them at 0755, which
+          no group member can, because connecting to a UNIX socket needs the
+          write bit.
+        type: str
+        default: "0007"
       host_swtpm_state_dir:
         description: >-
           Base directory for the per-VM swtpm state directories. The

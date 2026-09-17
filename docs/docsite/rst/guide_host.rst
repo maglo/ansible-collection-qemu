@@ -87,6 +87,45 @@ add a package, and keep the default entries in the list:
    - ``genisoimage`` builds the cloud-init seed ISO of a VM that sets a
      ``cloud_init_*`` key.
 
+Socket permissions
+------------------
+
+QEMU creates the serial and QMP sockets of a VM itself, at start, and never
+chmods them. Their mode is ``0777`` minus the umask of the unit, and systemd
+defaults that umask to ``0022``, which leaves every socket at ``0755``.
+
+``0755`` is usable by the ``qemu`` user and by nothing else. Connecting to a
+UNIX socket needs the *write* bit, so a ``0755`` socket refuses even an account
+that is a member of ``host_service_group``:
+
+.. code-block:: console
+
+   $ sudo -u labview socat - UNIX-CONNECT:/var/lib/qemu/web01/serial.sock
+   socat: E connect(...): Permission denied
+
+``host_vm_umask`` is therefore ``0007``, which leaves the sockets at ``0770``.
+A console service that runs under its own account in the ``qemu`` group can
+attach to the serial line and drive the guest over QMP, and nothing outside
+that group can reach either — narrower than the ``0755`` of earlier releases,
+not wider.
+
+.. code-block:: yaml
+
+   - hosts: hypervisors
+     roles:
+       - role: maglo.qemu.host
+         vars:
+           host_vm_umask: "0022"   # the mode of releases before this one
+
+Quote the value. An unquoted ``0022`` is the integer 18 in YAML, and the unit
+needs the digits.
+
+.. note::
+
+   The mode is fixed when QEMU creates the socket, so a VM that is already
+   running keeps the socket it started with. Restart the VMs with
+   ``state: restarted`` in the ``vms`` role to pick the new mode up.
+
 noVNC web console
 -----------------
 

@@ -23,5 +23,12 @@ host_service_group: qemu
 # Per-VM noVNC service instances are managed by the vms role
 host_novnc_enabled: false
 
+# Umask of the qemu-vm@.service units, and so the mode of every socket QEMU
+# creates: 0777 minus this value. 0007 leaves the serial and QMP sockets at
+# 0770, which a console service running in host_service_group can open.
+# Set 0022 for the mode of releases before this one, which no group member
+# could connect to.
+host_vm_umask: "0007"
+
 # Base directory for per-VM swtpm state
 host_swtpm_state_dir: /var/lib/swtpm

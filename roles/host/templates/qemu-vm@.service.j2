@@ -7,6 +7,16 @@ After=network.target
 Type=simple
 User={{ host_service_user }}
 Group={{ host_service_group }}
+{#
+  QEMU creates the serial and QMP sockets of a VM itself, and never chmods
+  them: their mode is 0777 minus this umask. systemd defaults to 0022, which
+  leaves each socket at 0755 — and connecting to a UNIX socket needs the write
+  bit, so no account but `host_service_user` can open one, not even a member
+  of `host_service_group`. 0007 gives 0770 instead: a console service in the
+  group attaches, and everyone else is kept out more firmly than 0755 kept
+  them.
+-#}
+UMask={{ host_vm_umask }}
 EnvironmentFile={{ host_vm_config_dir }}/%i.conf
 ExecStart=/usr/libexec/qemu-kvm $QEMU_ARGS
 ExecStop=/bin/kill -SIGTERM $MAINPID
