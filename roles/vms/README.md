@@ -59,8 +59,7 @@ A configuration change is written to the `.conf` file, but it does not restart a
 | `vms_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
 | `vms_default_novnc_port` | `null` | Default noVNC port. When null, each VM gets 6080 plus its own VNC display number |
 | `vms_default_shutdown_timeout` | `120` | Default timeout in seconds for graceful ACPI shutdown |
-| `vms_default_vnc_address` | `""` | Default address that the VNC console binds. Empty binds every interface. **Deprecated default**: the next release changes it to `127.0.0.1` |
-| `vms_vnc_address_deprecation_warning` | `true` | Whether to warn about VMs that leave `vnc_address` unset. Set it to `false` to silence the notice |
+| `vms_default_vnc_address` | `127.0.0.1` | Default address that the VNC console binds. An empty string binds every interface |
 | `vms_default_serial_socket` | `null` | Default path of the serial console socket. When null, each VM gets `/var/lib/qemu/<name>/serial.sock` |
 | `vms_default_qmp_socket` | `null` | Default path of the QMP socket. When null, each VM gets `/var/lib/qemu/<name>/qmp.sock` |
 | `vms_labview_inventory_dir` | `null` | Directory that holds the per-machine inventory files of a console service. When null, the role writes none |
@@ -423,18 +422,20 @@ vms_list:
 An empty value binds every interface, on both `0.0.0.0` and `::`. Wrap an IPv6
 address in brackets, for example `[::1]`.
 
-`127.0.0.1` reaches the console through the host only. noVNC keeps working,
-because the noVNC instance of a VM connects to `localhost`.
+**The default is `127.0.0.1`,** so the console of a VM is reachable through
+the host only, which is what makes the write lease of a console service mean
+anything. noVNC keeps working either way, because the noVNC instance of a VM
+connects to `localhost`.
 
-**The default of `vms_default_vnc_address` is deprecated.** It is empty today,
-so the console of every VM is reachable from anywhere that can route to the
-host. The next release changes the default to `127.0.0.1`. The role warns
-about each VM that leaves `vnc_address` unset. Set the key, or set
-`vms_default_vnc_address`, to choose the address yourself. Set
-`vms_vnc_address_deprecation_warning: false` to silence the notice.
+A VNC client on another host no longer reaches a VM: set `vnc_address: ""` on
+that VM, or `vms_default_vnc_address: ""` for every VM, to bind every
+interface as releases before 0.6.0 did.
 
-**Security note:** VNC is unauthenticated by default. Bind it to `127.0.0.1`,
-or use firewall rules or VNC password authentication, for production use.
+**Security note:** VNC is unauthenticated. Binding every interface puts the
+raw RFB port of a VM in reach of anything that can route to the host, with no
+password in the way. Prefer the default and reach the console through a
+console service or an SSH tunnel; if you do bind further, use firewall rules
+or VNC password authentication.
 
 ## USB Disk Image Attachment
 

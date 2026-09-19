@@ -23,12 +23,6 @@
 - name: Validate the VM list
   ansible.builtin.import_tasks: validate.yml
 
-# ── Deprecation notices ────────────────────────────────────
-# After the validation, because the notice reads `vms_list` too. A list that
-# validate.yml rejects should fail with the message of that check.
-- name: Report deprecations
-  ansible.builtin.import_tasks: deprecations.yml
-
 # ── Creation phase (every VM whose state is not `absent`) ──
 - name: Ensure UEFI firmware is available
   ansible.builtin.import_tasks: firmware.yml

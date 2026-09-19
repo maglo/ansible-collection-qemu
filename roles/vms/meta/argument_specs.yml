@@ -491,22 +491,15 @@ argument_specs:
             Default address that the VNC console binds for VMs that do not
             specify C(vnc_address).
           - >-
-            An empty string binds every interface, which is what QEMU does for
-            C(-vnc :N).
+            Loopback, so the console of a VM is reachable through the host
+            only. Reach it through a console service or an SSH tunnel.
           - >-
-            This default is deprecated. The next release changes it to
-            C(127.0.0.1), so that the console of a VM is reachable through the
-            host only. Set C(vnc_address) per VM, or set this variable, to
-            choose the address yourself.
+            An empty string binds every interface, which is what QEMU does for
+            C(-vnc :N) and what releases before 0.6.0 did.
+          - >-
+            Wrap an IPv6 address in brackets, for example C([::1]).
         type: str
-        default: ""
-      vms_vnc_address_deprecation_warning:
-        description: >-
-          Whether to warn when a VM leaves C(vnc_address) unset and therefore
-          relies on the default that the next release changes.
-          Set it to C(false) to silence the notice.
-        type: bool
-        default: true
+        default: "127.0.0.1"
       vms_default_serial_socket:
         description:
           - >-

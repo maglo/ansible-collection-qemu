@@ -84,11 +84,6 @@ _vms_uefi_vms: "{{ _vms_active_vms | selectattr('uefi') | list }}"
 _vms_secure_boot_vms: "{{ _vms_uefi_vms | selectattr('secure_boot') | list }}"
 _vms_tpm_vms: "{{ _vms_active_vms | selectattr('tpm') | list }}"
 _vms_novnc_vms: "{{ _vms_active_vms | selectattr('novnc_enabled') | list }}"
-# The names of the active VMs that leave `vnc_address` unset. The resolved
-# list always carries the key, so this reads `vms_list` instead.
-_vms_inherited_vnc_address: >-
-  {{ vms_list | rejectattr('vnc_address', 'defined') | map(attribute='name') | list
-     | intersect(_vms_active_vms | map(attribute='name') | list) }}
 _vms_bridge_vms: "{{ _vms_active_vms | selectattr('net_mode', 'equalto', 'bridge') | list }}"
 _vms_image_vms: "{{ _vms_active_vms | selectattr('disk_image_url', 'defined') | list }}"
 _vms_usb_vms: "{{ _vms_active_vms | selectattr('usb_disk_image', 'defined') | list }}"
