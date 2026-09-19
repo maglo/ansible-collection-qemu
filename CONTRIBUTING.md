@@ -137,13 +137,12 @@ export DRIVER=podman
 ```
 
 Every scenario builds its container from
-`geerlingguy/docker-rockylinux${EL_VERSION:-9}-ansible`, so `EL_VERSION`
-selects the Enterprise Linux major version. It defaults to 9. CI runs every
-gated scenario on both 9 and 10:
-
-```bash
-export EL_VERSION=10
-```
+`geerlingguy/docker-rockylinux${EL_VERSION:-10}-ansible`, so `EL_VERSION`
+selects the Enterprise Linux major version. It defaults to 10, and CI runs
+every gated scenario on 10 alone: EL10 is the only supported host platform
+since EL9 support was removed. The variable stays so that the next EL release
+can be tried without editing nine `molecule.yml` files, and so that adding it
+to the CI matrix is a one-line change.
 
 Run all scenarios of a role. A bare `molecule test` runs the `default` scenario
 only, so pass `--all`:
@@ -155,6 +154,11 @@ molecule test --all
 
 ```bash
 cd roles/vms
+molecule test --all
+```
+
+```bash
+cd roles/labview
 molecule test --all
 ```
 
