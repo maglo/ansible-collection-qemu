@@ -172,20 +172,18 @@ Every VM gets a VNC console. The display number is the MD5 hash of the VM name
 modulo 100, which keeps it stable across a rebuild; ``vnc: N`` overrides it and
 the port is ``5900 + N``. The role fails the run when two names collide.
 
-``vnc_address`` sets the address that the console binds. An empty value binds
-every interface, on both ``0.0.0.0`` and ``::``. ``127.0.0.1`` reaches the
-console through the host only, and noVNC keeps working because it connects to
-``localhost``. Wrap an IPv6 address in brackets, for example ``[::1]``.
+``vnc_address`` sets the address that the console binds. It defaults to
+``127.0.0.1``, which reaches the console through the host only; noVNC keeps
+working, because the noVNC instance of a VM connects to ``localhost``. An
+empty value binds every interface, on both ``0.0.0.0`` and ``::``. Wrap an
+IPv6 address in brackets, for example ``[::1]``.
 
 .. warning::
 
-   The default of ``vms_default_vnc_address`` is deprecated. It is empty, so
-   the VNC console of every VM binds every interface, and the raw RFB port is
-   reachable from anywhere that can route to the host. The next release
-   changes the default to ``127.0.0.1``. The role warns about each VM that
-   leaves ``vnc_address`` unset. Set the key, or set
-   ``vms_default_vnc_address``, to choose the address yourself. Set
-   ``vms_vnc_address_deprecation_warning: false`` to silence the notice.
+   VNC is unauthenticated. An empty ``vnc_address`` puts the raw RFB port of a
+   VM in reach of anything that can route to the host, with no password in the
+   way. Prefer the default, and reach the console through a console service or
+   an SSH tunnel.
 
 For a browser console, ``novnc_enabled: true`` starts a
 ``novnc@<name>.service`` per VM on port ``6080 + <vnc display>`` — or

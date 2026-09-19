@@ -205,8 +205,9 @@ one feature at a time:
 - ``vnc_address``, ``serial_socket`` and ``qmp_socket`` — where the consoles
   and the control channel of the VM listen. QMP is the whole control channel:
   a VM has no ``-monitor`` socket, and ``human-monitor-command`` carries the
-  monitor vocabulary over QMP. ``vnc_address`` binds every
-  interface today; the next release changes that default to ``127.0.0.1``.
+  monitor vocabulary over QMP. ``vnc_address`` defaults to
+  ``127.0.0.1``, so a console is reachable through the host only; an empty
+  string binds every interface.
 - ``cpu_model``, ``memory``, ``cpus``, ``vnc`` and ``mac_address`` — the
   emulated hardware.
 - ``state`` and ``force_destroy`` — the VM lifecycle.

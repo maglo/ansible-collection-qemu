@@ -125,16 +125,11 @@ vms_default_serial_socket: null
 vms_default_qmp_socket: null
 
 # Default address that the VNC console binds (per-VM override with
-# `vnc_address`). An empty string binds every interface. Set 127.0.0.1 to
-# reach the console through the host only.
-# DEPRECATED DEFAULT: the next release changes this default to 127.0.0.1.
-# Wrap an IPv6 address in brackets, for example [::1].
-vms_default_vnc_address: ""
-
-# Whether to warn when a VM leaves `vnc_address` unset and therefore relies on
-# the default that the next release changes.
-# Set to false to silence the notice.
-vms_vnc_address_deprecation_warning: true
+# `vnc_address`). Loopback, so the console of a VM is reachable through the
+# host only, which is what makes the write lease of a console service mean
+# anything. Set an empty string to bind every interface, as releases before
+# this one did. Wrap an IPv6 address in brackets, for example [::1].
+vms_default_vnc_address: "127.0.0.1"
 
 # Directory that holds the per-machine inventory files of a console service
 # such as labview (https://github.com/maglo/qemu-lab-manager), for example

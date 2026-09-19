@@ -102,3 +102,12 @@
           serial_socket: /var/lib/qemu/testvm-console/console.sock
           qmp_socket: /var/lib/qemu/testvm-console/control.sock
           state: present
+        # The one VM that asks for every interface. The default is loopback,
+        # so `-vnc :N` is now a rendering only an explicit empty address
+        # produces, and something has to still cover it.
+        - name: testvm-vnc-all
+          disk_size: 1G
+          uefi: false
+          vnc: 13
+          vnc_address: ""
+          state: present

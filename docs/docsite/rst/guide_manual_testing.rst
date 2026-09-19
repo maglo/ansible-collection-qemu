@@ -916,6 +916,7 @@ asserts the rendered arguments only.
                state: started
              - name: console-open-vm
                disk_size: 5G
+               vnc_address: ""          # every interface, the pre-0.6.0 default
                state: started
 
 **Verify:**
@@ -954,10 +955,9 @@ asserts the rendered arguments only.
 
 **Expected result:**
 
-- ``console-vm`` binds its VNC port on ``127.0.0.1`` only. ``console-open-vm``
-  leaves ``vnc_address`` unset, so it binds ``0.0.0.0`` and ``::``.
-- The run prints the deprecation notice for ``console-open-vm``, and
-  ``vms_vnc_address_deprecation_warning: false`` silences it.
+- ``console-vm`` binds its VNC port on ``127.0.0.1`` only, which is also what
+  it would do with ``vnc_address`` unset. ``console-open-vm`` asks for an
+  empty ``vnc_address``, so it binds ``0.0.0.0`` and ``::``.
 - ``journalctl -u qemu-vm@console-vm`` holds the messages of QEMU and the
   start line of systemd, and no guest console output.
 
