@@ -1,0 +1,18 @@
+---
+- name: Validate the labview configuration
+  ansible.builtin.import_tasks: validate.yml
+
+- name: Create the labview service account
+  ansible.builtin.import_tasks: account.yml
+
+- name: Install the labview binary
+  ansible.builtin.import_tasks: install.yml
+
+- name: Create the labview directories
+  ansible.builtin.import_tasks: directories.yml
+
+- name: Install the labview polkit rule
+  ansible.builtin.import_tasks: polkit.yml
+
+- name: Configure the labview service
+  ansible.builtin.import_tasks: service.yml

@@ -1,0 +1,37 @@
+{{ ansible_managed | comment }}
+{#
+  The rule of deploy/50-labview-units.rules upstream, narrowed to the units
+  this collection creates.
+
+  Two layers have to agree before a power operation happens. labview maps a
+  machine to a unit through the inventory, so it can only ask about units the
+  inventory named; this rule is the host's own opinion about which units that
+  account may touch, so a mistake in the inventory cannot become "restart
+  anything on this hypervisor".
+
+  Both values go through `to_json`, which produces a quoted JavaScript string
+  with the escaping already done — the pattern is full of backslashes.
+#}
+polkit.addRule(function (action, subject) {
+    if (action.id !== "org.freedesktop.systemd1.manage-units") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (subject.user !== {{ labview_user | to_json }}) {
+        return polkit.Result.NOT_HANDLED;
+    }
+
+    var unit = action.lookup("unit");
+    if (!unit || !new RegExp({{ labview_unit_pattern | to_json }}).test(unit)) {
+        return polkit.Result.NOT_HANDLED;
+    }
+
+    // labview performs exactly these three. Anything else -- mask, enable,
+    // kill, a unit file change -- is not its business even on a unit it may
+    // otherwise restart.
+    var verb = action.lookup("verb");
+    if (verb === "start" || verb === "stop" || verb === "restart") {
+        return polkit.Result.YES;
+    }
+
+    return polkit.Result.NOT_HANDLED;
+});

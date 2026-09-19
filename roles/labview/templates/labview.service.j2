@@ -1,0 +1,82 @@
+{{ ansible_managed | comment }}
+{#
+  The unit of deploy/labview.service upstream, with the paths and the account
+  taken from the role variables. labview deploys as a plain systemd service:
+  there is no container image.
+-#}
+[Unit]
+Description=labview - console wall for the QEMU lab
+Documentation=https://github.com/maglo/qemu-lab-manager
+After=network-online.target dbus.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+ExecStart={{ labview_binary_path }} \
+    -listen {{ labview_listen }} \
+    -inventory {{ labview_inventory_dir }} \
+    -recordings-dir {{ labview_recordings_dir }} \
+    -screenshot-dir {{ labview_screenshot_dir }} \
+    -identity-header {{ labview_identity_header }} \
+    -host-access {{ labview_host_access }}{% for arg in labview_extra_args %} \
+    {{ arg }}{% endfor %}
+
+User={{ labview_user }}
+Group={{ labview_group }}
+{#
+  The QEMU sockets are owned by the QEMU service user and group. labview joins
+  the group to open them, which needs the sockets to be group writable:
+  `host_vm_umask` in the host role is what makes them 0770 rather than 0755.
+-#}
+SupplementaryGroups={{ labview_qemu_group }}
+
+Restart=on-failure
+RestartSec=2s
+
+{# One socket and one capture file per machine, one goroutine each. -#}
+LimitNOFILE=8192
+
+{#
+  SIGTERM makes labview close every transcript before it exits, so a capture
+  is never left unflushed.
+-#}
+KillSignal=SIGTERM
+TimeoutStopSec=15s
+
+{#
+  Hardening. labview reads /proc for the QEMU command lines and writes only
+  under its state directory, so everything else can be closed off.
+
+  ProtectSystem=strict leaves the QEMU sockets on a read-only mount, which is
+  no obstacle: connecting to a UNIX socket does not write to the filesystem,
+  and needs only the write bit in the socket's mode.
+-#}
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ labview_state_dir }}
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+
+{#
+  These two must stay permissive. Reading another process's
+  /proc/<pid>/cmdline is how the details tab gets the QEMU command line of a
+  machine, and ProcSubset=pid would hide it.
+-#}
+ProtectProc=default
+ProcSubset=all
+
+[Install]
+WantedBy=multi-user.target

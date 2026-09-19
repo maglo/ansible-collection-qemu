@@ -1,0 +1,27 @@
+---
+# Mandatory, not optional. labview is a system service and so has no logind
+# session: polkit evaluates a power operation as neither local nor active,
+# falls through to auth_admin, and finds no agent to answer the prompt. Every
+# start, stop and restart then fails, and it fails in a way that reads as a
+# labview fault rather than a missing rule.
+#
+# polkitd watches its rules directories and picks a new rule up by itself, so
+# there is nothing to reload.
+
+- name: Create the polkit rules directory
+  ansible.builtin.file:
+    path: "{{ labview_polkit_rule_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Install the labview polkit rule
+  ansible.builtin.template:
+    src: 50-labview-units.rules.j2
+    dest: "{{ labview_polkit_rule_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true

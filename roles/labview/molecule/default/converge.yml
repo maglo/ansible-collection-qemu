@@ -1,0 +1,28 @@
+---
+# The host role runs first because the qemu group has to exist: labview joins
+# it to open the serial and QMP sockets, and validate.yml refuses the run
+# without it. The vms role then writes one machine into the inventory
+# directory, which is the whole point of the deployment — labview is pointed
+# at what that role wrote, not at a directory this scenario made up.
+- name: Converge - labview console service
+  hosts: all
+  tasks:
+    - name: Include host role
+      ansible.builtin.include_role:
+        name: host
+
+    - name: Create a VM whose console the service serves
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_labview_inventory_dir: /etc/labview/inventory.d
+        vms_list:
+          - name: web01
+            disk_size: 1G
+            vnc: 1
+            vnc_address: 127.0.0.1
+            state: present
+
+    - name: Deploy the console service
+      ansible.builtin.include_role:
+        name: labview
