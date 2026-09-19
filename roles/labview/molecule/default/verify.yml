@@ -96,7 +96,7 @@
           - entry.pw_name == 'labview'
           - entry.gr_name == 'qemu'
           - entry.mode == '2770'
-          - entry.sgid
+          - entry.isgid
         fail_msg: "screenshot directory is {{ entry.pw_name }}:{{ entry.gr_name }} {{ entry.mode }}"
 
     # Both this role and the vms role create it, with the same owner and mode,
