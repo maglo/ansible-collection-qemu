@@ -83,6 +83,10 @@
     # QEMU writes a frame here as its own user and labview reads it back, so
     # the group is qemu, it is group writable, and setgid keeps a new frame in
     # that group.
+    #
+    # `stat` formats the mode as %04o, so a directory with a special bit set
+    # has that bit as its first digit and no leading zero: setgid 0770 reads
+    # as 2770, where a plain 0750 reads as 0750.
     - name: Assert the screenshot directory is shared with QEMU
       vars:
         entry: "{{ dirs.results[2].stat }}"
@@ -91,7 +95,8 @@
           - entry.isdir
           - entry.pw_name == 'labview'
           - entry.gr_name == 'qemu'
-          - entry.mode == '02770'
+          - entry.mode == '2770'
+          - entry.sgid
         fail_msg: "screenshot directory is {{ entry.pw_name }}:{{ entry.gr_name }} {{ entry.mode }}"
 
     # Both this role and the vms role create it, with the same owner and mode,
