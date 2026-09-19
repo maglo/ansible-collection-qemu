@@ -36,7 +36,6 @@ _vms_key_defaults:
   memory: "{{ vms_default_memory }}"
   cpus: "{{ vms_default_cpus }}"
   cpu_model: "{{ vms_default_cpu }}"
-  novnc_enabled: "{{ vms_default_novnc_enabled }}"
   shutdown_timeout: "{{ vms_default_shutdown_timeout }}"
   vnc_address: "{{ vms_default_vnc_address }}"
   smbios_oem_strings: []
@@ -61,7 +60,6 @@ _vms_resolved_json: >-
           'nvram_template': _vm.nvram_template
             | default(vms_ovmf_vars_secboot_template if _sb else vms_ovmf_vars_template),
           'vnc': _vnc,
-          'novnc_port': vms_default_novnc_port | default(6080 + _vnc, true) | int,
           'mac_address': '52:54:00:' ~ _md5[0:2] ~ ':' ~ _md5[2:4] ~ ':' ~ _md5[4:6],
           'serial_socket': vms_default_serial_socket
             | default('/var/lib/qemu/' ~ _vm.name ~ '/serial.sock', true),
@@ -83,7 +81,6 @@ _vms_restart_vms: "{{ _vms_resolved | selectattr('state', 'equalto', 'restarted'
 _vms_uefi_vms: "{{ _vms_active_vms | selectattr('uefi') | list }}"
 _vms_secure_boot_vms: "{{ _vms_uefi_vms | selectattr('secure_boot') | list }}"
 _vms_tpm_vms: "{{ _vms_active_vms | selectattr('tpm') | list }}"
-_vms_novnc_vms: "{{ _vms_active_vms | selectattr('novnc_enabled') | list }}"
 _vms_bridge_vms: "{{ _vms_active_vms | selectattr('net_mode', 'equalto', 'bridge') | list }}"
 _vms_image_vms: "{{ _vms_active_vms | selectattr('disk_image_url', 'defined') | list }}"
 _vms_usb_vms: "{{ _vms_active_vms | selectattr('usb_disk_image', 'defined') | list }}"

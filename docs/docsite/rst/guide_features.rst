@@ -173,8 +173,7 @@ modulo 100, which keeps it stable across a rebuild; ``vnc: N`` overrides it and
 the port is ``5900 + N``. The role fails the run when two names collide.
 
 ``vnc_address`` sets the address that the console binds. It defaults to
-``127.0.0.1``, which reaches the console through the host only; noVNC keeps
-working, because the noVNC instance of a VM connects to ``localhost``. An
+``127.0.0.1``, which reaches the console through the host only. An
 empty value binds every interface, on both ``0.0.0.0`` and ``::``. Wrap an
 IPv6 address in brackets, for example ``[::1]``.
 
@@ -185,30 +184,10 @@ IPv6 address in brackets, for example ``[::1]``.
    way. Prefer the default, and reach the console through a console service or
    an SSH tunnel.
 
-For a browser console, ``novnc_enabled: true`` starts a
-``novnc@<name>.service`` per VM on port ``6080 + <vnc display>`` — or
-``novnc_port`` — and the console is at ``http://<host>:<port>/vnc.html``. The
-host role must have installed the package first:
-
-.. code-block:: yaml
-
-   - role: maglo.qemu.host
-     vars:
-       host_novnc_enabled: true
-
-   - role: maglo.qemu.vms
-     vars:
-       vms_list:
-         - name: web01
-           disk_size: 40G
-           novnc_enabled: true
-           state: started
-
-.. warning::
-
-   noVNC serves the console over plain HTTP with no authentication. Keep the
-   port on a management network, or put a reverse proxy with TLS and
-   authentication in front of it.
+For a browser console, deploy the ``maglo.qemu.labview`` role. It serves the
+framebuffer, serial line and control channel of every machine behind one
+port, reading the inventory the ``vms`` role writes — see
+:ref:`ansible_collections.maglo.qemu.docsite.guide_console_service`.
 
 Console service inventory
 -------------------------
@@ -313,7 +292,7 @@ VM lifecycle
      - Behaviour
    * - ``present``
      - Write the configuration; leave the ``qemu-vm@`` unit alone. The swtpm
-       and noVNC instances of the VM are still started.
+       instance of the VM is still started.
    * - ``started``
      - Enable and start the unit, then check that it is active.
    * - ``stopped``
@@ -348,7 +327,7 @@ The ``vms`` role checks the whole list before it writes anything to the host,
 so a run that cannot finish leaves the host as it was. It fails on a duplicate
 VM name, a name that cannot be a systemd instance name, ``secure_boot``
 without ``uefi``, a ``disk_image_url`` with a non-qcow2 ``disk_format``, two
-VMs that would share a VNC display, a MAC address, a noVNC port, a serial
+VMs that would share a VNC display, a MAC address, a serial
 socket or a QMP socket, and ``state: absent`` without ``force_destroy``.
 
 See also

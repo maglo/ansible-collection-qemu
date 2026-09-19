@@ -2,20 +2,12 @@
 # Restart one VM. `item` is the resolved VM entry, set by service.yml.
 #
 # The VM goes down through the guest, not through SIGTERM, so a restart does
-# not leave the guest file systems dirty. noVNC and swtpm are cycled after the
-# VM is down, because the drop-in units make the VM require them: stopping
-# either one first would take the VM down without a guest shutdown.
+# not leave the guest file systems dirty. swtpm is cycled after the VM is
+# down, because the drop-in unit makes the VM require it: stopping it first
+# would take the VM down without a guest shutdown.
 
 - name: Gracefully shut down {{ item.name }}
   ansible.builtin.include_tasks: shutdown.yml
-
-- name: Stop noVNC service for {{ item.name }}
-  ansible.builtin.systemd_service:
-    name: "novnc@{{ item.name }}.service"
-    state: stopped
-  become: true
-  when: item.novnc_enabled
-  failed_when: false
 
 - name: Restart swtpm service for {{ item.name }}
   ansible.builtin.systemd_service:
@@ -30,10 +22,3 @@
     state: started
     daemon_reload: true
   become: true
-
-- name: Start noVNC service for {{ item.name }}
-  ansible.builtin.systemd_service:
-    name: "novnc@{{ item.name }}.service"
-    state: started
-  become: true
-  when: item.novnc_enabled

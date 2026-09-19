@@ -14,7 +14,6 @@ tags:
   - kvm
   - virtualization
   - systemd
-  - novnc
 repository: https://github.com/maglo/ansible-collection-qemu
 documentation: https://maglo.github.io/ansible-collection-qemu/
 homepage: https://maglo.github.io/ansible-collection-qemu/

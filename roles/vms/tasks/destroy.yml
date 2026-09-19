@@ -3,9 +3,9 @@
 # VM entry, set by service.yml. validate.yml has already checked that the VM
 # carries `force_destroy: true`.
 #
-# Order matters. The VM goes down through the guest first: the drop-in units
-# make it require its swtpm and noVNC instances, so stopping either of those
-# first would take the VM down with SIGTERM and no guest shutdown.
+# Order matters. The VM goes down through the guest first: the drop-in unit
+# makes it require its swtpm instance, so stopping that first would take the
+# VM down with SIGTERM and no guest shutdown.
 
 - name: Gracefully shut down {{ item.name }}
   ansible.builtin.include_tasks: shutdown.yml
@@ -17,7 +17,10 @@
   become: true
   failed_when: false
 
-- name: Stop and disable noVNC service for {{ item.name }}
+# A VM created before 0.6.0 may still have a noVNC instance enabled and an
+# environment file. `novnc@.service` is gone with the host role, so systemd
+# reports a unit it cannot find; that is the ordinary case and not an error.
+- name: Stop and disable the leftover noVNC service of {{ item.name }}
   ansible.builtin.systemd_service:
     name: "novnc@{{ item.name }}.service"
     state: stopped
@@ -48,6 +51,8 @@
   become: true
   loop:
     - "{{ vms_vm_config_dir }}/{{ item.name }}.conf"
+    # Left by a release with per-VM noVNC. The drop-in directory below takes
+    # the novnc-dependency.conf with it.
     - "{{ vms_vm_config_dir }}/novnc-{{ item.name }}.conf"
     - "{{ vms_image_dir }}/{{ item.name }}.{{ item.disk_format }}"
     - "{{ vms_image_dir }}/{{ item.name }}-seed.iso"

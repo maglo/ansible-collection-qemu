@@ -34,8 +34,8 @@ verifier:
 # `lifecycle-test-solo`, in its own ansible-playbook so that no fact of the
 # converge carries into it, and `verify` asserts that both destroyed VMs are
 # gone and that the VM whose destroy was refused survived. The scenarios that
-# converge to a steady state — default, secureboot, novnc, and both host
-# scenarios — keep the idempotence check.
+# converge to a steady state — default, secureboot, labview, and the host
+# scenario — keep the idempotence check.
 scenario:
   test_sequence:
     - dependency

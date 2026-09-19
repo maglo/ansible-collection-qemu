@@ -41,9 +41,7 @@ The role then:
 5. Deploys the ``swtpm@.service`` systemd template unit. The ``vms`` role
    starts one instance of it for each VM that sets ``tpm: true``, and it fails
    when this unit is missing.
-6. Installs the ``novnc`` package and deploys the ``novnc@.service`` systemd
-   template unit, when ``host_novnc_enabled`` is true.
-7. Compiles and installs an SELinux policy module, when ``getenforce`` reports
+6. Compiles and installs an SELinux policy module, when ``getenforce`` reports
    ``Enforcing``. The module lets ``qemu-vm@.service`` run
    ``/usr/libexec/qemu-kvm``. The role installs ``checkpolicy`` and
    ``policycoreutils`` to build it. The role skips this step when SELinux is
@@ -125,25 +123,6 @@ needs the digits.
    The mode is fixed when QEMU creates the socket, so a VM that is already
    running keeps the socket it started with. Restart the VMs with
    ``state: restarted`` in the ``vms`` role to pick the new mode up.
-
-noVNC web console
------------------
-
-Set ``host_novnc_enabled`` to true to install the ``novnc`` package from EPEL
-and deploy the ``novnc@.service`` systemd template unit:
-
-.. code-block:: yaml
-
-   - hosts: hypervisors
-     roles:
-       - role: maglo.qemu.host
-         vars:
-           host_novnc_enabled: true
-
-The host role only prepares the unit. The ``vms`` role starts one
-``novnc@<name>.service`` per VM that sets ``novnc_enabled: true``. See the
-``maglo.qemu.host`` and ``maglo.qemu.vms`` role READMEs for the port
-assignment and the console URL.
 
 Customising directories
 -----------------------

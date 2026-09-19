@@ -103,12 +103,6 @@ vms_default_cpus: 2
 # Default CPU model passed to QEMU -cpu flag (used when a VM does not specify cpu_model)
 vms_default_cpu: host
 
-# Whether VMs default to noVNC web console (per-VM override with `novnc_enabled` key)
-vms_default_novnc_enabled: false
-
-# Default noVNC port (null means auto-assign: 6080 + VNC display number)
-vms_default_novnc_port: null
-
 # Default shutdown timeout for graceful ACPI powerdown (seconds)
 vms_default_shutdown_timeout: 120
 

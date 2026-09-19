@@ -21,7 +21,7 @@ template unit.
 | **Libvirt-free** | VMs are driven directly by `qemu-system-*` — no libvirtd, no XML, no virsh |
 | **Systemd-native** | VM lifecycle is managed via `qemu-vm@<name>.service` template units |
 | **Enterprise Linux focused** | Targets RHEL, Rocky, Alma and CentOS 10 exclusively |
-| **Minimal footprint** | No heavy infrastructure dependencies; only QEMU, swtpm, and optionally noVNC |
+| **Minimal footprint** | No heavy infrastructure dependencies; only QEMU and swtpm |
 
 If you want an Ansible-driven, version-controlled alternative to running QEMU
 commands by hand — without adopting Proxmox, oVirt or VMware — this collection
@@ -31,15 +31,15 @@ is for you.
 
 | Role | Description |
 |------|-------------|
-| [`maglo.qemu.host`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/host/README.md) | Install QEMU/KVM packages, deploy the systemd template units, and optionally set up noVNC |
+| [`maglo.qemu.host`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/host/README.md) | Install QEMU/KVM packages and deploy the systemd template units |
 | [`maglo.qemu.vms`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/vms/README.md) | Create and manage VMs — disk images, UEFI and Secure Boot, TPM, networking, consoles, cloud-init, USB, lifecycle |
 | [`maglo.qemu.labview`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/labview/README.md) | Deploy the labview console service — every VM's framebuffer, serial line and control channel behind one port |
 
 ## Requirements
 
 - A host running Enterprise Linux 10 with hardware virtualization enabled.
-- The EPEL repository, or a mirror carrying `swtpm`, `socat`, `genisoimage`
-  and `novnc`. The collection does not enable EPEL itself.
+- The EPEL repository, or a mirror carrying `swtpm`, `socat` and
+  `genisoimage`. The collection does not enable EPEL itself.
 - `ansible-core` >= 2.15 on the control node.
 
 The [installation
@@ -82,8 +82,8 @@ collections:
             state: started
 ```
 
-The `host` role installs the QEMU/KVM packages and the `qemu-vm@.service`,
-`swtpm@.service` and `novnc@.service` template units. The `vms` role creates
+The `host` role installs the QEMU/KVM packages and the `qemu-vm@.service`
+and `swtpm@.service` template units. The `vms` role creates
 each disk image, writes `/etc/qemu/vms/<name>.conf` and manages the
 `qemu-vm@<name>.service` instance of every VM:
 

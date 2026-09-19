@@ -1,8 +1,0 @@
----
-- name: Prepare
-  hosts: all
-  tasks:
-    - name: Enable EPEL repository
-      ansible.builtin.dnf:
-        name: epel-release
-        state: present

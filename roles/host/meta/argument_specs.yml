@@ -6,9 +6,7 @@ argument_specs:
       - Installs the QEMU/KVM packages, deploys the C(qemu-vm@.service) and
         C(swtpm@.service) systemd template units, and installs a small SELinux
         policy module when SELinux is enforcing.
-      - Optionally installs the noVNC package and the C(novnc@.service)
-        template unit. The per-VM instances of all three units are managed by
-        the C(vms) role.
+      - The per-VM instances of both units are managed by the C(vms) role.
     options:
       host_packages:
         description: Packages to install for QEMU/KVM host.
@@ -61,10 +59,3 @@ argument_specs:
           C(vms_swtpm_state_dir) of the C(vms) role.
         type: path
         default: /var/lib/swtpm
-      host_novnc_enabled:
-        description: >-
-          Whether to install the noVNC package and deploy the C(novnc@.service) systemd template
-          for browser-based VNC console access.
-          Per-VM noVNC service instances are managed by the C(vms) role.
-        type: bool
-        default: false

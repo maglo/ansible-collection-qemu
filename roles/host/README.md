@@ -11,16 +11,15 @@ The role:
 - installs the QEMU/KVM packages listed in `host_packages`;
 - creates the VM config and image directories;
 - deploys the `qemu-vm@.service` and `swtpm@.service` systemd template units;
-- deploys the `novnc@.service` template unit and installs the `novnc` package when `host_novnc_enabled` is true;
 - compiles and installs a small SELinux policy module when SELinux is enforcing.
 
-It sets up the host only. The per-VM instances of all three template units are managed by the `maglo.qemu.vms` role.
+It sets up the host only. The per-VM instances of both template units are managed by the `maglo.qemu.vms` role.
 
 ## Requirements
 
 - Ansible >= 2.15
 - Target hosts running Enterprise Linux 10
-- **EPEL** (or equivalent mirror) enabled on the target host — several packages installed by this role (`swtpm`, `swtpm-tools`, `socat`, `genisoimage`, and optionally `novnc`) are only available from EPEL. The collection intentionally does not manage EPEL setup to support airgapped deployments.
+- **EPEL** (or equivalent mirror) enabled on the target host — several packages installed by this role (`swtpm`, `swtpm-tools`, `socat` and `genisoimage`) are only available from EPEL. The collection intentionally does not manage EPEL setup to support airgapped deployments.
 
 ## Role Variables
 
@@ -33,7 +32,6 @@ It sets up the host only. The per-VM instances of all three template units are m
 | `host_service_group` | `qemu` | Group for the QEMU systemd service |
 | `host_vm_umask` | `0007` | Umask of the `qemu-vm@.service` units, and so the mode of every socket QEMU creates: `0770` rather than systemd's `0755` |
 | `host_swtpm_state_dir` | `/var/lib/swtpm` | Base directory for per-VM swtpm state, read by the `swtpm@.service` template (must match `vms_swtpm_state_dir`) |
-| `host_novnc_enabled` | `false` | Install the noVNC package from EPEL and deploy the `novnc@.service` systemd template (per-VM service instances managed by `maglo.qemu.vms` role) |
 
 The three "must match" variables above have a counterpart in the `vms` role. The template units read the `host_*` value, and the `vms` role writes to the `vms_*` value. Change one and you must change the other, or the units will look for files that the `vms` role never wrote.
 
@@ -94,25 +92,12 @@ Basic usage:
     - maglo.qemu.host
 ```
 
-With noVNC package installation (for browser-based console access):
-
-```yaml
-- hosts: hypervisors
-  roles:
-    - role: maglo.qemu.host
-      vars:
-        host_novnc_enabled: true
-```
-
-**Note:** This installs the `novnc` package from EPEL and deploys the `novnc@.service` systemd template unit. Per-VM noVNC service instances (`novnc@<vmname>.service`) are enabled by the `maglo.qemu.vms` role when `novnc_enabled: true` is set for a VM.
-
 ## Managing VMs
 
 The role deploys these systemd template units:
 
 - **`qemu-vm@.service`** — the QEMU VM itself.
 - **`swtpm@.service`** — the software TPM 2.0 emulator, used by a VM with `tpm: true`.
-- **`novnc@.service`** — the noVNC websocket proxy, deployed only when `host_novnc_enabled` is true.
 
 Each VM is described by one file in `host_vm_config_dir` (`/etc/qemu/vms` by default). The unit reads it as an `EnvironmentFile` and passes `$QEMU_ARGS` to `/usr/libexec/qemu-kvm`. The instance name after `@` is the file name without the extension.
 

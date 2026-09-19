@@ -5,9 +5,5 @@
 - name: Configure systemd service for QEMU VMs
   ansible.builtin.import_tasks: systemd.yml
 
-- name: Configure noVNC
-  ansible.builtin.import_tasks: novnc.yml
-  when: host_novnc_enabled
-
 - name: Apply SELinux policy for QEMU VM service
   ansible.builtin.import_tasks: selinux.yml
