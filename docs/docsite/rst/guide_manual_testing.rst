@@ -89,8 +89,8 @@ Verify that the ``host`` role installs packages and deploys systemd template uni
    # Directories created
    ls -la /etc/qemu/vms /var/lib/qemu/images
 
-Test 2: Host role — noVNC
---------------------------
+Test 2: labview role — the console service
+-------------------------------------------
 
 .. code-block:: yaml
 
@@ -98,15 +98,20 @@ Test 2: Host role — noVNC
      become: true
      roles:
        - role: maglo.qemu.host
-         vars:
-           host_novnc_enabled: true
+       - role: maglo.qemu.labview
 
 **Verify:**
 
 .. code-block:: bash
 
-   rpm -q novnc
-   systemctl cat novnc@.service
+   # The binary is the pinned release, and the service is up on loopback
+   /usr/local/bin/labview -version
+   systemctl is-active labview.service
+   curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/
+
+   # The account is its own, in the qemu group, and the polkit rule is in place
+   id labview
+   cat /etc/polkit-1/rules.d/50-labview-units.rules
 
 Test 3: VMs role — basic VM creation
 --------------------------------------
@@ -270,8 +275,8 @@ Test 7: Networking
    # VM config uses bridge netdev
    grep "netdev bridge" /etc/qemu/vms/bridge-vm.conf
 
-Test 8: noVNC web console
---------------------------
+Test 8: the console of a VM in a browser
+-----------------------------------------
 
 .. code-block:: yaml
 
@@ -279,29 +284,27 @@ Test 8: noVNC web console
      become: true
      roles:
        - role: maglo.qemu.host
-         vars:
-           host_novnc_enabled: true
        - role: maglo.qemu.vms
          vars:
+           vms_labview_inventory_dir: /etc/labview/inventory.d
            vms_list:
-             - name: novnc-vm
+             - name: console-vm
                disk_size: 5G
-               novnc_enabled: true
-               novnc_port: 6080
                vnc: 0
-               state: present
+               state: started
+       - role: maglo.qemu.labview
 
 **Verify:**
 
 .. code-block:: bash
 
-   # noVNC env file written
-   cat /etc/qemu/vms/novnc-novnc-vm.conf
+   # The vms role wrote the machine, and the service serves it
+   cat /etc/labview/inventory.d/console-vm.yml
+   curl -sS http://127.0.0.1:8080/api/machines
 
-   # noVNC service enabled
-   systemctl is-enabled novnc@novnc-vm
-
-   # Connect browser to http://<host>:6080/vnc.html
+   # Connect a browser through the reverse proxy in front of labview.
+   # The framebuffer, the serial line and the details of console-vm are
+   # all on one page.
 
 Test 9: URL-based disk image provisioning
 ------------------------------------------
@@ -969,7 +972,8 @@ Known RC limitations
   host. ``state: present`` and ``state: absent`` do run in Molecule: the
   ``lifecycle`` scenario of the ``vms`` role exercises ``state: absent`` with
   and without ``force_destroy``, and CI runs that scenario
-- noVNC serves unencrypted WebSocket by default; add a TLS reverse proxy for production
+- labview listens on loopback and authenticates nobody; put a reverse proxy that
+  terminates TLS and authenticates in front of it for anything but a workstation
 - Bridge mode requires the bridge device to already exist on the host; this collection
   does not create bridges
 - Only QCOW2 format is supported for URL-based image provisioning; the role validates

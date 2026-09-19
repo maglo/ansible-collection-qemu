@@ -1,12 +1,12 @@
 ---
 # The role resolves the effective settings of every VM once, in vars/main.yml.
 # Each task file below reads a ready-made selection from there
-# (_vms_uefi_vms, _vms_tpm_vms, _vms_novnc_vms, ...) instead of filtering
+# (_vms_uefi_vms, _vms_tpm_vms, _vms_image_vms, ...) instead of filtering
 # vms_list again, and reads `item.tpm` instead of
 # `item.tpm | default(vms_default_tpm)`.
 #
 # Each import is gated on the selection it works on, so a play that manages
-# plain VMs never evaluates the firmware, TPM or noVNC tasks.
+# plain VMs never evaluates the firmware, TPM or cloud-init tasks.
 #
 # The three files that work on the whole of `_vms_active_vms` — disk.yml,
 # runtime_dir.yml and smbios.yml — carry no such gate, on purpose. `import_tasks`
@@ -22,6 +22,13 @@
 # ── Validation ─────────────────────────────────────────────
 - name: Validate the VM list
   ansible.builtin.import_tasks: validate.yml
+
+# ── Upgrade from a release with per-VM noVNC ───────────────
+# Before anything starts a VM: a leftover noVNC drop-in makes the VM unit
+# require a unit this release no longer ships, and systemd refuses to start
+# it. See novnc_cleanup.yml.
+- name: Remove what per-VM noVNC left behind
+  ansible.builtin.import_tasks: novnc_cleanup.yml
 
 # ── Creation phase (every VM whose state is not `absent`) ──
 - name: Ensure UEFI firmware is available
@@ -48,10 +55,6 @@
 - name: Configure VM networking
   ansible.builtin.import_tasks: network.yml
   when: _vms_bridge_vms | length > 0
-
-- name: Configure noVNC for VMs
-  ansible.builtin.import_tasks: novnc.yml
-  when: _vms_novnc_vms | length > 0
 
 - name: Create the per-VM runtime directories
   ansible.builtin.import_tasks: runtime_dir.yml

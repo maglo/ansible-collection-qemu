@@ -49,7 +49,7 @@ The role checks the whole list before it changes anything on the host. It
 rejects a duplicate VM name, a name that systemd cannot use as an instance
 name, ``secure_boot`` without ``uefi``, a ``disk_image_url`` with a disk
 format other than qcow2, two VMs that would share a VNC display, a MAC
-address, a noVNC port, a serial socket or a QMP socket, and
+address, a serial socket or a QMP socket, and
 ``state: absent`` without ``force_destroy``. A
 run that cannot finish therefore fails before it writes the first file.
 
@@ -144,7 +144,7 @@ Change ``state`` in ``vms_list`` and run the play again:
   power down.
 - ``state: restarted`` sends ``system_powerdown`` over the QMP socket of the
   VM, waits up to ``shutdown_timeout`` seconds (default 120) for QEMU to exit,
-  stops the unit either way, cycles the swtpm and noVNC instances of the VM,
+  stops the unit either way, cycles the swtpm instance of the VM,
   and starts the VM again.
 - ``state: absent`` shuts the guest down the same way and then removes every
   artifact of the VM: the configuration file, the disk image, the UEFI
@@ -201,7 +201,6 @@ one feature at a time:
   ``cloud_init_network_config`` — the cloud-init seed ISO.
 - ``smbios_oem_strings`` — SMBIOS type 11 OEM strings, which ``systemd-stub``
   reads.
-- ``novnc_enabled`` and ``novnc_port`` — the noVNC web console.
 - ``vnc_address``, ``serial_socket`` and ``qmp_socket`` — where the consoles
   and the control channel of the VM listen. QMP is the whole control channel:
   a VM has no ``-monitor`` socket, and ``human-monitor-command`` carries the

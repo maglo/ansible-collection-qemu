@@ -234,13 +234,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      # Two real axes, so this is an 8 x 1 cross product: eight jobs. The
+      # Two real axes, so this is a 6 x 1 cross product: six jobs. The
       # `el_version` axis is kept at one value so that the next EL release is
       # added by extending the list.
       #
       # Do not move the scenarios back into `include:`. An `include:` entry is
       # merged into every existing combination of the other axes, and a later
-      # entry overwrites the keys an earlier one set. Eight entries that all set
+      # entry overwrites the keys an earlier one set. Six entries that all set
       # `role` and `scenario` therefore collapse to one job per el_version,
       # running whichever scenario is listed last.
       #
@@ -251,11 +251,9 @@ jobs:
         el_version: [10]
         target:
           - {role: host, scenario: default}
-          - {role: host, scenario: novnc}
           - {role: vms, scenario: default}
           - {role: vms, scenario: secureboot}
           - {role: vms, scenario: lifecycle}
-          - {role: vms, scenario: novnc}
           - {role: vms, scenario: labview}
           - {role: labview, scenario: default}
     steps:

@@ -1,0 +1,64 @@
+---
+# Remove what per-VM noVNC left on a host that ran an earlier release.
+#
+# 0.6.0 replaced noVNC with the labview console service, so the host role no
+# longer deploys `novnc@.service`. A VM created before the upgrade still
+# carries a drop-in that says:
+#
+#     [Unit]
+#     Requires=novnc@<name>.service
+#
+# and systemd refuses to start a unit whose `Requires=` names a unit that does
+# not exist. The VM would therefore fail to start after the upgrade, with an
+# error that points at noVNC on a collection that no longer has any. Removing
+# the drop-in is what makes the upgrade safe, so this runs for every VM the
+# role manages, not only for the ones being destroyed.
+#
+# The file is the only thing removed from the drop-in directory. A deployer
+# may have put drop-ins of their own beside it, and those are not ours.
+#
+# This whole file exists for the upgrade and can go once every consumer has
+# taken 0.6.0. `destroy.yml` does the same for a VM that is being destroyed.
+
+- name: Remove the noVNC dependency drop-in of {{ item.name }}
+  ansible.builtin.file:
+    path: "/etc/systemd/system/qemu-vm@{{ item.name }}.service.d/novnc-dependency.conf"
+    state: absent
+  become: true
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: _vms_novnc_dropin
+
+- name: Remove the noVNC environment file of {{ item.name }}
+  ansible.builtin.file:
+    path: "{{ vms_vm_config_dir }}/novnc-{{ item.name }}.conf"
+    state: absent
+  become: true
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# `novnc@.service` is gone with the host role, so an instance of it cannot be
+# running any more; what is left is the enablement symlink. `failed_when` is
+# off because systemd reports a unit it cannot find, which is the ordinary
+# case on every host that never used noVNC.
+- name: Stop and disable the leftover noVNC service of {{ item.name }}
+  ansible.builtin.systemd_service:
+    name: "novnc@{{ item.name }}.service"
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+  loop: "{{ _vms_active_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: _vms_novnc_dropin.results | selectattr('changed') | list | length > 0
+
+# The drop-in told systemd about a unit that is now gone, so the VM unit has
+# to be read again before it is started.
+- name: Reload systemd after removing a noVNC drop-in
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  become: true
+  when: _vms_novnc_dropin.results | selectattr('changed') | list | length > 0

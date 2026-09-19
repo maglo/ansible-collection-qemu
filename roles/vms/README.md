@@ -6,7 +6,7 @@
 
 Create QEMU/KVM virtual machines on an Enterprise Linux host.
 
-For each VM in `vms_list` the role creates the disk image, the UEFI variable store, the emulated TPM state, the cloud-init seed ISO and the noVNC proxy, writes the QEMU arguments to `/etc/qemu/vms/<name>.conf`, and brings the `qemu-vm@<name>.service` unit to the state the VM asks for.
+For each VM in `vms_list` the role creates the disk image, the UEFI variable store, the emulated TPM state and the cloud-init seed ISO, writes the QEMU arguments to `/etc/qemu/vms/<name>.conf`, and brings the `qemu-vm@<name>.service` unit to the state the VM asks for.
 
 The role checks the whole list before it changes anything on the host, so a run that cannot finish leaves the host untouched. See [Input validation](#input-validation).
 
@@ -56,8 +56,6 @@ A configuration change is written to the `.conf` file, but it does not restart a
 | `vms_default_memory` | `2G` | Default memory allocation for VMs |
 | `vms_default_cpus` | `2` | Default number of virtual CPUs |
 | `vms_default_cpu` | `host` | Default CPU model passed to the QEMU `-cpu` flag |
-| `vms_default_novnc_enabled` | `false` | Whether VMs default to noVNC web console when not specified per VM |
-| `vms_default_novnc_port` | `null` | Default noVNC port. When null, each VM gets 6080 plus its own VNC display number |
 | `vms_default_shutdown_timeout` | `120` | Default timeout in seconds for graceful ACPI shutdown |
 | `vms_default_vnc_address` | `127.0.0.1` | Default address that the VNC console binds. An empty string binds every interface |
 | `vms_default_serial_socket` | `null` | Default path of the serial console socket. When null, each VM gets `/var/lib/qemu/<name>/serial.sock` |
@@ -101,8 +99,6 @@ Each entry in `vms_list` is a dictionary with the following keys:
 | `cloud_init_user_data` | no | — | cloud-init `user-data` content; triggers seed ISO generation |
 | `cloud_init_meta_data` | no | auto-generated | cloud-init `meta-data` content; auto-generated from VM name if omitted |
 | `cloud_init_network_config` | no | — | cloud-init `network-config` content; omitted from ISO if not set |
-| `novnc_enabled` | no | `vms_default_novnc_enabled` | Enable noVNC web console for this VM |
-| `novnc_port` | no | `6080 + vnc` | Port for noVNC web console (auto-assigned if not specified) |
 | `state` | no | `present` | Desired service state: `started`, `stopped`, `present`, `restarted`, or `absent` |
 | `force_destroy` | no | `false` | Safety flag required to destroy VM with `state: absent` (must be `true`) |
 | `shutdown_timeout` | no | `120` | Timeout in seconds for graceful ACPI shutdown (used by `restarted` and `absent`) |
@@ -114,7 +110,7 @@ Every check that can be answered from `vms_list` alone runs before the role writ
 - two VMs share a name, or a name is not usable as a systemd instance name and a file name (letters, digits, `.`, `_` and `-`, starting with a letter or a digit);
 - a VM has `secure_boot: true` and `uefi: false`;
 - a VM has `disk_image_url` and a `disk_format` other than `qcow2`, because only qcow2 can hold a backing file;
-- two VMs would use the same VNC display, the same MAC address or the same noVNC port;
+- two VMs would use the same VNC display or the same MAC address;
 - two VMs would open the same serial socket or the same QMP socket;
 - a VM has `state: absent` without `force_destroy: true`.
 
@@ -124,7 +120,7 @@ The role derives the VNC display and the MAC address from the VM name, so two na
 
 The role manages each VM as a `qemu-vm@<name>.service` systemd unit. The per-VM `state` key controls the unit:
 
-- **`present`** (default) — the role writes the config file and leaves the `qemu-vm@` unit alone. Use it to prepare a VM without starting it, or on a host without KVM. The swtpm and noVNC instances of the VM are still started, so that the VM can be started by hand afterwards.
+- **`present`** (default) — the role writes the config file and leaves the `qemu-vm@` unit alone. Use it to prepare a VM without starting it, or on a host without KVM. The swtpm instance of the VM is still started, so that the VM can be started by hand afterwards.
 - **`started`** — the role enables and starts the unit, then checks that it is active.
 - **`stopped`** — the role enables the unit but stops it.
 - **`restarted`** — the role shuts the guest down over QMP and starts the VM again.
@@ -156,7 +152,6 @@ The role removes these paths, whether or not the VM still carries the key that c
 | Path | What it is |
 |------|------------|
 | `/etc/qemu/vms/{name}.conf` | QEMU arguments |
-| `/etc/qemu/vms/novnc-{name}.conf` | noVNC environment file |
 | `/var/lib/qemu/images/{name}.{qcow2\|raw}` | Disk image |
 | `/var/lib/qemu/images/{name}-seed.iso` | cloud-init seed ISO |
 | `/var/lib/qemu/images/.cloud-init-staging/{name}/` | cloud-init staging directory |
@@ -168,7 +163,7 @@ The role removes these paths, whether or not the VM still carries the key that c
 | `/var/lib/swtpm/{name}.state` | swtpm state file |
 | `/etc/systemd/system/qemu-vm@{name}.service.d/` | systemd drop-in directory |
 
-It also stops and disables the `qemu-vm@`, `novnc@` and `swtpm@` instances of the VM.
+It also stops and disables the `qemu-vm@` and `swtpm@` instances of the VM.
 
 **Note:** shared resources are not removed. `/etc/qemu/bridge.conf` and the cached backing image under `/var/lib/qemu/images/cache/` stay in place.
 
@@ -424,8 +419,7 @@ address in brackets, for example `[::1]`.
 
 **The default is `127.0.0.1`,** so the console of a VM is reachable through
 the host only, which is what makes the write lease of a console service mean
-anything. noVNC keeps working either way, because the noVNC instance of a VM
-connects to `localhost`.
+anything.
 
 A VNC client on another host no longer reaches a VM: set `vnc_address: ""` on
 that VM, or `vms_default_vnc_address: ""` for every VM, to bind every
@@ -513,70 +507,6 @@ The seed ISO is placed alongside the disk image:
 ```
 
 When the VM is destroyed with `state: absent`, the seed ISO is removed along with all other VM artifacts.
-
-## noVNC Web Console
-
-The role can configure per-VM noVNC instances for browser-based console access. noVNC provides an HTML5 VNC client that requires no client-side software.
-
-### Prerequisites
-
-1. Install the `novnc` package on the host (handled by `maglo.qemu.host` role with `host_novnc_enabled: true`)
-2. Ensure the EPEL repository is enabled (EPEL 10 provides novnc 1.5.0)
-
-### Configuration
-
-Enable noVNC per-VM by setting `novnc_enabled: true`:
-
-```yaml
-vms_list:
-  - name: web01
-    novnc_enabled: true
-    novnc_port: 6080  # Optional, auto-assigned if omitted
-```
-
-When enabled, the role:
-- Checks that the `novnc@.service` template unit is present. The `maglo.qemu.host` role deploys it; the `vms` role fails when it is missing.
-- Writes a per-VM environment file at `/etc/qemu/vms/novnc-<name>.conf` with the port and the VNC target.
-- Writes a systemd drop-in at `/etc/systemd/system/qemu-vm@<name>.service.d/novnc-dependency.conf`.
-- Enables and starts the `novnc@<name>.service` instance.
-
-### Port Assignment
-
-noVNC ports are auto-assigned if not specified:
-- **Auto-assignment**: `6080 + VNC display number`
-- **Manual override**: Set `novnc_port: N` per VM
-
-**Examples:**
-- VM with VNC display :0 → noVNC port 6080
-- VM with VNC display :1 → noVNC port 6081
-- VM with `novnc_port: 8080` → noVNC port 8080 (override)
-
-### Access
-
-Once configured, access the VM console in a web browser:
-```
-http://<host>:<novnc_port>/vnc.html
-```
-
-For example, a VM with noVNC on port 6080:
-```
-http://192.168.1.100:6080/vnc.html
-```
-
-### Service dependencies
-
-The role writes a drop-in on the **VM** unit that makes it require its proxy:
-
-```ini
-# /etc/systemd/system/qemu-vm@<name>.service.d/novnc-dependency.conf
-[Unit]
-After=novnc@<name>.service
-Requires=novnc@<name>.service
-```
-
-So the proxy starts before the VM, and stopping the proxy stops the VM as well. `state: restarted` and `state: absent` therefore shut the guest down first and touch the proxy afterwards.
-
-**Security note:** noVNC serves unencrypted WebSocket connections by default. For production use, consider placing it behind a reverse proxy with TLS/SSL.
 
 ## URL-based Disk Provisioning
 
@@ -724,29 +654,43 @@ Only an increase resets. Lowering `tpm_generation`, or deleting the key so that 
 ansible-playbook site.yml -e vms_tpm_force_reset=true
 ```
 
-### noVNC web console
+### Upgrading from a release with per-VM noVNC
 
-To enable browser-based console access with noVNC:
+The role cleans up after noVNC by itself. On the first run after the upgrade it
+removes the `novnc-dependency.conf` drop-in of each VM, its
+`/etc/qemu/vms/novnc-<name>.conf`, and the enablement of its
+`novnc@<name>.service`.
+
+The drop-in is why this is not left to you. It makes the unit of a VM
+`Requires=novnc@<name>.service`, and this release no longer ships that template
+unit, so systemd would refuse to start the VM with an error naming a service
+the collection no longer has.
+
+Only that one file is removed from the drop-in directory, so a drop-in you put
+there survives. A host that never used noVNC does nothing at all.
+
+### Browser console
+
+Deploy the [`maglo.qemu.labview`](../labview/README.md) role. It serves the
+framebuffer, serial line and control channel of every machine behind one port,
+reading the per-machine inventory this role writes:
 
 ```yaml
 - hosts: hypervisors
   roles:
     - role: maglo.qemu.host
-      vars:
-        host_novnc_enabled: true  # Install novnc package
     - role: maglo.qemu.vms
       vars:
+        vms_labview_inventory_dir: /etc/labview/inventory.d
         vms_list:
           - name: web01
             disk_size: 40G
-            novnc_enabled: true
-            novnc_port: 6080  # Optional, auto-assigned if omitted
+            state: started
           - name: db01
             disk_size: 100G
-            novnc_enabled: true  # Port auto-assigned (6081 based on VNC display)
+            state: started
+    - role: maglo.qemu.labview
 ```
-
-Access the web console at `http://<host>:6080/vnc.html` (for web01) and `http://<host>:6081/vnc.html` (for db01).
 
 ### VM lifecycle operations
 

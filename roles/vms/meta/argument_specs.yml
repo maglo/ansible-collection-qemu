@@ -3,8 +3,8 @@ argument_specs:
   main:
     short_description: Create and manage QEMU/KVM virtual machines.
     description:
-      - Creates the disk image, the UEFI variable store, the emulated TPM state,
-        the cloud-init seed ISO and the noVNC proxy of each VM in C(vms_list),
+      - Creates the disk image, the UEFI variable store, the emulated TPM state
+        and the cloud-init seed ISO of each VM in C(vms_list),
         writes the QEMU arguments of the VM to
         C(vms_vm_config_dir/<name>.conf), and brings the
         C(qemu-vm@<name>) service to the state that the VM asks for.
@@ -46,8 +46,6 @@ argument_specs:
             C(cloud_init_user_data) (cloud-init user-data content; triggers seed ISO generation),
             C(cloud_init_meta_data) (cloud-init meta-data content; auto-generated from VM name if omitted),
             C(cloud_init_network_config) (cloud-init network-config content; omitted from ISO if not set),
-            C(novnc_enabled) (enable noVNC web console for this VM),
-            C(novnc_port) (noVNC port, auto-assigned if not specified),
             C(state) (C(present), C(started), C(stopped), C(restarted) or C(absent)),
             C(force_destroy) (required by C(state: absent)),
             C(shutdown_timeout) (seconds to wait for the guest to power down)."
@@ -179,9 +177,6 @@ argument_specs:
                 console through the host only, which suits a console service
                 that proxies it. Wrap an IPv6 address in brackets, for example
                 C([::1]).
-              - >-
-                The noVNC instance of a VM connects to C(localhost), so it
-                keeps working with a loopback address.
             type: str
           serial_socket:
             description:
@@ -270,16 +265,6 @@ argument_specs:
               Content for the cloud-init C(network-config) file (Netplan or cloud-init v1/v2 format).
               When omitted, no C(network-config) file is included in the seed ISO.
             type: str
-          novnc_enabled:
-            description: >-
-              Enable noVNC web console for this VM. Overrides C(vms_default_novnc_enabled).
-              Requires novnc package to be installed (via host role with host_novnc_enabled: true).
-            type: bool
-          novnc_port:
-            description: >-
-              Port number for the noVNC web console.
-              If not specified, auto-assigned as 6080 + VNC display number.
-            type: int
           state:
             description:
               - >-
@@ -289,9 +274,9 @@ argument_specs:
                 C(restarted) shuts the guest down over QMP and starts
                 it again, C(absent) destroys the VM and every artifact of it.
               - >-
-                C(present) does not stop the swtpm and noVNC instances of the VM:
-                the role starts those whenever C(tpm) or C(novnc_enabled) is on,
-                so that the VM can be started by hand afterwards.
+                C(present) does not stop the swtpm instance of the VM: the role
+                starts it whenever C(tpm) is on, so that the VM can be started
+                by hand afterwards.
             type: str
             choices:
               - started
@@ -465,20 +450,6 @@ argument_specs:
         description: Default CPU model passed to QEMU C(-cpu) flag for VMs that do not specify C(cpu_model).
         type: str
         default: host
-      vms_default_novnc_enabled:
-        description: >-
-          Whether VMs default to noVNC web console when not specified per-VM.
-          Requires novnc package to be installed (via host role).
-        type: bool
-        default: false
-      vms_default_novnc_port:
-        description: >-
-          Default noVNC port for VMs that do not specify C(novnc_port).
-          When it is null, each VM gets 6080 plus its own VNC display number.
-          A fixed value gives every VM the same port, so it suits a host with
-          one noVNC VM only; the role fails the run when two VMs would share
-          a port.
-        type: int
       vms_default_shutdown_timeout:
         description: >-
           Default timeout in seconds for graceful ACPI shutdown before forcing stop.

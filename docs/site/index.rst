@@ -16,7 +16,7 @@
        <span>UEFI &amp; Secure Boot</span>
        <span>TPM 2.0</span>
        <span>cloud-init</span>
-       <span>noVNC</span>
+       <span>console service</span>
      </div>
      <div class="qemu-install">ansible-galaxy collection install maglo.qemu</div>
      <div class="qemu-hero-actions">
@@ -42,7 +42,7 @@ to hand-edit and no second source of truth on the host.
       :class-card: sd-shadow-none
 
       VMs are driven directly by ``qemu-system-*``. Nothing to install beyond
-      QEMU, ``swtpm`` and — if you want a browser console — noVNC.
+      QEMU and ``swtpm``.
 
    .. grid-item-card:: :octicon:`gear` systemd-native
       :class-card: sd-shadow-none
@@ -88,8 +88,8 @@ Point the two roles at a host and describe the VMs you want:
                cpus: 8
                state: started
 
-The ``host`` role installs the QEMU/KVM packages and the ``qemu-vm@.service``,
-``swtpm@.service`` and ``novnc@.service`` template units. The ``vms`` role
+The ``host`` role installs the QEMU/KVM packages and the ``qemu-vm@.service``
+and ``swtpm@.service`` template units. The ``vms`` role
 creates each disk image, writes ``/etc/qemu/vms/<name>.conf`` and manages the
 ``qemu-vm@<name>.service`` instance of every VM.
 

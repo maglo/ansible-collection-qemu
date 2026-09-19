@@ -8,6 +8,3 @@ all:
       hosts:
         kvm1.example.com:
         kvm2.example.com:
-    qemu_hosts_novnc:
-      hosts:
-        kvm-novnc1.example.com:

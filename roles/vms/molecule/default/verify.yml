@@ -583,6 +583,38 @@
           - "'-qmp unix:/var/lib/qemu/testvm-console/control.sock,server=on,wait=off' in _content"
           - "'-monitor' not in _content"
 
+    # ── Upgrade cleanup: what per-VM noVNC left behind ────────
+    # prepare.yml planted these on testvm, as a host that ran an earlier
+    # release would carry them. The drop-in is the one that matters: it makes
+    # the VM unit require `novnc@testvm.service`, which this release no longer
+    # ships, so systemd would refuse to start the VM.
+    - name: Stat the noVNC leftovers of testvm
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: novnc_leftovers
+      loop:
+        - /etc/systemd/system/qemu-vm@testvm.service.d/novnc-dependency.conf
+        - /etc/qemu/vms/novnc-testvm.conf
+        - /etc/systemd/system/qemu-vm@testvm.service.d/site-local.conf
+
+    - name: Assert the noVNC leftovers of testvm are gone
+      ansible.builtin.assert:
+        that:
+          - not novnc_leftovers.results[0].stat.exists
+          - not novnc_leftovers.results[1].stat.exists
+        fail_msg: >-
+          A noVNC leftover survived the run:
+          {{ novnc_leftovers.results[:2] | selectattr('stat.exists')
+             | map(attribute='item') | list }}
+
+    # The cleanup removes one named file, not the directory: a drop-in the
+    # deployer put there is not ours to delete.
+    - name: Assert a drop-in of the deployer's own survived
+      ansible.builtin.assert:
+        that:
+          - novnc_leftovers.results[2].stat.exists
+        fail_msg: "the cleanup removed a drop-in that does not belong to the role"
+
     # ── VM config — testvm-vnc-all (explicit empty vnc_address) ──
     - name: Read testvm-vnc-all config
       ansible.builtin.slurp:

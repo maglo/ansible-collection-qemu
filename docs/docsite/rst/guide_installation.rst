@@ -75,7 +75,7 @@ Package repositories
 --------------------
 
 The ``maglo.qemu.host`` role installs ``swtpm``, ``swtpm-tools``, ``socat``,
-``genisoimage`` and, optionally, ``novnc``. These come from **EPEL** (Extra
+and ``genisoimage``. These come from **EPEL** (Extra
 Packages for Enterprise Linux). Enable it before the first run:
 
 .. code-block:: bash

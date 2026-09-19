@@ -19,10 +19,6 @@ Copy one, point it at your own inventory and adjust ``vms_list``.
      - Host setup plus a couple of VMs.
    * - `labview.yml <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/labview.yml>`_
      - Host and VMs with every console served by one console service.
-   * - `vms_with_novnc.yml <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/vms_with_novnc.yml>`_
-     - Host and VMs with the noVNC web console enabled.
-   * - `novnc_host.yml <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/novnc_host.yml>`_
-     - **Deprecated.** Use ``vms_with_novnc.yml``.
 
 `inventory.example.yml
 <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/inventory.example.yml>`_
@@ -141,7 +137,6 @@ The ISO has to be on the host already; the role does not fetch it.
                disk_size: 40G
                usb_disk_image: /var/lib/qemu/images/installer.iso
                usb_boot_priority: true
-               novnc_enabled: true
                state: started
 
 Tearing a VM down
@@ -169,7 +164,7 @@ Every console through one service
 
 ``playbooks/labview.yml`` deploys the labview console service beside the VMs,
 so every machine's framebuffer, serial line and control channel is reachable
-behind one port instead of one noVNC instance per VM.
+behind one port, which is how a console reaches a machine.
 
 .. code-block:: yaml
 

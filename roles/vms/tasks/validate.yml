@@ -130,20 +130,6 @@
       {{ _vms_active_vms | groupby('qmp_socket') | selectattr('1.1', 'defined')
                          | map(attribute='0') | list }}
 
-- name: Validate that no two VMs share a noVNC port
-  ansible.builtin.assert:
-    that:
-      - _vms_ports | length == _vms_ports | unique | length
-    fail_msg: >-
-      Two VMs would listen on noVNC port {{ _vms_dupe_ports | join(', ') }}.
-      Set the `novnc_port` key of one of them, or leave vms_default_novnc_port
-      unset so that each VM gets 6080 plus its own VNC display.
-  vars:
-    _vms_ports: "{{ _vms_novnc_vms | map(attribute='novnc_port') | list }}"
-    _vms_dupe_ports: >-
-      {{ _vms_novnc_vms | groupby('novnc_port') | selectattr('1.1', 'defined')
-                        | map(attribute='0') | list }}
-
 # Destroying a VM removes its disk image, so the operator has to ask for it
 # twice. The check runs here, before the creation phase, so that a run that
 # cannot finish changes nothing.

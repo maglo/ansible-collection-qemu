@@ -15,3 +15,65 @@
       register: _bridge_add
       changed_when: _bridge_add.rc == 0
       failed_when: _bridge_add.rc != 0 and 'File exists' not in _bridge_add.stderr
+
+    # ── Leftovers of a pre-0.6.0 noVNC VM ─────────────────────
+    # 0.6.0 replaced per-VM noVNC with the labview console service, so the
+    # host role no longer ships `novnc@.service`. A VM created before the
+    # upgrade still carries a drop-in that makes its unit require that
+    # service, and systemd refuses to start a unit whose `Requires=` names a
+    # unit that does not exist. Plant the leftovers so the converge has
+    # something to clean up and verify.yml can assert it is gone.
+    - name: Create the drop-in directory of testvm
+      ansible.builtin.file:
+        path: /etc/systemd/system/qemu-vm@testvm.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      become: true
+
+    - name: Write the noVNC dependency drop-in of testvm
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/qemu-vm@testvm.service.d/novnc-dependency.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by Ansible - vms role
+          # noVNC dependency for VM testvm
+          [Unit]
+          After=novnc@testvm.service
+          Requires=novnc@testvm.service
+      become: true
+
+    - name: Create the VM config directory
+      ansible.builtin.file:
+        path: /etc/qemu/vms
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      become: true
+
+    - name: Write the noVNC environment file of testvm
+      ansible.builtin.copy:
+        dest: /etc/qemu/vms/novnc-testvm.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          VNC_TARGET=localhost:5992
+          NOVNC_PORT=6172
+      become: true
+
+    # A drop-in that is not ours has to survive the cleanup.
+    - name: Write a drop-in of the deployer's own
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/qemu-vm@testvm.service.d/site-local.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          CPUWeight=200
+      become: true
