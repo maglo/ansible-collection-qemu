@@ -17,6 +17,8 @@ Copy one, point it at your own inventory and adjust ``vms_list``.
      - Minimal host setup: packages and the systemd template units.
    * - `vms.yml <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/vms.yml>`_
      - Host setup plus a couple of VMs.
+   * - `labview.yml <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/labview.yml>`_
+     - Host and VMs with every console served by one console service.
    * - `vms_with_novnc.yml <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/vms_with_novnc.yml>`_
      - Host and VMs with the noVNC web console enabled.
    * - `novnc_host.yml <https://github.com/maglo/ansible-collection-qemu/blob/main/playbooks/novnc_host.yml>`_
@@ -161,6 +163,37 @@ variable store, TPM state, seed ISO and systemd drop-ins — so it needs
              - name: web01
                state: absent
                force_destroy: true
+
+Every console through one service
+---------------------------------
+
+``playbooks/labview.yml`` deploys the labview console service beside the VMs,
+so every machine's framebuffer, serial line and control channel is reachable
+behind one port instead of one noVNC instance per VM.
+
+.. code-block:: yaml
+
+   - hosts: qemu_hosts
+     become: true
+     roles:
+       - role: maglo.qemu.host
+
+       - role: maglo.qemu.vms
+         vars:
+           vms_labview_inventory_dir: /etc/labview/inventory.d
+           vms_list:
+             - name: web01
+               disk_size: 20G
+               vnc_address: 127.0.0.1
+               state: started
+
+       - role: maglo.qemu.labview
+
+The two directories must match: the ``vms`` role writes one inventory file per
+VM, and the ``labview`` role serves what it finds there. labview listens on
+loopback, so put a reverse proxy in front of it to terminate TLS and
+authenticate — :ref:`ansible_collections.maglo.qemu.docsite.guide_console_service`
+states what any proxy has to do.
 
 See also
 --------

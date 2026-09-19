@@ -171,6 +171,7 @@ The scenarios are:
 |--------|--------------|-------------|----------------|
 | `host` | `default`    | yes         | Packages, directories, `qemu-vm@.service` and `swtpm@.service` |
 | `host` | `novnc`      | yes         | `host_novnc_enabled` — the `novnc` package and `novnc@.service` |
+| `labview` | `default` | yes      | The console service: the account, the binary, the directory modes, the unit, the polkit rule, and that the running service serves the machine the `vms` role wrote |
 | `vms`  | `default`    | yes         | Disk images, config files, UEFI NVRAM, TPM, networking |
 | `vms`  | `disk_image` | **no**      | `disk_image_url` provisioning — it downloads a multi-gigabyte cloud image, so CI does not run it. Run it by hand before a release |
 | `vms`  | `labview`    | yes         | `vms_labview_inventory_dir` — the per-machine console service inventory file, and its removal by `state: absent` |

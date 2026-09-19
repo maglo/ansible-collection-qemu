@@ -6,6 +6,7 @@ sections:
       - guide_host
       - guide_vm_management
       - guide_features
+      - guide_console_service
       - guide_examples
   - title: Development
     toctree:

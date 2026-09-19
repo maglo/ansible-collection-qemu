@@ -33,6 +33,7 @@ is for you.
 |------|-------------|
 | [`maglo.qemu.host`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/host/README.md) | Install QEMU/KVM packages, deploy the systemd template units, and optionally set up noVNC |
 | [`maglo.qemu.vms`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/vms/README.md) | Create and manage VMs — disk images, UEFI and Secure Boot, TPM, networking, consoles, cloud-init, USB, lifecycle |
+| [`maglo.qemu.labview`](https://github.com/maglo/ansible-collection-qemu/blob/main/roles/labview/README.md) | Deploy the labview console service — every VM's framebuffer, serial line and control channel behind one port |
 
 ## Requirements
 
@@ -106,9 +107,11 @@ Everything is on the documentation site:
 | [Host setup](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_host.html) | Preparing a hypervisor: packages, directories, systemd units, SELinux |
 | [VM management](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_vm_management.html) | Creating, starting, restarting and destroying VMs |
 | [Feature guide](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_features.html) | Disks, UEFI and Secure Boot, TPM, networking, consoles, cloud-init |
+| [Console service](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_console_service.html) | Serving every VM console through one service, and the proxy in front of it |
 | [Example playbooks](https://maglo.github.io/ansible-collection-qemu/collection/docsite/guide_examples.html) | Ready-to-run playbooks |
 | [`host` role reference](https://maglo.github.io/ansible-collection-qemu/collection/host_role.html) | Every `host_*` variable, generated from the role argument spec |
 | [`vms` role reference](https://maglo.github.io/ansible-collection-qemu/collection/vms_role.html) | Every `vms_*` variable and per-VM key |
+| [`labview` role reference](https://maglo.github.io/ansible-collection-qemu/collection/labview_role.html) | Every `labview_*` variable |
 | [CHANGELOG.rst](https://github.com/maglo/ansible-collection-qemu/blob/main/CHANGELOG.rst) | Release notes |
 
 Offline, `ansible-doc -t role maglo.qemu.host` and `ansible-doc -t role

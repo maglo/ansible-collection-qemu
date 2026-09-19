@@ -171,6 +171,7 @@ one — the guest OS is not the collection's concern.
    collection/docsite/guide_host
    collection/docsite/guide_vm_management
    collection/docsite/guide_features
+   collection/docsite/guide_console_service
    collection/docsite/guide_examples
 
 .. toctree::
@@ -180,6 +181,7 @@ one — the guest OS is not the collection's concern.
 
    host role <collection/host_role>
    vms role <collection/vms_role>
+   labview role <collection/labview_role>
 
 .. toctree::
    :caption: Project
