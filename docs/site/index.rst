@@ -181,7 +181,6 @@ one — the guest OS is not the collection's concern.
 
    host role <collection/host_role>
    vms role <collection/vms_role>
-   labview role <collection/labview_role>
 
 .. toctree::
    :caption: Project
