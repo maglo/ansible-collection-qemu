@@ -1,10 +1,11 @@
 ---
 # Serve every VM console through one console service.
 #
-# labview listens on loopback. Put a reverse proxy in front of it to terminate
-# TLS and authenticate: the console service guide states what any proxy has to
-# do, and why each one matters.
-- name: Deploy the labview console service
+# The host role installs and runs labview as part of preparing a hypervisor.
+# It listens on loopback; put a reverse proxy in front of it to terminate TLS
+# and authenticate. The console service guide states what any proxy has to do,
+# and why each detail matters.
+- name: Hypervisors with the labview console service
   hosts: qemu_hosts
   become: true
 
@@ -13,7 +14,8 @@
 
     # The vms role is the only thing that knows a VM's VNC display, its socket
     # paths and its unit name, so it writes the per-machine inventory file that
-    # labview reads. The directory has to match labview_inventory_dir below.
+    # labview reads. The directory has to match host_labview_inventory_dir,
+    # which is /etc/labview/inventory.d by default.
     - role: maglo.qemu.vms
       vars:
         vms_labview_inventory_dir: /etc/labview/inventory.d
@@ -21,15 +23,8 @@
           - name: web01
             disk_size: 20G
             memory: 2048
-            vnc_address: 127.0.0.1
             state: started
           - name: db01
             disk_size: 40G
             memory: 4096
-            vnc_address: 127.0.0.1
             state: started
-
-    - role: maglo.qemu.labview
-      vars:
-        labview_inventory_dir: /etc/labview/inventory.d
-        labview_listen: 127.0.0.1:8080

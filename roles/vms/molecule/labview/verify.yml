@@ -102,3 +102,43 @@
         that:
           - _app01_conf.stat.exists
         fail_msg: "app01 should exist; only its inventory entry is left out"
+
+    # ── The contract, end to end ──────────────────────────────
+    # The host role installs and runs labview, and this scenario includes it,
+    # so the inventory files above are the machines the running service
+    # serves. This is the one place both halves are asserted together.
+    #
+    # By the time verify runs, side_effect.yml has destroyed web01, so the
+    # live service has to be serving db01 and nothing else:
+    #
+    #   db01   written by the vms role, still present   -> served
+    #   web01  destroyed, so its entry was removed      -> dropped again
+    #   app01  created with no inventory directory      -> never served
+    #
+    # web01 is the interesting one: labview watches the directory, so a
+    # destroyed machine leaves the running service, not just the disk.
+    #
+    # The `until` waits for that rescan rather than assuming it has already
+    # happened — labview re-reads the directory on a short interval, and
+    # verify starts the moment side_effect finishes.
+    - name: Ask labview for its machines, until the destroyed one is gone
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/api/machines
+        return_content: true
+      register: _labview_machines
+      retries: 10
+      delay: 2
+      until:
+        - _labview_machines is succeeded
+        - (_labview_machines.json.machines | map(attribute='id') | list | sort) == ['db01']
+
+    - name: Assert labview serves exactly the machines the inventory still holds
+      vars:
+        _served: "{{ _labview_machines.json.machines | map(attribute='id') | list | sort }}"
+      ansible.builtin.assert:
+        that:
+          - _served == ['db01']
+        fail_msg: >-
+          labview serves {{ _served }}; expected db01 alone — web01 was
+          destroyed by side_effect.yml and app01 was created with
+          vms_labview_inventory_dir unset.
