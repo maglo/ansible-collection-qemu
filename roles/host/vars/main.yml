@@ -1,2 +1,14 @@
 ---
 # Internal variables — not intended to be overridden
+
+# Release assets are named for the Go architecture, which is not what Ansible
+# reports. Only the architectures the release builds for belong here; an
+# unknown one fails in labview.yml rather than guessing a download.
+_host_labview_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+
+# The architecture the asset URL uses: what the deployer pinned, or what the
+# host reports. An empty string means neither, which labview.yml refuses.
+_host_labview_arch: >-
+  {{ host_labview_arch | default(_host_labview_arch_map[ansible_architecture] | default(''), true) }}

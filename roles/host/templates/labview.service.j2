@@ -12,23 +12,23 @@ Wants=network-online.target
 
 [Service]
 Type=exec
-ExecStart={{ labview_binary_path }} \
-    -listen {{ labview_listen }} \
-    -inventory {{ labview_inventory_dir }} \
-    -recordings-dir {{ labview_recordings_dir }} \
-    -screenshot-dir {{ labview_screenshot_dir }} \
-    -identity-header {{ labview_identity_header }} \
-    -host-access {{ labview_host_access }}{% for arg in labview_extra_args %} \
+ExecStart={{ host_labview_binary_path }} \
+    -listen {{ host_labview_listen }} \
+    -inventory {{ host_labview_inventory_dir }} \
+    -recordings-dir {{ host_labview_recordings_dir }} \
+    -screenshot-dir {{ host_labview_screenshot_dir }} \
+    -identity-header {{ host_labview_identity_header }} \
+    -host-access {{ host_labview_host_access }}{% for arg in host_labview_extra_args %} \
     {{ arg }}{% endfor %}
 
-User={{ labview_user }}
-Group={{ labview_group }}
+User={{ host_labview_user }}
+Group={{ host_labview_group }}
 {#
   The QEMU sockets are owned by the QEMU service user and group. labview joins
   the group to open them, which needs the sockets to be group writable:
   `host_vm_umask` in the host role is what makes them 0770 rather than 0755.
 -#}
-SupplementaryGroups={{ labview_qemu_group }}
+SupplementaryGroups={{ host_labview_qemu_group }}
 
 Restart=on-failure
 RestartSec=2s
@@ -54,7 +54,7 @@ TimeoutStopSec=15s
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths={{ labview_state_dir }}
+ReadWritePaths={{ host_labview_state_dir }}
 PrivateTmp=yes
 PrivateDevices=yes
 ProtectKernelTunables=yes

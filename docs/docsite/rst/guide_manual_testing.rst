@@ -89,8 +89,11 @@ Verify that the ``host`` role installs packages and deploys systemd template uni
    # Directories created
    ls -la /etc/qemu/vms /var/lib/qemu/images
 
-Test 2: labview role — the console service
--------------------------------------------
+Test 2: Host role — the console service
+----------------------------------------
+
+The ``host`` role installs and runs labview as part of preparing a hypervisor,
+so a bare application of the role is the whole playbook.
 
 .. code-block:: yaml
 
@@ -98,7 +101,6 @@ Test 2: labview role — the console service
      become: true
      roles:
        - role: maglo.qemu.host
-       - role: maglo.qemu.labview
 
 **Verify:**
 
@@ -292,7 +294,6 @@ Test 8: the console of a VM in a browser
                disk_size: 5G
                vnc: 0
                state: started
-       - role: maglo.qemu.labview
 
 **Verify:**
 

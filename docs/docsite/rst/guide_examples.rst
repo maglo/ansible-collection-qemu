@@ -182,10 +182,9 @@ behind one port, which is how a console reaches a machine.
                vnc_address: 127.0.0.1
                state: started
 
-       - role: maglo.qemu.labview
-
-The two directories must match: the ``vms`` role writes one inventory file per
-VM, and the ``labview`` role serves what it finds there. labview listens on
+The ``host`` role runs the console service, and ``vms_labview_inventory_dir``
+has to name the directory it reads — ``/etc/labview/inventory.d`` by default,
+which is ``host_labview_inventory_dir``. labview listens on
 loopback, so put a reverse proxy in front of it to terminate TLS and
 authenticate — :ref:`ansible_collections.maglo.qemu.docsite.guide_console_service`
 states what any proxy has to do.

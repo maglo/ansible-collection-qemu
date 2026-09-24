@@ -10,7 +10,8 @@ serial line, and a control channel that can send a key chord, take a frame or
 power a machine.
 
 The collection deploys `labview <https://github.com/maglo/qemu-lab-manager>`_
-with the ``maglo.qemu.labview`` role.
+with the ``maglo.qemu.host`` role, which installs and runs it as part of
+preparing a hypervisor.
 
 The shape
 ---------
@@ -29,9 +30,9 @@ client holds the keyboard at a time, and everyone else watches.
 Deploying it
 ------------
 
-Three roles, in order. The ``host`` role creates the QEMU service group and
-leaves the sockets group writable; the ``vms`` role writes one inventory file
-per VM; the ``labview`` role serves them.
+Two roles. The ``host`` role prepares the hypervisor — the QEMU service group,
+sockets that are group writable, and the console service itself — and the
+``vms`` role writes one inventory file per VM for that service to serve.
 
 .. code-block:: yaml
 
@@ -49,10 +50,9 @@ per VM; the ``labview`` role serves them.
                vnc_address: 127.0.0.1
                state: started
 
-       - role: maglo.qemu.labview
 
-``vms_labview_inventory_dir`` and ``labview_inventory_dir`` must name the same
-directory. They both default to nothing useful on their own: the ``vms`` role
+``vms_labview_inventory_dir`` and ``host_labview_inventory_dir`` must name the
+same directory. They both default to nothing useful on their own: the ``vms`` role
 writes no inventory unless the variable is set, and labview serves an empty lab
 if it is pointed somewhere nothing was written.
 
@@ -90,16 +90,16 @@ Two layers have to agree before a machine is restarted. labview maps a machine
 to a unit through the inventory, so it can only ask about units the inventory
 named. The rule is the host's own opinion about which units that account may
 touch, so a mistake in the inventory cannot become "restart anything on this
-hypervisor". ``labview_unit_pattern`` narrows it further:
+hypervisor". ``host_labview_unit_pattern`` narrows it further:
 
 .. code-block:: yaml
 
-   labview_unit_pattern: '^qemu-vm@lab-[A-Za-z0-9._-]+\.service$'
+   host_labview_unit_pattern: '^qemu-vm@lab-[A-Za-z0-9._-]+\.service$'
 
 Putting a proxy in front
 ------------------------
 
-``labview_listen`` is ``127.0.0.1:8080``, and the role warns when it is set to
+``host_labview_listen`` is ``127.0.0.1:8080``, and the role warns when it is set to
 anything else. labview authenticates nobody: whoever can reach it holds the
 write lease of every machine, so the address it binds is the whole access
 control story until a proxy provides one.
@@ -116,7 +116,7 @@ which fails in a way that looks like a console service bug:
    to ``127.0.0.1:8080`` makes every websocket look cross-origin, and every
    console is refused.
 2. **Set the identity header on the websocket upgrade**, not only on ordinary
-   requests. ``labview_identity_header`` — ``X-Forwarded-User`` by default — is
+   requests. ``host_labview_identity_header`` — ``X-Forwarded-User`` by default — is
    the only thing naming the lease holder. A proxy that sets it on plain HTTP
    alone leaves every console and serial socket unidentified, so no lease
    matches the person holding it and nobody can type.
@@ -158,7 +158,7 @@ Where a proxy asserts identity under another name, point labview at it:
 
 .. code-block:: yaml
 
-   labview_identity_header: X-Auth-Request-User
+   host_labview_identity_header: X-Auth-Request-User
 
 Identity is not an authorisation input. Everyone who gets past the proxy sees
 every machine; the header decides who holds the keyboard, not who may look.
@@ -168,7 +168,7 @@ Guest boot output
 
 A VM's serial console is a socket rather than stdout, so it no longer reaches
 the journal of ``qemu-vm@<name>.service``. The console service records a
-transcript per run under ``labview_recordings_dir`` instead, and reads no host
+transcript per run under ``host_labview_recordings_dir`` instead, and reads no host
 journal at all.
 
 A consumer who read guest boot output with ``journalctl -u qemu-vm@<name>``
@@ -201,7 +201,7 @@ reload.
 **The page loads but no machines appear.** labview serves what the inventory
 directory holds. Check that ``vms_labview_inventory_dir`` was set on the run
 that created the VMs, and that it names the same directory as
-``labview_inventory_dir``.
+``host_labview_inventory_dir``.
 
 See also
 --------

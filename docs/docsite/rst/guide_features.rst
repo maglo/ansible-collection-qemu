@@ -184,7 +184,7 @@ IPv6 address in brackets, for example ``[::1]``.
    way. Prefer the default, and reach the console through a console service or
    an SSH tunnel.
 
-For a browser console, deploy the ``maglo.qemu.labview`` role. It serves the
+For a browser console, the ``maglo.qemu.host`` role runs labview. It serves the
 framebuffer, serial line and control channel of every machine behind one
 port, reading the inventory the ``vms`` role writes — see
 :ref:`ansible_collections.maglo.qemu.docsite.guide_console_service`.

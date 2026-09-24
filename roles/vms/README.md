@@ -671,7 +671,7 @@ there survives. A host that never used noVNC does nothing at all.
 
 ### Browser console
 
-Deploy the [`maglo.qemu.labview`](../labview/README.md) role. It serves the
+The [`maglo.qemu.host`](../host/README.md) role runs labview. It serves the
 framebuffer, serial line and control channel of every machine behind one port,
 reading the per-machine inventory this role writes:
 
@@ -689,7 +689,6 @@ reading the per-machine inventory this role writes:
           - name: db01
             disk_size: 100G
             state: started
-    - role: maglo.qemu.labview
 ```
 
 ### VM lifecycle operations
