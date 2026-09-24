@@ -1,0 +1,193 @@
+---
+# Install and run labview, the console service of the lab.
+#
+# labview serves the framebuffer, serial line and control channel of every
+# machine behind one port, reading the per-machine inventory that the `vms`
+# role writes through `vms_labview_inventory_dir`. Preparing a hypervisor to
+# run it is host setup, which is why it lives here beside the QEMU packages
+# and the template units rather than in a role of its own.
+
+# ── Validation ────────────────────────────────────────────
+# Fail before anything is installed, with a message that names the fix.
+
+- name: Validate that the architecture has a labview release asset
+  ansible.builtin.assert:
+    that:
+      - _host_labview_arch | length > 0
+    fail_msg: >-
+      No labview release asset is known for architecture
+      `{{ ansible_architecture }}`. The release builds linux/amd64 and
+      linux/arm64. Set `host_labview_arch` to the suffix of the asset to
+      install, or point `host_labview_binary_url` at your own build.
+    success_msg: "labview will be installed for {{ _host_labview_arch }}"
+
+- name: Validate that the labview listen address has a port
+  ansible.builtin.assert:
+    that:
+      - host_labview_listen is string
+      - "':' in host_labview_listen"
+    fail_msg: >-
+      `host_labview_listen` must be an address and a port, such as
+      127.0.0.1:8080. It is `{{ host_labview_listen }}`.
+
+# labview authenticates nobody: the identity it acts on is a header a proxy
+# sets. A run that publishes it beyond loopback without a proxy in front hands
+# every viewer the write lease, so say so loudly. It is not an error — a lab
+# may mean it — so this warns rather than fails.
+- name: Warn when labview is published beyond loopback
+  ansible.builtin.debug:
+    msg: >-
+      labview will listen on {{ host_labview_listen }}, which is not loopback.
+      labview performs no authentication of its own: anyone who can reach this
+      address can take the write lease of every machine. Put a reverse proxy
+      that terminates TLS and authenticates in front of it, or bind loopback
+      and reach it through one. See the console service guide.
+  when: not (host_labview_listen is match('^(127\.|\[?::1\]?:|localhost:)'))
+
+# ── Service account ───────────────────────────────────────
+# polkit matches the subject by user name, which it reads from the kernel and
+# maps through NSS, so labview needs a real host account rather than a
+# DynamicUser. It never logs in, so it gets no shell.
+
+- name: Create the labview group
+  ansible.builtin.group:
+    name: "{{ host_labview_group }}"
+    system: true
+    state: present
+  become: true
+
+- name: Create the labview user
+  ansible.builtin.user:
+    name: "{{ host_labview_user }}"
+    group: "{{ host_labview_group }}"
+    groups: "{{ [host_labview_qemu_group] }}"
+    append: true
+    system: true
+    home: "{{ host_labview_state_dir }}"
+    create_home: false
+    shell: /sbin/nologin
+    comment: labview console service
+    state: present
+  become: true
+  notify: Restart labview
+
+# ── Binary ────────────────────────────────────────────────
+# The release publishes a statically linked binary and a SHA256SUMS beside it.
+# get_url takes the checksum as a URL, fetches that file and matches the entry
+# whose name is the basename of the asset URL, so a version bump is one
+# variable. Setting `host_labview_checksum` to null skips the comparison,
+# which is for a mirror that publishes no checksum.
+
+- name: Download the labview binary
+  ansible.builtin.get_url:
+    url: "{{ host_labview_binary_url }}"
+    checksum: "{{ host_labview_checksum | default(omit, true) }}"
+    dest: "{{ host_labview_binary_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  notify: Restart labview
+
+# ── Directories ───────────────────────────────────────────
+
+- name: Create the labview state and recordings directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ host_labview_user }}"
+    group: "{{ host_labview_group }}"
+    mode: "0750"
+  become: true
+  loop:
+    - "{{ host_labview_state_dir }}"
+    - "{{ host_labview_recordings_dir }}"
+
+# Shared with QEMU, and the one directory two services write to. QEMU writes a
+# frame here on a `screendump`, as its own user, and labview reads it and
+# removes it again. The group is therefore the QEMU group and not labview's
+# own, g+w lets QEMU create the file, and setgid keeps a frame in that group
+# so labview can still read it.
+#
+# PrivateTmp in the unit is why this is here and not in /tmp: QEMU would write
+# into the real /tmp and labview would look in its own.
+- name: Create the labview screenshot directory shared with QEMU
+  ansible.builtin.file:
+    path: "{{ host_labview_screenshot_dir }}"
+    state: directory
+    owner: "{{ host_labview_user }}"
+    group: "{{ host_labview_qemu_group }}"
+    mode: "02770"
+  become: true
+
+# The vms role creates this too, when it writes the first machine file. Both
+# roles use root:root 0755, so whichever runs first wins and the other changes
+# nothing. Creating it here lets labview start on a hypervisor that has no VMs
+# yet, rather than failing on a missing directory.
+- name: Create the labview inventory directory
+  ansible.builtin.file:
+    path: "{{ host_labview_inventory_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+# ── polkit ────────────────────────────────────────────────
+# Mandatory, not optional. labview is a system service and so has no logind
+# session: polkit evaluates a power operation as neither local nor active,
+# falls through to auth_admin, and finds no agent to answer the prompt. Every
+# start, stop and restart then fails, and it fails in a way that reads as a
+# labview fault rather than a missing rule.
+#
+# polkitd watches its rules directories and picks a new rule up by itself, so
+# there is nothing to reload.
+
+- name: Create the polkit rules directory
+  ansible.builtin.file:
+    path: "{{ host_labview_polkit_rule_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Install the labview polkit rule
+  ansible.builtin.template:
+    src: 50-labview-units.rules.j2
+    dest: "{{ host_labview_polkit_rule_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+# ── The service ───────────────────────────────────────────
+
+- name: Install the labview systemd unit
+  ansible.builtin.template:
+    src: labview.service.j2
+    dest: /etc/systemd/system/labview.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - Restart labview
+
+# `daemon_reload` here is what makes a first run work: the unit was written a
+# moment ago and the handlers do not run until the end of the play, so this
+# task reads the unit itself rather than starting a service systemd has not
+# heard of. The handlers still fire afterwards, to restart labview when the
+# binary or the unit changed.
+#
+# `meta: flush_handlers` would be the other way to do it, but main.yml gates
+# this file with a `when` on the import, and a `when` on an import is copied
+# onto every task in it — including a `meta`.
+- name: Enable and start the labview service
+  ansible.builtin.systemd_service:
+    name: labview.service
+    enabled: true
+    state: "{{ host_labview_service_state }}"
+    daemon_reload: true
+  become: true

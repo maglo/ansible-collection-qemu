@@ -3,3 +3,10 @@
   ansible.builtin.systemd_service:
     daemon_reload: true
   become: true
+
+- name: Restart labview
+  ansible.builtin.systemd_service:
+    name: labview.service
+    state: restarted
+  become: true
+  when: host_labview_service_state == 'started'

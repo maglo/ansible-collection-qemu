@@ -102,3 +102,26 @@
         that:
           - _app01_conf.stat.exists
         fail_msg: "app01 should exist; only its inventory entry is left out"
+
+    # ── The contract, end to end ──────────────────────────────
+    # The host role installs and runs labview, and this scenario includes it,
+    # so the machine files written above are the machines the running service
+    # serves. This is the one place both halves are asserted together.
+    - name: Ask labview for its machines
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/api/machines
+        return_content: true
+      register: _labview_machines
+      retries: 5
+      delay: 2
+      until: _labview_machines is succeeded
+
+    - name: Assert labview serves the VMs the vms role wrote, and only those
+      vars:
+        _served: "{{ _labview_machines.json.machines | map(attribute='id') | list | sort }}"
+      ansible.builtin.assert:
+        that:
+          - _served == ['db01', 'web01']
+        fail_msg: >-
+          labview serves {{ _served }}; expected db01 and web01, and not app01,
+          which was created with vms_labview_inventory_dir unset.
