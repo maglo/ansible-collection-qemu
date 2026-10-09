@@ -152,6 +152,14 @@
 # polkitd watches its rules directories and picks a new rule up by itself, so
 # there is nothing to reload.
 
+# The polkit package owns this directory as root:polkitd 0750. Create it only
+# when it is missing, so the role does not change the mode of the package.
+- name: Stat the polkit rules directory
+  ansible.builtin.stat:
+    path: "{{ host_labview_polkit_rule_path | dirname }}"
+  register: _host_polkit_rules_dir
+  become: true
+
 - name: Create the polkit rules directory
   ansible.builtin.file:
     path: "{{ host_labview_polkit_rule_path | dirname }}"
@@ -160,6 +168,7 @@
     group: root
     mode: "0755"
   become: true
+  when: not _host_polkit_rules_dir.stat.exists
 
 - name: Install the labview polkit rule
   ansible.builtin.template:

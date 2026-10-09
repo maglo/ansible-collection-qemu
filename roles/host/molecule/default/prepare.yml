@@ -1,0 +1,15 @@
+---
+- name: Prepare
+  hosts: all
+  tasks:
+    # The polkit package ships this directory as root:polkitd 0750. The image
+    # has no polkit, so plant the directory with that mode, and verify.yml
+    # asserts that the role leaves it alone. The polkitd group does not exist
+    # here, so root stands in for it.
+    - name: Create the polkit rules directory as the package does
+      ansible.builtin.file:
+        path: /etc/polkit-1/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"

@@ -320,6 +320,28 @@
         src: /etc/polkit-1/rules.d/50-labview-units.rules
       register: rule_content
 
+    # polkit rules are JavaScript, and polkitd rejects the whole file on a
+    # shell-style comment.
+    - name: Assert the polkit rule has no shell-style comment
+      vars:
+        content: "{{ rule_content.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - content.splitlines() | select('match', '\\s*#') | list | length == 0
+        fail_msg: "the polkit rule has a '#' line, which polkitd cannot compile"
+
+    # prepare.yml created the directory with the mode of the polkit package.
+    - name: Stat the polkit rules directory
+      ansible.builtin.stat:
+        path: /etc/polkit-1/rules.d
+      register: rules_dir
+
+    - name: Assert the role left the polkit rules directory alone
+      ansible.builtin.assert:
+        that:
+          - rules_dir.stat.mode == '0750'
+        fail_msg: "the polkit rules directory is {{ rules_dir.stat.mode }}, not the 0750 of the package"
+
     - name: Assert the polkit rule grants exactly what labview needs
       vars:
         content: "{{ rule_content.content | b64decode }}"
