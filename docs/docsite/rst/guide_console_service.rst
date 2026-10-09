@@ -196,7 +196,8 @@ keeps the old mode until its unit restarts.
 **Every power operation fails.** Check that the polkit rule is installed and
 that its pattern matches the unit names in the inventory. polkit watches its
 rules directory and picks a new rule up by itself, so there is nothing to
-reload.
+reload. A rule that polkitd cannot compile grants nothing, so also check
+``journalctl -u polkit`` for ``Error compiling script``.
 
 **The page loads but no machines appear.** labview serves what the inventory
 directory holds. Check that ``vms_labview_inventory_dir`` was set on the run
