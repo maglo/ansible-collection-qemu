@@ -91,17 +91,26 @@
 
 # ── Directories ───────────────────────────────────────────
 
-- name: Create the labview state and recordings directories
+# Search for others, so QEMU's user can pass through to the screenshot
+# directory below. Without it every `screendump` fails with EACCES. Others
+# still cannot list it, and the recordings stay private to labview.
+- name: Create the labview state directory
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ host_labview_state_dir }}"
+    state: directory
+    owner: "{{ host_labview_user }}"
+    group: "{{ host_labview_group }}"
+    mode: "0751"
+  become: true
+
+- name: Create the labview recordings directory
+  ansible.builtin.file:
+    path: "{{ host_labview_recordings_dir }}"
     state: directory
     owner: "{{ host_labview_user }}"
     group: "{{ host_labview_group }}"
     mode: "0750"
   become: true
-  loop:
-    - "{{ host_labview_state_dir }}"
-    - "{{ host_labview_recordings_dir }}"
 
 # Shared with QEMU, and the one directory two services write to. QEMU writes a
 # frame here on a `screendump`, as its own user, and labview reads it and

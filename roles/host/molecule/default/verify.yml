@@ -194,16 +194,18 @@
         - /var/lib/labview/screenshots
         - /etc/labview/inventory.d
 
+    # The state directory is searchable by others so QEMU can reach the
+    # screenshot directory inside it. The recordings stay private.
     - name: Assert the state and recordings directories
       ansible.builtin.assert:
         that:
-          - item.stat.isdir
-          - item.stat.pw_name == 'labview'
-          - item.stat.gr_name == 'labview'
-          - item.stat.mode == '0750'
-      loop: "{{ dirs.results[0:2] }}"
+          - item.0.stat.isdir
+          - item.0.stat.pw_name == 'labview'
+          - item.0.stat.gr_name == 'labview'
+          - item.0.stat.mode == item.1
+      loop: "{{ dirs.results[0:2] | zip(['0751', '0750']) | list }}"
       loop_control:
-        label: "{{ item.item }}"
+        label: "{{ item.0.item }}"
 
     # QEMU writes a frame here as its own user and labview reads it back, so
     # the group is qemu, it is group writable, and setgid keeps a new frame in
@@ -223,6 +225,28 @@
           - entry.mode == '2770'
           - entry.isgid
         fail_msg: "screenshot directory is {{ entry.pw_name }}:{{ entry.gr_name }} {{ entry.mode }}"
+
+    # The modes above can each be right while a parent still blocks QEMU, so
+    # write a frame as QEMU's user, the way a `screendump` does. runuser and
+    # not become_user: the scenario becomes with su, which needs a login
+    # shell, and the qemu account has none.
+    - name: Write into the screenshot directory as the QEMU user
+      ansible.builtin.command:
+        argv:
+          - runuser
+          - -u
+          - qemu
+          - --
+          - touch
+          - /var/lib/labview/screenshots/verify-probe.png
+      changed_when: false
+      become: true
+
+    - name: Remove the probe frame
+      ansible.builtin.file:
+        path: /var/lib/labview/screenshots/verify-probe.png
+        state: absent
+      become: true
 
     # Both this role and the vms role create it, with the same owner and mode,
     # so neither fights the other.
