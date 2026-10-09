@@ -125,7 +125,7 @@ The [console service guide](../../docs/docsite/rst/guide_console_service.rst) co
 
 | Directory | Owner | Mode | Why |
 |-----------|-------|------|-----|
-| `host_labview_state_dir` | `labview:labview` | `0750` | Everything labview writes, and the only path the unit makes writable |
+| `host_labview_state_dir` | `labview:labview` | `0751` | Everything labview writes, and the only path the unit makes writable. Searchable by others so QEMU can reach the screenshot directory, but not listable |
 | `host_labview_recordings_dir` | `labview:labview` | `0750` | Serial transcripts |
 | `host_labview_screenshot_dir` | `labview:qemu` | `02770` | Shared with QEMU: QEMU writes a frame as its own user, labview reads it and removes it. Group writable so QEMU can create the file, setgid so the frame stays in a group labview can read |
 | `host_labview_inventory_dir` | `root:root` | `0755` | Written by the `vms` role. The `host` role creates it with the same owner and mode, so a hypervisor with no VMs yet still starts the service |
