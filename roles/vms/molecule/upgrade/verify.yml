@@ -1,0 +1,22 @@
+---
+# The check reports and changes nothing: the VMs that ran before the role ran
+# still run, and the VM the role never started is still stopped.
+- name: Verify - the report left every unit as it was
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Read the VM units
+      ansible.builtin.systemd_service:
+        name: qemu-vm@{{ item }}.service
+      register: _units
+      loop: [upgrade-stale, upgrade-current, upgrade-new, upgrade-idle]
+
+    - name: Assert the state of each unit
+      ansible.builtin.assert:
+        that: >-
+          item.status.ActiveState ==
+          ('inactive' if item.item == 'upgrade-idle' else 'active')
+        fail_msg: "{{ item.item }} is {{ item.status.ActiveState }}"
+      loop: "{{ _units.results }}"
+      loop_control:
+        label: "{{ item.item }}"

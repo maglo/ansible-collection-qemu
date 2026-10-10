@@ -1,0 +1,41 @@
+---
+# The containers have no KVM, so no VM in this scenario runs QEMU. A drop-in
+# replaces the command of each unit with a stand-in that the check cannot tell
+# apart from QEMU: a unit that runs, and a QMP socket that is or is not there.
+#
+# - `upgrade-stale` runs `sleep`, which opens no socket. It stands for a VM
+#   started from a config written before 0.6.0.
+# - `upgrade-current` runs a Python listener on the QMP socket path. It stands
+#   for a VM that runs its current config.
+# - `upgrade-new` runs `sleep`. The converge starts it, so it must not be
+#   reported even though it never opens a socket.
+# - `upgrade-idle` is never started.
+- name: Prepare - stand-in processes for the VM units
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Create the drop-in directories
+      ansible.builtin.file:
+        path: /etc/systemd/system/qemu-vm@{{ item }}.service.d
+        state: directory
+        mode: "0755"
+      loop: [upgrade-stale, upgrade-current, upgrade-new]
+
+    - name: Replace QEMU with a process that opens no socket
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/qemu-vm@{{ item }}.service.d/stand-in.conf
+        mode: "0644"
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/sleep infinity
+      loop: [upgrade-stale, upgrade-new]
+
+    - name: Replace QEMU with a process that listens on the QMP socket
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/qemu-vm@upgrade-current.service.d/stand-in.conf
+        mode: "0644"
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/python3 -c "import socket, time; s = socket.socket(socket.AF_UNIX); s.bind('/var/lib/qemu/upgrade-current/qmp.sock'); s.listen(); time.sleep(1e9)"

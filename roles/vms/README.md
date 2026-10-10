@@ -134,6 +134,8 @@ A configuration change is written to the `.conf` file but does not restart a run
 
 **Upgrading from a release before 0.6.0:** a VM that is already running was started from a command line with no QMP socket, because the role does not restart a running VM to apply a config change. Its first graceful shutdown finds no socket and falls through to the unit stop, which is SIGTERM. Restart each VM once after the upgrade to close the gap.
 
+The role finds these VMs for you. On every run it looks for a VM whose unit is running but whose QMP socket is missing, and prints a `NOTICE` that names each one and says to set `state: restarted` on it once. It skips a VM that is stopped, one that the run starts, and one that the run restarts or stops. The notice fails nothing: the VM is healthy, and the restart can wait for a maintenance window. It also fires when `qmp_socket` moves while the VM runs, for the same reason.
+
 `systemctl stop qemu-vm@<name>` is not the same thing: the unit sends SIGTERM to QEMU, which exits at once and leaves the guest file systems dirty.
 
 ### Destroying VMs

@@ -1,0 +1,42 @@
+---
+driver:
+  name: ${DRIVER:-docker}
+platforms:
+  - name: create-vm-upgrade
+    image: "geerlingguy/docker-rockylinux${EL_VERSION:-10}-ansible:latest"
+    command: ""
+    privileged: true
+    pre_build_image: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    tmpfs:
+      - /run
+      - /tmp
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    # Docker containers run as root; su works reliably root→root without
+    # PAM account management, whereas sudo may fail in minimal containers.
+    ANSIBLE_BECOME_METHOD: su
+verifier:
+  name: ansible
+# The default sequence, without `idempotence`.
+#
+# The converge starts VMs and then asserts what the role reports about them.
+# A second converge finds those VMs already running, so its first assertion,
+# that a host with no running VM reports nothing, cannot hold. verify.yml
+# checks the state that the first converge leaves.
+scenario:
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - cleanup
+    - destroy

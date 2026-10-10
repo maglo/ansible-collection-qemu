@@ -78,6 +78,8 @@ _vms_resolved: "{{ _vms_resolved_json | from_json }}"
 _vms_active_vms: "{{ _vms_resolved | rejectattr('state', 'equalto', 'absent') | list }}"
 _vms_absent_vms: "{{ _vms_resolved | selectattr('state', 'equalto', 'absent') | list }}"
 _vms_restart_vms: "{{ _vms_resolved | selectattr('state', 'equalto', 'restarted') | list }}"
+# The VMs whose running process, if any, this run leaves alone.
+_vms_kept_vms: "{{ _vms_active_vms | selectattr('state', 'in', ['present', 'started']) | list }}"
 _vms_uefi_vms: "{{ _vms_active_vms | selectattr('uefi') | list }}"
 _vms_secure_boot_vms: "{{ _vms_uefi_vms | selectattr('secure_boot') | list }}"
 _vms_tpm_vms: "{{ _vms_active_vms | selectattr('tpm') | list }}"

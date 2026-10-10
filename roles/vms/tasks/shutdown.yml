@@ -11,8 +11,8 @@
 # A VM that still runs from a command line written before 0.6.0 has no QMP
 # socket, because the role does not restart a running VM to apply a config
 # change. The send below then fails, this file falls through to the unit stop,
-# and that VM gets one ungraceful shutdown. Restarting each VM once after the
-# upgrade closes the gap.
+# and that VM gets one ungraceful shutdown. service.yml names each such VM on
+# every run.
 
 - name: Check VM service status for {{ item.name }}
   ansible.builtin.systemd_service:

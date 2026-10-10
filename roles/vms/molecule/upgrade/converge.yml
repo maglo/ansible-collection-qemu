@@ -1,0 +1,73 @@
+---
+- name: Converge - report VMs that run an outdated command line
+  hosts: all
+  tasks:
+    # The console service plays no part here, and its download is the one
+    # step of the host role that needs the network.
+    - name: Include host role
+      ansible.builtin.include_role:
+        name: host
+      vars:
+        host_labview_enabled: false
+
+    # Phase 1: the VMs exist, and nothing runs yet. No unit is running, so
+    # the role reports nothing.
+    - name: Create the VMs
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - {name: upgrade-stale, disk_size: 1G, uefi: false}
+          - {name: upgrade-current, disk_size: 1G, uefi: false}
+          - {name: upgrade-new, disk_size: 1G, uefi: false}
+          - {name: upgrade-idle, disk_size: 1G, uefi: false}
+
+    - name: Assert that a host with no running VM reports nothing
+      ansible.builtin.assert:
+        that: _vms_outdated_vms == []
+        fail_msg: "reported {{ _vms_outdated_vms }}"
+
+    # Phase 2: two VMs run before the next run of the role, as they would
+    # across an upgrade of the collection.
+    - name: Start the VMs that run before the upgrade
+      ansible.builtin.systemd_service:
+        name: qemu-vm@{{ item }}.service
+        state: started
+        daemon_reload: true
+      loop: [upgrade-stale, upgrade-current]
+
+    - name: Wait for the QMP socket of upgrade-current
+      ansible.builtin.wait_for:
+        path: /var/lib/qemu/upgrade-current/qmp.sock
+        timeout: 30
+
+    # Phase 3: the run after the upgrade. It starts `upgrade-new`, leaves
+    # `upgrade-idle` stopped, and must name `upgrade-stale` alone.
+    - name: Run the role across the running VMs
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - {name: upgrade-stale, disk_size: 1G, uefi: false}
+          - {name: upgrade-current, disk_size: 1G, uefi: false, state: started}
+          - {name: upgrade-new, disk_size: 1G, uefi: false, state: started}
+          - {name: upgrade-idle, disk_size: 1G, uefi: false}
+
+    - name: Assert that only the VM without a QMP socket is reported
+      ansible.builtin.assert:
+        that: _vms_outdated_vms == ['upgrade-stale']
+        fail_msg: "reported {{ _vms_outdated_vms }}, expected ['upgrade-stale']"
+
+    # Phase 4: `restarted` replaces the process in this run, so the role does
+    # not report the VM it is about to restart.
+    - name: Restart the stale VM
+      ansible.builtin.include_role:
+        name: vms
+      vars:
+        vms_list:
+          - {name: upgrade-stale, disk_size: 1G, uefi: false, state: restarted, shutdown_timeout: 1}
+
+    - name: Assert that a VM set to restarted is not reported
+      ansible.builtin.assert:
+        that: _vms_outdated_vms == []
+        fail_msg: "reported {{ _vms_outdated_vms }}"

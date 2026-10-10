@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - "vms role - report each VM that runs an outdated command line. The role does not restart a running VM to apply a config change, so a VM started by a release before 0.6.0 keeps a process with no QMP socket, and its next graceful shutdown ends in SIGTERM. Before it starts anything, the role now reads the unit of each VM and prints a ``NOTICE`` naming every VM whose unit is running but whose QMP socket is missing, with the fix: set ``state: restarted`` on it once. The notice fails nothing, and it names no VM that is stopped, that the run starts, or that the run restarts or stops (https://github.com/maglo/ansible-collection-qemu/issues/175)."
