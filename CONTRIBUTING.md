@@ -174,6 +174,7 @@ The scenarios are:
 | `vms`  | `labview`    | yes         | `vms_labview_inventory_dir` — the per-machine console service inventory file, its removal by `state: absent`, and that the running service serves exactly those machines |
 | `vms`  | `lifecycle`  | yes         | `state: absent` with and without `force_destroy`. It creates a VM and then destroys it, so it cannot be idempotent; its `test_sequence` leaves out `idempotence` |
 | `vms`  | `secureboot` | yes         | Secure Boot variable stores, `nvram_template`, `nvram_generation`, the NVRAM verification and the pre-0.4.0 upgrade path |
+| `vms`  | `upgrade`    | yes         | The notice for a running VM whose QMP socket is missing: it names that VM, and not one that is stopped, one the run starts, or one it restarts. Stand-in processes replace QEMU, because the containers have no KVM. The second run sees VMs the first one started, so its `test_sequence` leaves out `idempotence` |
 
 When you add a scenario, add it to the matrix in `.github/workflows/ci.yml` and
 to this table. The matrix has two axes, `el_version` and `target`; add a

@@ -183,6 +183,26 @@ file, but it does not restart a running VM, because a restart interrupts the
 guest. The change therefore takes effect the next time the VM starts. Set
 ``state: restarted`` on the VM to apply it now.
 
+One kind of stale process matters more than others. A VM that runs a command
+line without a QMP socket cannot be shut down gracefully: the shutdown request
+has nowhere to go, so ``state: restarted`` and ``state: absent`` end in SIGTERM.
+Every VM started by a release before 0.6.0 is in this state, and so is a VM
+whose ``qmp_socket`` moved while it ran.
+
+The role reports these VMs. Before it starts anything, it reads the unit of
+each VM and looks for its QMP socket. A running unit without a socket gives a
+notice like this one:
+
+.. code-block:: text
+
+   NOTICE: these VMs run a command line older than their config: web01.
+   Each unit is running, but its QMP socket is missing. ...
+
+Set ``state: restarted`` on each VM it names, once. The restart itself is
+ungraceful, so do it when the guest is idle. The notice does not fail the
+play, and it names no VM that is stopped, that the run starts, or that the run
+restarts or stops.
+
 See also
 --------
 

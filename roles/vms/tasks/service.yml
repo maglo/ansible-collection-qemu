@@ -27,6 +27,50 @@
   loop_control:
     label: "{{ item.name }}"
 
+# ── Running VMs with an outdated command line ──────────────
+# A running VM keeps the command line it started with. A VM whose unit is
+# running but whose QMP socket is not on disk therefore started from an
+# older config, such as one written before 0.6.0 added the socket. Its next
+# graceful shutdown cannot reach the guest and ends in SIGTERM, so say so.
+#
+# The unit state is read before the task below starts anything. A VM that
+# this run starts has no socket for a moment after the start, and it runs
+# the current config anyway. `restarted` and `stopped` VMs are left out,
+# because this run replaces or ends their process.
+- name: Read the state of the VM units
+  ansible.builtin.service_facts:
+  when: _vms_kept_vms | length > 0
+
+- name: Look for the QMP socket of {{ item.name }}
+  ansible.builtin.stat:
+    path: "{{ item.qmp_socket }}"
+  become: true
+  register: _vms_qmp_socket_stat
+  loop: "{{ _vms_kept_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: >-
+    ansible_facts.services['qemu-vm@' ~ item.name ~ '.service'].state
+    | default('') == 'running'
+
+- name: Collect the VMs that run an outdated command line
+  ansible.builtin.set_fact:
+    _vms_outdated_vms: >-
+      {{ _vms_qmp_socket_stat.results | default([])
+         | selectattr('stat', 'defined')
+         | rejectattr('stat.exists')
+         | map(attribute='item.name') | list }}
+
+- name: Report the VMs that run an outdated command line
+  ansible.builtin.debug:
+    msg: >-
+      NOTICE: these VMs run a command line older than their config:
+      {{ _vms_outdated_vms | join(', ') }}. Each unit is running, but its QMP
+      socket is missing. A graceful shutdown cannot reach such a guest, so
+      the next restart or destroy by this role stops it with SIGTERM. Set
+      `state: restarted` on each of them once to apply the current config.
+  when: _vms_outdated_vms | length > 0
+
 # `present` writes the config and leaves the qemu-vm@ unit alone, so an
 # operator can prepare a VM without starting it.
 - name: Manage service state for {{ item.name }}
