@@ -65,7 +65,7 @@ argument_specs:
       host_labview_version:
         description: Release of labview to install.
         type: str
-        default: "0.2.0"
+        default: "0.3.0"
       host_labview_arch:
         description: >-
           Architecture suffix of the release asset. When unset the role
