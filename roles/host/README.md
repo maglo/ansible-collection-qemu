@@ -32,7 +32,7 @@ It sets up the host only. The per-VM instances of both template units are manage
 | `host_service_group` | `qemu` | Group for the QEMU systemd service |
 | `host_vm_umask` | `0007` | Umask of the `qemu-vm@.service` units, and so the mode of every socket QEMU creates: `0770` rather than systemd's `0755` |
 | `host_labview_enabled` | `true` | Install and run the labview console service |
-| `host_labview_version` | `0.2.0` | Release of labview to install |
+| `host_labview_version` | `0.3.0` | Release of labview to install |
 | `host_labview_arch` | `null` | Architecture suffix of the release asset. Derived from `ansible_architecture` when unset |
 | `host_labview_binary_url` | the release asset | Where the binary comes from |
 | `host_labview_checksum` | the release `SHA256SUMS` | Checksum, in the form `get_url` takes. `null` downloads without verifying |
@@ -92,7 +92,7 @@ Point the `vms` role at the same directory so that it writes the per-machine inv
 labview ships as a statically linked binary on each release of `maglo/qemu-lab-manager`. There is no container image and no package, so the role downloads the release asset and verifies it against the `SHA256SUMS` published beside it. `get_url` fetches that file and matches the entry whose name is the basename of `host_labview_binary_url`. Upgrading is one variable:
 
 ```yaml
-host_labview_version: "0.3.0"
+host_labview_version: "0.4.0"
 ```
 
 The default trusts a checksum file served from the same place as the binary, which protects against a corrupted download rather than a compromised release. Pin a literal digest to do better. With `host_labview_checksum: null` there is nothing to compare, so an existing binary is left alone and a version bump does **not** replace it.

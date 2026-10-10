@@ -180,7 +180,7 @@
     - name: Assert the installed version is the one the role pins
       ansible.builtin.assert:
         that:
-          - version.stdout | trim == '0.2.0'
+          - version.stdout | trim == '0.3.0'
         fail_msg: "installed labview reports {{ version.stdout | trim }}"
 
     # ── Directories ───────────────────────────────────────────

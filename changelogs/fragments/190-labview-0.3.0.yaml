@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - "host role - ``host_labview_version`` defaults to ``0.3.0``, where it was ``0.2.0``. labview 0.2.1 fixes the browser console: a key press no longer closes the connection and freezes the picture, the console dials again after a machine restarts, and a machine that labview restarts reads as starting rather than failed. labview 0.3.0 plays a serial capture in the browser and fits the serial terminal to its pane. Neither release changes a flag or the inventory format, so the role changes nothing else. A host that sets ``host_labview_version`` keeps the version it sets (https://github.com/maglo/ansible-collection-qemu/issues/190)."

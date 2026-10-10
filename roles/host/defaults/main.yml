@@ -35,7 +35,7 @@ host_vm_umask: "0007"
 host_labview_enabled: true
 
 # Release of labview to install.
-host_labview_version: "0.2.0"
+host_labview_version: "0.3.0"
 
 # Architecture suffix of the release asset. When null the role derives it from
 # `ansible_architecture`: x86_64 gives amd64, aarch64 gives arm64. Set it
